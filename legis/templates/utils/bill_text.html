@@ -1,0 +1,19 @@
+{% load static %}
+
+
+<div id='detailExtension'>
+    {% if isMobile %}
+    <div>
+        <div class='postContext' style="text-align: center;" onclick='mobileSwitch("search")'>Table of Contents</div>
+    </div>
+    <div class='bottomDivider'></div>
+    {% endif %}
+    <div class='billText'>
+        {% if not billText or not billText.data|get_item:'TextHtml' %}
+            <div style='margin:auto;'>Text not available.</div>
+            <div></div>
+        {% else %}
+            {{ billText.data|get_item:'TextHtml'|safe }}
+        {% endif %}
+    </div>
+</div>

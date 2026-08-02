@@ -1,0 +1,35 @@
+{% load static %}
+
+<div class='card meeting' id='han-{{ h.id }}'>
+        
+    <div class='sponsor'>
+    </div>
+    <div class='cardContent'>
+        <div class='Info' style=width:100%;>
+            <div class='Code'>
+                <h2><a href='{{ h.get_absolute_url }}'>{% if 'Assembly' in a.organization %}Assembly{% else %}{{ a.organization }}{% endif %} Debates</a></h2>
+
+            </div>
+            <div class='Details'>
+                <div>
+                    {% if a.VideoURL and h.has_transcript %}
+                        <a style='display:inline-block;'style='margin-left:10px;' href='{{ h.get_absolute_url }}'>View from Start</a>
+                    {% elif a.VideoURL %}
+                        <a style='display:inline-block;'style='margin-left:10px;' href='{{ h.get_absolute_url }}'>Watch from Start</a>
+                    {% elif h.has_transcript %}
+                        <a style='display:inline-block;'style='margin-left:10px;' href='{{ h.get_absolute_url }}'>Read from Start</a>
+                    {% else %}
+                        <a style='display:inline-block;'style='margin-left:10px;' href='{{ h.get_absolute_url }}'>Transcripts may take several days</a>
+                    {% endif %}
+                    </div>
+                <ul>
+                <li>{{ h|get_bill_term:b.bill|safe }}</li>
+                
+                </ul>
+            </div>        
+                    
+            <div class='Embed' ></div>
+        </div>  
+    </div>
+    </div>
+<div class='bottomDivider'></div>

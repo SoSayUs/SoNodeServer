@@ -1,0 +1,119 @@
+{% load static %}
+
+<div class='card motion' id='{{ m.id }}'>
+        
+    <div class='sponsor'>
+    {% if motion.Sponsor_obj %}
+        {% with b=motion %}
+        {% include 'utils/person.html' %}
+        {% endwith %}
+
+    {% comment %}
+    {% if motion.Sponsor_obj %}
+    <div class='sponsor'>
+        <div>person</div>
+        {% if motion.Sponsor_obj.LogoLink %}
+            <a href={{ motion.Sponsor_obj.get_absolute_url }}><img class='sponsorPic' style='border-bottom:4px solid {{ motion.Sponsor_obj.Party_obj.color }};' src={{ motion.Sponsor_obj.LogoLink }}></a>
+        {% else %}
+            <img class='votePic' src={% static 'img/user-colored.png' %}>
+        {% endif %}
+        <div class='sponsorInfo'>
+            <div>Sponsor:</div>
+            <div><h3><a href={{ motion.Sponsor_obj.get_absolute_url }}>{{ motion.Sponsor_obj.FullName }}</a></h3></div>
+        </div>
+    </div>
+    {% endcomment %}
+    
+    {% elif motion.Government_obj and motion.Government_obj.LogoLinks and motion.Chamber in motion.Government_obj.LogoLinks %}
+        <img class='sponsorPic' src={% static motion.Government_obj.LogoLinks|get_item:motion.Chamber %}>
+    {% elif motion.Region_obj and motion.Region_obj.LogoLinks and 'flag' in motion.Region_obj.LogoLinks %}
+        <img class='sponsorPic' src={% static motion.Region_obj.LogoLinks|get_item:'flag' %}>
+    {% elif motion.Country_obj and motion.Country_obj.LogoLinks and 'flag' in motion.Country_obj.LogoLinks %}
+        <img class='sponsorPic' src={% static motion.Region_obj.LogoLinks|get_item:'flag' %}>
+
+    {% elif motion.Region_obj.LogoLinks and 'flag' in motion.Region_obj.LogoLinks %}
+        <img class='sponsorPic' src={% static motion.Region_obj.LogoLinks|get_item:'flag' %}>
+    
+    {% endif %}
+    </div>
+    <div class='cardContent'>
+    <div class='Info'>
+        <div class='Code'>
+            <h2><a href='{{ motion.get_absolute_url }}'>{% if motion.Government_obj.gov_level == 'Province' %}Assembly{% else %}{{ motion.Chamber }}{% endif %} {{ motion.Region_obj|modelNameByRegion:"Motion" }}  No. {{ motion.VoteNumber }}</a></h2>
+            <div class='Parl'>
+                <div>{{ motion.Government_obj.GovernmentNumber|get_ordinal }} {% if m.Government_obj.gov_type == 'Parliament' %}Parl.{% else %}Gov.{% endif %} {{ motion.Government_obj.SessionNumber|get_ordinal }} Sess. {% if motion.Government_obj.gov_level != 'Federal' %}({{ motion.Region_obj.AbbrName }}){% endif %}</div>
+                {% if post %}<div>{{ post.DateTime }}</div>{% else %}<div>{{ motion.DateTime }}</div>{% endif %}
+            </div>
+        </div>
+        <div class='Details'>
+            {% if motion.Subject %}
+                <div class='title'><a href='{{ motion.get_absolute_url }}'>{{ motion.Subject }}</a></div>
+            {% endif %}
+            {% if motion.DecisionType %}
+                <div style="font-style: italic; margin-top: 10px;">Type ({{ motion.DecisionType }})</div>
+            {% endif %}
+            {% if motion.Bill_obj %}
+            {% with bUpdate=motion.Bill_obj|get_update %}
+            <ul style='margin-bottom: -5px;'>
+                <li><a href={{ motion.Bill_obj.get_absolute_url }}>Bill {{ motion.Bill_obj.NumberCode }}</a></li>
+                <li class='shorten2'>Status: <span style="font-style: italic;">{{ bUpdate|get_updated_field:'LatestBillEvent' }}</span></li>
+            </ul>
+            {% endwith %}
+            {% endif %}
+
+    </div>    
+    
+    {% if motion.MotionText %}
+    <div class='TextContent' style='margin-top: 15px;'>
+        <ul class='Text hashable'>
+                <li>{{ motion.MotionText|safe }}</li>
+        </ul>
+    </div>
+    {% endif %} 
+    {% comment %}
+    {% include 'utils/motion_outline.html' %}
+    {% endcomment %}
+    
+    <div class='Details'>
+        <ul class='motionOutline'>
+            <a href={{ motion.get_absolute_url }}>
+            <li>Result: <span {% if 'well taken' in motion.Result|lower or 'agreed to' in motion.Result|lower or 'confirmed' in motion.Result|lower or 'adopted' in motion.Result|lower or 'carried' in motion.Result|lower or 'passed' in motion.Result|lower %}style='background-color:#0b559a; color:white; padding: 5px;  border-radius:5px;'{% elif 'rejected' in motion.Result|lower or 'negatived' in motion.Result|lower or 'defeated' in motion.Result|lower or 'lost' in motion.Result|lower or 'failed' in motion.Result|lower %}style='background-color:#ed7600; color: white; padding: 5px; border-radius:5px;'{% endif %}>{{ motion.Result }}</span></li>
+            </a>
+            
+            {% for i in motion.return_votes %}
+                <li><a href='{{ motion.get_absolute_url }}?vote={{ i|get_item:"Vote" }}'>{{ i|get_item:'Vote' }}s: {{ i|get_item:'Count' }}</a></li>
+            {% endfor %}
+            <li><a href={{ motion.get_absolute_url }}>Total: {{ motion.TotalVotes }}</a></li>
+            <br>
+            
+            {% for i in motion.return_parties %}
+                <li ><a style="border-bottom:{% if request.user_agent.is_mobile %}8px{% else %}3px{% endif %} solid {{ i|get_item:"Color" }};" href='{{ motion.get_absolute_url }}?party={{ i|get_item:"Name" }}'>{{ i|get_item:'Name' }} - {{ i|get_item:'Count' }}</a></li>
+            {% endfor %}
+
+            {% comment %}
+            {% if m %}
+            {% else %}
+                <a href='{{ motion.get_absolute_url }}?vote=yea'><li>Yeas: {{ motion.Yeas }} </li></a>
+                <a href='{{ motion.get_absolute_url }}?vote=nay'><li>Nays: {{ motion.Nays }} </li></a>
+                <a href='{{ motion.get_absolute_url }}?vote=present'><li>Present: {{ motion.Present }} </li></a>
+                <a href='{{ motion.get_absolute_url }}?vote=absent'><li>Absent: {{ motion.Absent }} </li></a>
+                <a href={{ motion.get_absolute_url }}><li>Total: {{ motion.TotalVotes }}</li></a>
+            {% endif %}
+            {% endcomment %}
+
+        </ul>
+    </div> 
+
+    {% if v %}
+    <div class='Details'>
+        <ul style='margin: 0px;'>
+            <li><a href='{{ v.Person_obj.get_absolute_url }}'>{{ v.Person_obj.FullName }}</a>:</li>
+            <li><span {% if v.VoteValueName == 'Yea' %}style='background-color:#0b559a; color:white; padding: 5px;  border-radius:5px;'{% elif v.VoteValueName == 'Nay' %}style='background-color:#ed7600; color: white; padding: 5px; border-radius:5px;'{% endif %}>{{ v.VoteValueName }}</span></li>
+        </ul>
+    </div>
+    {% endif %}
+    </div>  
+    </div>
+<div class="miniMore", title='More' onclick="react('more','{{post.id}}')"><span class="material-icons">more_horiz</span></div>
+</div>
+<div class='bottomDivider'></div>

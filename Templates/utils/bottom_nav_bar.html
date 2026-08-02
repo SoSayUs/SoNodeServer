@@ -1,0 +1,14 @@
+{% load static %}
+
+
+<div id='bottomNavBar'>
+    <ul>
+        <div class='shadow'></div>
+        <li class='bNavIcon' onclick='mobileSwitch("menu")'><span class="material-icons">menu_open</span><span class='label'>menu</span></li>
+        <li class='bNavIcon' onclick='mobileSwitch("poupons")'><span class="material-icons">payments</span><span class='label'>poupons</span></li>
+        <li class='bNavIcon' onclick='mobileSwitch("so")'></li>
+        <li class='bNavIcon' onclick='mobileSwitch("notifications")'><span class="material-icons">notifications</span><span class='label'>notifications</span></li>
+        <li class='bNavIcon' onclick='mobileSwitch("search")'><span class="material-icons">search</span><span class='label'>search</span></li>
+    </ul>
+    <li class='bNavIcon bNavLogo'><img src={% static sonet.LogoLink %} onclick='mobileSwitch("so")'></li>
+</div>

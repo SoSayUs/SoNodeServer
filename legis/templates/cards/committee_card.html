@@ -1,0 +1,73 @@
+{% load static %}
+
+<div class='card committee' id='com-{{ c.id }}'>
+        
+    <div class='sponsor'>
+        {% if c.currentChair %}
+            <a href={{ c.currentChair.get_absolute_url }}><img class='sponsorPic'  style='border-bottom:4px solid {{ c.currentChair.party.color }};' src={{ c.currentChair.logo }}></a>
+            <div class='sponsorInfo'>
+                <div>In the Chair:</div>
+                <div><h3><a href={{ c.currentChair.get_absolute_url }}>{{ c.currentChair.get_name }}</a></h3></div>
+            </div>
+        {% elif c.committee.chair.person.logo %}
+            <a href={{ c.committee.chair.person.get_absolute_url }}><img class='sponsorPic'  style='border-bottom:4px solid {{ c.committee.chair.person.party.color }};' src={{ c.committee.chair.person.logo }}></a>
+            <div class='sponsorInfo'>
+                <div>Chair:</div>
+                <div><h3><a href={{ c.committee.chair.person.get_absolute_url }}>{{ c.committee.chair.person.get_name }}</a></h3></div>
+            </div>
+        {% else %}
+            <img class='sponsorPic' src=>
+        {% endif %}
+    </div>
+        
+    <div class='cardContent'>
+        <div class='Info' style=width:100%;>
+            <div class='Code'>
+                <h2 style='max-width:70%;'>{{ c.Organization }} Committee</h2>
+                <div class='Parl'>
+                    <div>{{ c.date_time_start|date:"F d, Y" }} </div>  
+                </div>
+            </div>
+            <div class='Details'>
+                <div class='title'><a href='{{ c.get_absolute_url }}'>{{ c.committee.Title|truncatewords:20 }} ({{ c.committee.code }})</a></div>
+                <div class='subtitle'>{% if c.bill %}<a href='{{ c.bill.get_absolute_url }}'>Re. {{ c.Title|truncatewords:20 }}</a>{% else %}Re. {{ c.Title|truncatewords:20 }}{% endif %}</div>
+                {% if not c.event %}
+                
+                    <ul>
+                        {% if c.date_time_end %}
+                            <li>{{ c.date_time_start|date:"D M d, Y h:i" }} - {{ c.date_time_end|date:"h:iA" }}</li>
+                        {% elif c.timeRange %}
+                            <li>{{ c.date_time_start|date:"D M d, Y" }} {{ c.timeRange }} EST</li>
+                        {% else %}
+                            <li>{{ c.date_time_start|date:"D M d, Y h:iA" }}</li>
+                        {% endif %}
+                        {% if c.has_transcript %}
+                            <li style='margin: 10px 0px;' ><a href='{{ c.get_absolute_url }}'>Read</a></li>
+                        {% else %}
+                            <li style='margin: 10px 0px;' >Transcript not yet availabe</li>
+                        {% endif %}
+                        {% if c.embedURL %}
+                            <li class='watch' style='margin: 10px 0px;' onclick='insertEmbed("com-{{ c.id }}", "{{ c.embedURL }}")'>Watch</li>
+                        {% endif %}
+                    </ul>
+                </div>
+                {% else %}
+                    <ul>
+                        <li style='font-style: italic; font-size: 120%;'>{{ c.event }}</li>
+                    </ul>
+                </div>
+                    
+                    {% if c.report %}
+                    <div class='TextContent'>
+                        <ul class='Text' >
+                                <li>{{ c.report|safe }}</li>
+                        </ul>
+                    </div>
+                    {% endif %} 
+                {% endif %}
+
+            <div class='Embed' ></div>
+        </div>  
+    </div>
+</div>
+{% include 'utils/reaction_bar.html' %}

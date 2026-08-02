@@ -1,0 +1,48 @@
+
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Sign Form</title>
+</head>
+<body>
+
+<h2>Super Sign Form</h2>
+<div>
+    <div>
+        {% if userForm.errors %}
+            <li>{{ userForm.errors }}</li>
+        {% endif %}
+        {% if optionsForm.errors %}
+            <li>{{ optionsForm.errors }}</li>
+        {% endif %}
+        <div>Operator: {{ nodeOperator }}</div>
+        <form method="post" action="{% url 'supersign' %}">
+            {% csrf_token %}
+            {{ superForm.as_p }}
+            <button type="submit">Submit</button>
+        </form>
+        {% comment %}
+        <form method="POST" action="" enctype="multipart/form-data">{% csrf_token %}
+            <ul>
+
+                <span>Data:</span><li id="data">{{ superForm.data }}</li>
+
+                <input type="submit" value="Submit">
+            
+            </ul>
+        </form>
+        {% endcomment %}
+        
+    </div>
+</div>
+
+</body>
+</html>
+
+
+
+

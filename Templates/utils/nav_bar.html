@@ -1,0 +1,76 @@
+<div id="navBar">
+    <div id="navOptions">
+    {% for item in nav_bar %}
+        {% if item|get_item:'type' == 'button' %}
+            {% if item|get_item:'text' == 'follow' %}
+                <div title='Follow' onclick="{{ item|get_item:'target' }}('{{ item|get_item:'var' }}')" class='navBar-btn option follow {% if item|get_item:"var" == "following" or request.user.is_authenticated and item|get_item:"target" in request.user.follow_topic_json %}active{% endif %}'><a><span class="material-icons">add</span></a></div>
+            {% else %}
+                {% comment %}
+                <li onclick="{{ item|get_item:'target' }}('{{ item|get_item:'var' }}')"  class='option date {{ item|get_item:"var" }}'><a {% if 'Page' in item|get_item:'text' %}id='currentPage'{% endif %}>{{ item|get_item:'text' }}</a></li>
+                {% endcomment %}
+                <div class="navBar-btn" data-target="{{ item|get_item:'var' }}" {% if 'Page' in item|get_item:'text' %}id='currentPage'{% endif %}>{{ item|get_item:'text' }}</div>
+            {% endif %}        
+        {% elif item|get_item:'type' == 'link' %}
+            {% if item|get_item:'text' == 'follow' %}
+                <div class="navBar-btn" title='Follow' onclick='react("follow2", "{{ item|get_item:'target' }}")' class='option follow {% if "following" in item|get_item:"target" or request.user.is_authenticated and item|get_item:"target" in request.user.follow_topic_array %}active{% endif %}'><a><span class="material-icons">add</span></a></div>
+            {% else %}
+                <div class="navBar-btn option {% if view and view in item|get_item:'text' or filter in item|get_item:'text'  %}active{% endif %}"><a href="{{ item|get_item:'target' }}" {% if item|get_item:'new_tab' and item|get_item:'new_tab' == True %}target="_blank"{% endif %}>{{ item|get_item:'text' }}</a></div>
+            {% endif %}         
+        {% elif item|get_item:'type' == 'scrollto' %}
+            <div class="navBar-btn" onclick="scrollToElement('{{ item|get_item:'var' }}', 10, true)">{{ item|get_item:'text' }}</div>
+            
+        {% endif %}
+    {% endfor %}
+    
+    {% if isMobile %}
+    <div class='shadow'></div>
+    {% endif %}
+    </div>
+    
+    {% for item in nav_bar %}
+        {% if 'Date' in item|get_item:'text'%}
+            <div class="navOptionsMenu" id='datePickerForm' >
+                {% comment %}
+                <form method="POST" id='date-picker-form' enctype="multipart/form-data">{% csrf_token %}
+                    {% for i in dateForm %}<input type="submit" class='btn btn-default' value="enter"/>{{ i }}{% endfor %}
+                </form> 
+                {% endcomment %}
+                <form method="GET" id="search-form">
+                    {% for i in searchForm %}
+                        {{ i }}
+                    {% endfor %}
+                    <input type="submit" class="btn btn-default" value="Enter"/>
+                </form>
+            </div> 
+        {% elif 'Search' in item|get_item:'text' %}
+            <div class="navOptionsMenu" id='searchForm'>
+                {% comment %}
+                <form method="POST" id='search-form' enctype="multipart/form-data">{% csrf_token %}
+                    {% for i in searchForm %}<input type="submit" class='btn btn-default' value="enter"/>{{ i }}{% endfor %}
+                </form> 
+                {% endcomment %}
+                <form method="GET" id="search-form">
+                    {% for i in searchForm %}
+                        {{ i }}
+                    {% endfor %}
+                    <input type="submit" class="btn btn-default" value="Enter"/>
+                </form>
+            </div> 
+        {% elif 'Page:' in item|get_item:'text' %}
+            <div class="navOptionsMenu" id='pageForm'>   
+                {% include 'utils/paginator_links.html' %}
+            </div> 
+        
+        {% elif item|get_item:'target' == 'subNavWidget' %}
+
+            <div id="{{ item|get_item:'var' }}" class="navOptionsMenu">
+                {% for i in item|get_item:'fields' %}
+                    <div class="navBar-item"><a href='{{ value }}?{{ item|get_item:"key" }}={{ i }}'>{{ i }}</a></div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        
+    {% endfor %}
+</div>
+
+

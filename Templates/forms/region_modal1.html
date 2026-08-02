@@ -1,0 +1,41 @@
+
+{% load static %}
+
+
+<div class='form'>
+    <div>
+
+        <form id="modalForm" onsubmit="return onFormSubmit(event);">
+            <ul id='flags'>
+                <li style="cursor: pointer;" id='flag' onclick="modalPopUp('Select District', '/accounts/get_region/canada')"><img src={% static 'img/canadian_flag_mobile.jpg' %}></li>
+                <li style="cursor: pointer;" id='flag' onclick="modalPopUp('Select District', '/accounts/get_region/usa')"><img src={% static 'img/american_flag_mobile.jpg' %}></li>
+            </ul>
+            <!-- <span id="field0" style="display: block; height: 25px;">Enter address or postal code. (Address is more accurate)</span>
+            <span id="field1" style="display: block; height: 25px;">Inputted data will not be stored on servers, used only to find district.</span>
+            <span id="field2">
+            <br>
+            <br>
+            <label for="address">Address/Postal Code:</label>
+            <input type="text" id="address" name="address">
+            </span><br>
+            <span id="field2">
+            </span> -->
+            <!-- <br>
+            <br> -->
+            <!-- <button style='color: black;' onclick="generatePassword()">Generate Password</button> -->
+
+            <!-- <br>
+            <br>
+            <button style='color: black;' type="submit" onclick="setRegionModal('{{ csrf_token }}')">Continue</button>
+            <br>
+            <br>
+            <span id="field3"></span>
+            <br>
+            <br> -->
+             </form>
+        
+            </div>
+</div>
+<br>
+<br>
+<br>

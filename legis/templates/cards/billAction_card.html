@@ -1,0 +1,24 @@
+{% load static %}
+<div class='card billAction' id='{{ a.id }}'>
+
+    <div class='cardContent'>
+    <div class='Info'>
+        <div class='Code'>
+        
+        </div>
+        
+        <div class='Details'>
+            
+        <ul>
+            <li>{{ g.DateTime }}</li>
+            <li style='margin: 10px 0px;' >{{ g.Data|get_item:'Text' }}</li>
+        </ul>
+        </div>
+        
+    </div>
+    </div>
+
+    <div class="miniMore", title='More' onclick="react('more','{{post.id}}')"><span class="material-icons">more_horiz</span></div>
+</div>    
+<div class='bottomDivider'></div>
+

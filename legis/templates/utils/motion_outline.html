@@ -1,0 +1,16 @@
+
+<div class='Details'>
+    <ul class='motionOutline'><a href={{ motion.get_absolute_url }}>
+        
+        <li>Result: <span {% if motion.Result == 'Agreed To' or motion.Result == 'Adopted' or motion.Result == 'Carried' %}style='background-color:#0b559a; color:white; padding: 5px;  border-radius:5px;'{% elif motion.Result == 'Negatived' or motion.Result == 'Defeated' or motion.Result == 'Lost' %}style='background-color:#ed7600; color: white; padding: 5px; border-radius:5px;'{% endif %}>{{ motion.Result }}</span> |</li>
+        <li>Yeas: {{ motion.Yeas }} &nbsp|</li>
+        <li>Nays: {{ motion.Nays }} &nbsp|</li>
+        {% if 'House' in motion.Chamber %}
+            <li>Pairs: {{ motion.Pairs }} &nbsp|</li>
+        {% elif motion.Chamber == 'Senate' %}
+            <li>Absentations: {{ motion.Absentations }} &nbsp|</li>
+        {% endif %}
+        <li>Total: {{ motion.TotalVotes }}</li>
+        </a>
+    </ul>
+</div> 

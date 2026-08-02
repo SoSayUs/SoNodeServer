@@ -1,0 +1,17 @@
+
+
+*{
+    color: white;
+}
+body{
+    background: linear-gradient(to bottom, black, #181f2d);
+    background-attachment: fixed;
+}
+#navbar{
+    background-color: #222222;
+  }
+
+
+  #feed{
+    background-color: #222222;
+  }

@@ -1,0 +1,31 @@
+{% load static %}
+
+<div class='card agendaItem'>
+    
+    <div class='sponsor'>
+        <div>
+            <img class='sponsorPic' src={% static 'img/house_coat_of_arms.png' %}>
+        </div>
+    </div>
+    <div class='cardContent'>
+    <div class='Info'>
+            <h2>House Agenda</h2>
+        <div class='Details'>
+            <div class='date'>{{ a.date_time }}</div>
+            <div><a href={{ a.get_absolute_url }}>Watch</a></div>
+            <ul>
+            {% for i in a.agendaitem_set.all %}
+                {% if i.bill %}
+                    <li style='display:block;'><a href={{ i.bill.get_absolute_url }} class='shorten2' >{{ i.text }}</a></li>
+                {% else %}
+                    <li class='shorten2' style='display:block;'>{{ i.text }}</li>
+                {% endif %}
+            {% endfor %}
+            </ul>
+            
+        </div>        
+
+    </div>  
+    </div>
+</div>
+{% include 'utils/reaction_bar.html' %}

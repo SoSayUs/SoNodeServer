@@ -1,0 +1,43 @@
+{% load static %}
+<!--DOCTYPE html-->
+<html>
+<head>
+</head>
+
+<body>
+<div id='container'>
+    {% include 'index.html' %}
+
+    <div class='feedTop'>
+        <h1>Election Candidates</h1>
+    
+    </div>
+<div id='feed'>
+
+{% for c in candidates %}
+    <br>
+    <img src={{ c.person.mall_img }}>
+    <h4>{{ c.person.first_name }} {{ c.person.last_name }}</h4>
+    <ul>
+        <!-- <li>{{ c.riding }}</li> -->
+        <li>{{ c.party_name }}</li>
+        <li>{{ c.constituency_name }}</li>
+        <li>{{ c.state_name }}</li>
+        <li>{{ c.end_date }}</li>
+        <li>{{ c.occupation }}</li>
+        <li>{{ c.vote_count }}</li>
+        <li>{{ c.result }}</li>
+        {% if c.parlinfo_link %}
+            <li><a href={{ c.parlinfo_link }}>government page</a></li>
+        {% endif %}
+        <li><a href={{ c.person.get_absolute_url }}>page</a></li>
+
+    </ul>
+
+{% endfor %}
+
+</div>
+{% include 'happening.html' %}
+</div>
+</body>
+</html>

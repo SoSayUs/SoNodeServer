@@ -1,0 +1,55 @@
+{% load static %}
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+</head>
+
+<body>
+
+    <div>
+        <div>
+            <br>
+            <br>
+            <ul class="modalList">
+                {% if obj %}
+                {% if obj.type == 'Billtext' %}
+                {% with bullets=obj.data|get_item:'bullets' %}
+                {% if bullets %}
+                {% for i in bullets %}
+                {% with section=bullets|get_item:i %}
+                {% with content=section|get_item:'data' %}
+                {% if i != 'init' %}
+                <li style="margin-bottom: 7px; text-decoration: underline;">{{ i|linebreaksbr }}</li>
+                <li class="justify_left"><a href=''>{{ content|linebreaksbr }}</a></li>
+                {% else %}
+                <li style="margin-bottom: 7px; text-decoration: underline;">Summary</li>
+                <li class="justify_left"><a href=''>{{ content|linebreaksbr }}</a></li>
+                {% endif %}
+                <br>
+                {% endwith %}
+
+                {% endwith %}
+                {% endfor %}
+                {% else %}
+                {% with summary=obj.data|get_item:'summary' %}
+                <li style="margin-bottom: 7px; text-decoration: underline;">Summary</li>
+                <li class="justify_left"><a href=''>{{ summary|linebreaksbr }}</a></li>
+                {% endwith %}
+                {% endif %}
+                {% endwith %}
+                {% elif obj.type == 'Meeting' %}
+                {% with summary=obj.data|get_item:'summary' %}
+                <li style="margin-bottom: 7px; text-decoration: underline;">Summary</li>
+                <li class="justify_left"><a href=''>{{ summary|linebreaksbr }}</a></li>
+                {% endwith %}
+                {% endif %}
+
+                {% endif %}
+
+            </ul>
+        </div>
+</body>
+
+</html>

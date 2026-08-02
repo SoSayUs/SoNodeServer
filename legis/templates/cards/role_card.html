@@ -1,0 +1,51 @@
+{% load static %}
+{% with updatedRole=role.Update_obj %}
+{% with r=role.Role_obj %}
+
+<div class='card role'>
+    <div class='sponsor'>
+        <div>
+            <h3>{{ updatedRole|get_updated_field:'Position' }}</h3>
+        </div>
+    </div>
+    <div class='cardContent'>
+        <ul>
+                {% if role.gov %}
+                    <li>Gov: {{ role.gov.GovernmentNumber }}-{{ role.gov.SessionNumber }}</li>
+                {% endif %}
+                {% if updatedRole|get_updated_field:'Title' %}
+                    <li>Title: {{ updatedRole|get_updated_field:'Title' }}</li>
+                {% endif %}
+                {% if updatedRole|get_updated_field:'Group' %}
+                    <li>Group: {{ updatedRole|get_updated_field:'Group' }}</li>
+                {% endif %}
+                {% if role.affiliation %}
+                    <li>{{ role.affiliation }}</li>
+                {% endif %}
+                {% if updatedRole|get_updated_field:'Party_obj' %}
+                    <li>Party: {{ updatedRole|get_updated_field:'Party_obj,Name' }}</li>
+                {% endif %}
+                {% if role.constituency_name %}
+                    <li>Constituency: {{ role.constituency_name }}</li>
+                {% endif %}
+                {% if updatedRole|get_updated_field:'ProvState_obj' %}
+                    <li>State: {{ updatedRole|get_updated_field:'ProvState_obj,Name' }}</li>
+                {% endif %}
+                {% if role.result %}
+                    <li>Result: {{ role.result }}</li>
+                {% endif %}
+                {% if updatedRole|get_updated_field:'StartDate' %}
+                    <li>Start Date: {{ updatedRole|get_updated_field:'StartDate'|date:"F d, Y" }}</li>
+                {% endif %}
+                {% if updatedRole|get_updated_field:'EndDate' %}
+                    <li>End Date: {{ updatedRole|get_updated_field:'EndDate'|dt_object|date:"F d, Y" }}</li>
+                {% endif %}
+            </ul>
+    </div>
+    <br>
+        
+</div>
+
+{% endwith %}
+{% endwith %}
+<div class='bottomDivider'></div>

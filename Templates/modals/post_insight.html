@@ -1,0 +1,27 @@
+
+{% load social_share %}
+
+
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Insights</title>
+</head>
+<body>
+
+<div>
+    <div>
+        <br>
+        <br>
+        <br>
+        <br>
+        <ul class="modalList">
+            <li>{% if post.pointerType == 'Bill' %}Yea{% else %}Hear!{% endif %}: {{ post.total_yeas }}    &nbsp&nbsp(%{{ post.total_yeas|to_percent:post.total_nays }})</li>
+            <li>{% if post.pointerType == 'Bill' %}Nay{% else %}Rabble!{% endif %}: {{ post.total_nays }}    &nbsp&nbsp(%{{ post.total_nays|to_percent:post.total_yeas }})</li>
+            <br>
+        </ul>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,50 @@
+{% load static %}
+
+
+<div style="position: relative;margin-left: 55px; margin-top: 10px; margin-bottom: -10px; font-style:italic;">in development</div>
+<ul id='userProfile'>
+    <li><img id='userPic' src={% static 'img/user-colored.png' %}></li>
+    <li id='userName'>{% if user.id %}{{ user.get_userLink_html|safe }}{% else %}<span onclick="modalPopUp('Login', '/accounts/login-signup')">Login/Signup</span>{% endif %}</li>
+</ul>
+
+<ul>
+    <li style="font-style: italic;"><a href='/{{ country.Name|lower }}/search'>Search</a></li>
+    <br>
+
+    <li style="margin-top: 35px;"></li>
+    <li style="font-style: italic;"><a href='/'>What is Us</a></li>
+    {% comment %}
+    <li style="font-style: italic;"><a href='/someta'>SoMeta</a></li>
+    <li style="font-style: italic;"><a href='/hero'>Be a Hero</a></li>
+    {% endcomment %}
+    <li style="font-style: italic;"><a href='/values'>For All Things</a></li>
+    <br>
+    {% if theme == 'night' %}
+    <li id='theme' onclick='themer()'>Night Theme</a></li>
+    {% else %}
+    <li  id='theme' onclick='themer()'>Day Theme</a></li>
+    {% endif %}
+    {% if user.id %}
+    <li id="settingsLink"><a href='/user/settings'>Settings</a></li>
+    <li id="logoutLink"><a onclick='logout("/accounts/logout")'>Log Out</a></li>
+    {% else %}
+    <li id="settingsLink"></li>
+    <li id="logoutLink"></li>
+    {% endif %}
+    {% if user.is_superuser %}
+    <li><a onclick="direct_to('/utils/super')">SuperUser</a></li>
+    {% endif %}
+    <br>
+    <a onclick='select_node()' style="cursor: pointer;">
+        {% if self_node %}
+                <li style="font-size: 90%;">Connection:</li>
+                <li style="font-size: 80%; font-style: italic; color: gray;">{{ self_node }}</li>
+        {% else %}
+            <li style="font-size: 90%;">Connection:</li>
+            <li style="font-size: 80%; font-style: italic; color: gray;">unknown</li>
+        {% endif %}
+    </a>
+    
+</ul>
+<br>
+

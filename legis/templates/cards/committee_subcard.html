@@ -1,0 +1,34 @@
+{% load static %}
+
+<div class='card committee senate-committee' id='com-{{ committee.id }}'>
+        
+    <div class='sponsor'>
+    {% if committee.committee.chair.person.logo %}
+            <a href={{ committee.committee.chair.person.get_absolute_url }}><img class='sponsorPic' src={{ committee.committee.chair.person.logo }}></a>
+        {% else %}
+            <img class='sponsorPic' style='max-height:90px;' src={% static 'img/sv - firstdrawing19-coloured.png' %}>
+        {% endif %}
+        <div class='sponsorInfo'>
+            <div>Chaired by:</div>
+            <div><h3><a href={{ committee.committee.chair.person.get_absolute_url }}>{{ committee.committee.chair.person.honorific }} {{ committee.committee.chair.person.first_name }} {{ committee.committee.chair.person.last_name }}</a></h3></div>
+        </div>
+    </div>
+    <div class='cardContent' >
+        <div class='Info' style=width:100%;>
+            <div class='Code'>
+                <h2 style='max-width:70%;'><a href='{{ c.get_absolute_url }}'>{{ committee.committee.Title }}</a></h2>
+            </div>
+            
+            <div class='Details'>
+                <ul>
+                <li>Re. {{ committee.Title }}</li>
+                <br>
+                <li>{{ committee.date_time_start|date:"D M d, Y" }} {{ committee.timeRange }}</li>
+                
+                </ul>
+                <div class='Embed' ></div>
+            </div>        
+
+        </div>  
+    </div>
+</div>

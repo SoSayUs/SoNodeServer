@@ -1,0 +1,59 @@
+
+{% load static %}
+
+
+<div class='form'>
+    <div>
+
+        <form id="modalForm" onsubmit="return onFormSubmit(event);">
+            {% if country == 'canada' %}
+            <span id="field0" style="display: block; height: 25px;">Enter address or zip code. (Address is more accurate)</span>
+            {% elif country == 'usa' %}
+            <span id="field0" style="display: block; height: 25px;">Enter address.</span>
+            {% endif %}
+            <span id="field1" style="display: block; height: 25px;">Inputted data is not stored on servers, it is only used to find districts.</span>
+            <!-- <span id="field2"> -->
+            <br>
+            <br>
+            {% if country == 'canada' %}
+            <label for="address">Address/Postal Code:</label>
+            <input type="text" id="address" name="address">
+            <br>
+            {% elif country == 'usa' %}
+            <label for="address">Address:</label>
+            <input type="text" id="address" name="address" value="721 5th avenue">
+            <br>
+            <label for="city">City:</label>
+            <input type="text" id="city" name="city" value="New York City">
+            <br>
+            <label for="state">State:</label>
+            <input type="text" id="state" name="state" value="New York">
+            <br>
+            <label for="zip_code">Zip Code:</label>
+            <input type="text" id="zip_code" name="zip_code" value="10022">
+            <br>
+            {% endif %}
+            <span id="field2">
+            </span>
+            <!-- <br>
+            <br> -->
+            <!-- <button style='color: black;' onclick="generatePassword()">Generate Password</button> -->
+
+            <br>
+            <br>
+            <button style='color: black;' type="submit" onclick="setRegionModal('{{ csrf_token }}')">Enter</button>
+            <span id="field3" value="{{ country }}"></span>
+            
+
+             </form>
+        
+            </div>
+</div>
+<div id="modalContent">
+    <span class="modal-spinner"></span>
+</div>
+<br>
+<br>
+<br>
+<br>
+<br>

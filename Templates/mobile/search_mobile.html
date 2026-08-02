@@ -1,0 +1,186 @@
+{% load static %}
+
+<div class='searchMobile'>
+
+<div class='navTop'>   
+    
+    <div class='shadow'></div>
+    <div class='searchTab' id='searchBox'><a href='/search'>Search</a></div>
+    
+    {% if not debate and not committee and not reading and not personTerms and cards != 'bill_view' %}
+    <div class='searchTab blue' id='trending' onclick='searchMobileSwitch("trending")'>Trending</div>
+    {% endif %}
+
+
+    {% if debate or committee %}
+
+        <div class='searchTab blue' id='topics' onclick='searchMobileSwitch("topics")'>Topics</div>
+        <div class='searchTab' id='speakers' onclick='searchMobileSwitch("speakers")'>Speakers</div>
+
+        {% comment %}
+        {% if debate.TermsText or committee.TermsText %}
+        {% else %}
+        <div class='searchTab blue' id='speakers' onclick='searchMobileSwitch("speakers")'>Speakers</div>
+        {% endif %}
+        {% endcomment %}
+
+    {% elif personTerms %}
+        <div class='searchTab blue' id='person' onclick='searchMobileSwitch("person")'>{{ person.full_name }}</div>
+    {% elif view and view == 'LatestText' %}
+        <div class='searchTab blue' id='toc' onclick='searchMobileSwitch("toc")'>Contents</div>
+    {% elif committeeList %}
+        <div class='searchTab'  id='toc' onclick='searchMobileSwitch("toc")'>Committees</div>
+    {% elif has_reps %}
+        <div class='searchTab'  id='representatives' onclick='searchMobileSwitch("representatives")'>Representatives</div>
+    {% elif agenda %}
+        <div id='agenda' class='searchTab' onclick='searchMobileSwitch("agenda")'>Agenda</div>
+    {% endif %}
+    
+
+
+
+</div>
+<div class='mobileNavigation'>
+
+    {% if debate or committee %}
+    
+    <div class='searchTabContent show block' id='topics'>
+        <div><span onclick='sidebarSort("topics-alpha")'>sort</span></div>
+        <ul>
+            {% comment %}
+            {% for key, value in hansard.list_all_terms %}
+                <li><a href='{{ hansard.get_absolute_url }}/?topic={{ key }}' title='{{ key }}'>{{ key|truncatewords:7 }}  <span>({{ value }})</span></a></li>
+            {% endfor %}
+            
+            {% for key, value in committee.list_all_terms %}
+                <li><a href='{{ committee.get_absolute_url }}/?topic={{ key }}'>{{ key }}  <span>({{ value }})</span></a></li>
+            {% endfor %}
+            {% endcomment %}
+            
+            {% with terms_list=debateUpdate|get_updated_field:'Terms' %}
+                {% if terms_list or committee.TermsText %}
+
+                    {% for term in debateUpdate.data|get_item:'Terms' %}
+                        {% for key, value in term.items %}
+                            <li><a href='{{ debate.get_absolute_url }}/?topic={{ key }}' title='{{ key }}'>{{ key|truncatewords:7|title }}  <span>({{ value }})</span></a></li>
+                        {% endfor %}
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+        
+        </ul>
+    </div>
+    <div class='searchTabContent' id='speakers'>
+        <div><span onclick='sidebarSort("speakers-alpha")'>sort</span></div>
+        <ul>
+            
+            {% with people=debateUpdate.data|get_item:'People' %}
+                {% if people %}
+                
+                    {% for term in people %}
+                        {% for key, value in term.items %}
+                            <li><a href='{{ debate.get_absolute_url }}/?speaker={{ key|jsonify|get_item:"obj_id" }}' title='{{ key|jsonify|get_item:"Name" }}'>{{ key|jsonify|get_item:'Name' }}  <span>({{ value }})</span></a></li>
+                        {% endfor %}
+                    {% endfor %}
+
+                {% endif %}
+            {% endwith %}
+
+
+            {% comment %}
+            {% for key, value in hansard.list_all_people %}
+                <li><a href='{{ hansard.get_absolute_url }}/?speaker={{ key.id }}'>{{ key.last_name }}, {{ key.first_name }} <span>({{ value }})</span></a></li>
+            {% endfor %}
+            
+            {% for key, value in committee.list_all_people %}
+            <li><a href='{{ committee.get_absolute_url }}/?speaker={{ key.id }}'>{{ key.last_name }}, {{ key.first_name }} <span>({{ value }})</span></a></li>
+            {% endfor %}
+            {% endcomment %}
+
+        </ul>
+    </div>
+{% elif personTerms %}
+
+        <div class='searchTabContent show block' id='toc'>
+            <ul>
+                {% for key, value in personTerms %}
+                <li><a href='{{ person.get_absolute_url }}/?topic={{ key }}'>{{ key }} <span>({{ value }})</span></a></li>
+                {% endfor %}
+            </ul>
+        </div>
+{% elif view and view == 'LatestText' %}
+    <div class='searchTabContent show block' id='toc'>
+        <ul>
+            {% for item in post.Update_obj|get_toc %}
+                {% for key, value in item.items %}
+                <li onclick='tocNav(`{{ value }}`)'><a>{{ key }}</a></li>
+                {% endfor %}
+            {% endfor %}
+        </ul>
+    </div>
+
+    
+
+{% elif committeeList %}
+    <div class='searchTabContent block' id='committees'>
+        <ul>
+            {% for c in committeeList %}
+            <li style='width:80%;'><a href={{ c.get_absolute_url }}>{{ c.Title }} ({{ c.code }})</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+
+
+{% elif has_reps %}
+<div class='searchTabContent block' id='representatives'>
+    <ul>
+        {% if MP_role %}
+            <li><a href=''>MP|{{ MP_role.person.first_name }} {{ MP_role.person.last_name }}</a></li>
+        {% endif %}
+        {% if MPP_role %}
+            <li><a href=''>MPP|{{ MPP_role.person.first_name }} {{ MPP_role.person.last_name }}</a></li>
+        {% endif %}
+        {% if Mayor_role %}
+            <li><a href=''>M|{{ Mayor_role.person.first_name }} {{ Mayor_role.person.last_name }}</a></li>
+        {% endif %}
+        {% if Councillor_role %}
+            <li><a href=''>C|{{ Councillor_role.person.first_name }} {{ Councillor_role.person.last_name }}</a></li>
+        {% endif %}
+    </ul>
+</div>
+
+{% elif agenda %}
+<div class='searchTabContent block' id='agenda'>
+    <ul>
+    {% if agenda.is_last %}<li style='width:80%;'>{{ agenda.current_status }}</li>{% endif %}
+    <br>
+    {% for a in agendaItems %}
+        {% if a.date_time %}                  
+        <li class='agendaTime' style='width:80%;'><a href='{{ a.get_absolute_url }}'>{{ a.date_time|date:"h:iA" }}</a></li>
+            {% endif %}
+        {% if a.bill %}                   
+            <li style='padding-left: 5px; width:80%; border-bottom:0px solid white;'><a href={{ a.bill.get_absolute_url }}>{{ a.text }}</a></li>
+        {% else %}
+            <li style='padding-left: 5px; width:80%; cursor:default; border-bottom:0px solid white;'>{{ a.text }}</li>
+        {% endif %}
+    {% endfor %}
+    </ul>
+</div>
+
+{% endif %}
+
+{% if not hansard and not committee and not reading and not personTerms %}
+<div class='searchTabContent show block' id='trending'>
+    <ul>
+        {% for t in trending %}
+            <li class='trending' id={{ t.id }}><a href='/keyword/{{ t.text }}' style='text-decoration:none;'>{{ t.text }} </a><span>({{ t.recentOccurences }})</span></li>
+        {% endfor %} 
+        
+    </ul>
+</div>
+{% endif %}
+</div>
+
+
+</div>

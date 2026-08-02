@@ -1,0 +1,40 @@
+/* 
+.reactionBar ul > li.yea:hover{
+    margin-top: 0px;
+    height: 16px;
+    background-color: #0b559a;
+  }
+  
+.reactionBar ul > li.yea:hover span{
+    color: white;
+  }
+.reactionBar ul > li.nay:hover{
+    margin-top: 0px;
+    height: 16px;
+    background-color: #ed7600;
+  }
+  .reactionBar ul > li.discussionLink:hover{
+    margin-top: 0px;
+    height: 23px;
+    padding-bottom: 10px;
+    background-color: #e0e002;
+  }
+  .reactionBar ul > li.follow:hover{
+    margin-top: 0px;
+    height: 23px;
+    padding-bottom: 10px;
+    background-color: #0c991a;
+  }
+  .reactionBar ul > li.shareButton:hover{
+    margin-top: 0px;
+    height: 23px;
+    padding-bottom: 10px;
+    background-color: #0ccec1;
+  }
+  .reactionBar ul > li.saveButton:hover{
+    margin-top: 0px;
+    height: 23px;
+    padding-bottom: 10px;
+    background-color: #e0a102;
+  }
+   */

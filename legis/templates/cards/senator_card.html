@@ -1,0 +1,21 @@
+{% load static %}
+
+
+<div class='card senator'>
+    {% if r.person.logo %}
+    <a href={{ r.person.get_absolute_url }}><img class='profilePic' src={{ r.person.logo }}></a>
+
+    {% endif %}
+    <div class='profileInfo'>
+    <h2><a href={{ r.person.get_absolute_url }}>{{ r.person.get_name }} </a></h2>
+    <ul>
+        <li>{{ r.position }}</li>
+        {% if r.title %}<li><h3>{{ r.title }}</h3></li>{% endif %}
+        <li>{{ r.affiliation }}</li>
+        <div class='partyColor' style='background-color:{{ r.party.color }}'></div>
+        <li>{{ r.state_name }}</li>
+        <br>
+        <li><a href={{ r.gov_page }}>Government Page</a></li>
+    </ul>
+    </div>  
+</div>

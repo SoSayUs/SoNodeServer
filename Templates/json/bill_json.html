@@ -1,0 +1,37 @@
+{% load static %}
+[{% for post in feed_list %}{% with r=reactions|get_item:post.id %}{% with b=post.bill %}
+{
+    "id":{{ b.id }},
+    "title":"{% if b.ShortTitle %}{{ b.ShortTitle|remove_tags }}{% else %}{{ b.LongTitleEn|remove_tags }}{% endif %}",
+    {% if b.person %}
+    "SponsorName":"{% if b.person %}{{ b.person.honorific }} {{ b.person.first_name }} {{ b.person.last_name }}{% endif %}",
+    "SponsorLogo":"{{ b.person.logo }}",
+    "SponsorPartyColour":"{{ b.person.party.colour }}",
+    {% else %}
+    "SponsorLogo":"http://10.0.2.2:3005{% static 'img/user-coloured.png' %}",
+    "SponsorName":"{{ b.SponsorPersonName }}",
+    "SponsorPartyColour":"0xffC0C0C0",
+    {% endif %}
+    "ParliamentNumber":"{{ b.ParliamentNumber }}th",
+    "SessionNumber":"{{ b.SessionNumber }}st",
+    "NumberCode":"{{ b.NumberCode }}",
+    "Latest":"{{ b.LatestBillEventTypeName }} - {{ b.LatestBillEventDateTime }}",
+    "legis_link":"{{ b.legis_link }}",
+    "SummaryHtml":"{{ b.summary|html_json|safe }}",
+    "Summary":"{{ b.summary|remove_tags }}",
+    "PassedFirstChamberFirstReading":"{{ b.PassedFirstChamberFirstReading }}",
+    "PassedFirstChamberSecondReading":"{{ b.PassedFirstChamberSecondReading }}",
+    "PassedFirstChamberThirdReading":"{{ b.PassedFirstChamberThirdReading }}",
+    "PassedSecondChamberFirstReading":"{{ b.PassedSecondChamberFirstReading }}",
+    "PassedSecondChamberSecondReading":"{{ b.PassedSecondChamberSecondReading }}",
+    "PassedSecondChamberThirdReading":"{{ b.PassedSecondChamberThirdReading }}",
+    "ReceivedRoyalAssent":"{{ b.ReceivedRoyalAssent }}",
+    
+    "vote":"{% if r.isYea %}Yea{% elif r.isNay %}Nay{% else %}none{% endif %}",
+    "following":"{% if post.bill in request.user.follow_bill.all %}true{% else %}false{% endif %}",
+    "starred":"{% if r.saved %}true{% else %}false{% endif %}",
+    "yeaCount":"{{ post.total_yeas }}",
+    "nayCount":"{{ post.total_nays }}",
+    "commentCount":"{{ post.total_comments }}"
+}{% if not forloop.last %},{% else %}{% endif %}{% endwith %}{% endwith %}{% endfor %}
+]

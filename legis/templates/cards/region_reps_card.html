@@ -1,0 +1,145 @@
+
+
+{% if reg.nameType == 'Country' %}
+<div class="region-reps" id="{{ reg.id }}" data-level="{{ reg.modelType }}" data-type="{{ reg.objType }}">
+<div class='card riding'>
+    <div class='cardContent'>
+        <div class='Details'>
+            <div class='title'>Federal Government of {{ reg.Name }}<span title="remove" style="float:right; cursor: pointer;" onclick='remove_region("{{reg.id}}")'>x</span></div>
+            
+            </ul>
+        </div>
+    </div>
+</div>
+<div class='bottomDivider'></div>
+
+{% for p in data|get_item:'Country'|get_item:'roles' %}
+    {% with r=p.Role_obj %}
+    {% with person=r.Person_obj %}
+    {% if p.Update_obj %}
+        {% with updatedRole=p.Update_obj %}
+        {% include 'cards/representative_card.html' %}
+        {% endwith %}
+    {% else %}
+        {% with updatedRole=p.Role_obj %}
+        {% include 'cards/representative_card.html' %}
+        {% endwith %}
+    {% endif %}
+    {% endwith %}
+    {% endwith %}
+{% endfor %}
+
+{% with districts=data|get_item:'Country'|get_item:'districts' %}
+{% for district_name, value in districts.items %}
+    {% with district=districts|get_item:district_name|get_item:'district' %}
+    <div class="region-reps" id="{{ district.id }}" data-level="{{ district.gov_level }}" data-type="{{ district.objType }}">
+    <div class='card riding'>
+        <div class='cardContent'>
+            <div class='Details'>
+                <div class='title'>Federal District {{ district.Name }}<span title="remove" style="float:right; cursor: pointer;" onclick='remove_region("{{district.id}}")'>x</span></div>
+                <ul>
+                {% if district.Population %}
+                    <li>pop: {{ district.Population }}</li>
+                {% endif %}
+                {% if district.MapLink %}
+                <img style='width:90%;' src={{ district.MapLink }}>
+                {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class='bottomDivider'></div>
+
+    {% for p in value|get_item:'roles' %}
+        {% with r=p.Role_obj %}
+        {% with person=r.Person_obj %}
+        {% if p.Update_obj %}
+            {% with updatedRole=p.Update_obj %}
+            {% include 'cards/representative_card.html' %}
+            {% endwith %}
+        {% else %}
+            {% with updatedRole=p.Role_obj %}
+            {% include 'cards/representative_card.html' %}
+            {% endwith %}
+        {% endif %}
+        {% endwith %}
+        {% endwith %}
+    {% endfor %}
+    {% endwith %}
+    </div>
+{% endfor %}
+{% endwith %}
+</div>
+
+{% else %}
+
+<div class="region-reps" id="{{ reg.id }}" data-level="{{ reg.modelType }}" data-type="{{ reg.objType }}">
+<div class='card riding'>
+    <div class='cardContent'>
+        <div class='Details'>
+            <div class='title'>{{ reg.Name }} ({{ reg.nameType }})<span title="remove" style="float:right; cursor: pointer;" onclick='remove_region("{{reg.id}}")'>x</span></div>
+            
+            </ul>
+        </div>
+    </div>
+</div>
+<div class='bottomDivider'></div>
+
+{% with districts=data|get_item:reg.nameType|get_item:'districts' %}
+{% for district_name, value in districts.items %}
+    {% with district=districts|get_item:district_name|get_item:'district' %}
+    <div class="region-reps" id="{{ district.id }}" data-level="{{ district.gov_level }}" data-type="{{ district.objType }}">
+    <div class='card riding'>
+        <div class='cardContent'>
+            <div class='Details'>
+                <div class='title'>State District {{ district.Name }}<span title="remove" style="float:right; cursor: pointer;" onclick='remove_region("{{district.id}}")'>x</span></div>
+                <ul>
+                {% if district.Population %}
+                    <li>pop: {{ district.Population }}</li>
+                {% endif %}
+                {% if district.MapLink %}
+                <img style='width:90%;' src={{ district.MapLink }}>
+                {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class='bottomDivider'></div>
+
+    {% for p in value|get_item:'roles' %}
+        {% with r=p.Role_obj %}
+        {% with person=r.Person_obj %}
+        {% if p.Update_obj %}
+            {% with updatedRole=p.Update_obj %}
+            {% include 'cards/representative_card.html' %}
+            {% endwith %}
+        {% else %}
+            {% with updatedRole=p.Role_obj %}
+            {% include 'cards/representative_card.html' %}
+            {% endwith %}
+        {% endif %}
+        {% endwith %}
+        {% endwith %}
+    {% endfor %}
+    {% endwith %}
+    </div>
+{% endfor %}
+{% for p in data|get_item:reg.nameType|get_item:'roles' %}
+{% with r=p.Role_obj %}
+{% with person=r.Person_obj %}
+{% if p.Update_obj %}
+    {% with updatedRole=p.Update_obj %}
+    {% include 'cards/representative_card.html' %}
+    {% endwith %}
+{% else %}
+    {% with updatedRole=p.Role_obj %}
+    {% include 'cards/representative_card.html' %}
+    {% endwith %}
+{% endif %}
+{% endwith %}
+{% endwith %}
+{% endfor %}
+
+{% endwith %}
+</div>
+{% endif %}

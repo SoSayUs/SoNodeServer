@@ -1,0 +1,164 @@
+
+
+
+
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mobile Horizontal Navbar</title>
+<style>
+body {
+    margin: 0;
+    font-family: sans-serif;
+}
+
+/* Navbar */
+#navBar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 60px; 
+    display: flex;
+    overflow-x: auto; /* scroll if too many buttons */
+    overflow-y: hidden;
+    white-space: nowrap;
+    z-index: 1000;
+    padding: 0 5px;
+    box-sizing: border-box;
+}
+
+#navOptions {
+    display: flex;
+    gap: 5px;
+}
+
+#navOptions > .navBar-btn {
+    flex: 0 0 auto; /* do not shrink */
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+/* Dropdown menus - horizontal */
+.navOptionsMenu {
+    position: fixed;
+    top: 50px; /* height of navbar */
+    left: 0;
+    width: 100%;
+    max-height: 0;
+    overflow-x: auto; /* horizontal scroll if overflowing */
+    overflow-y: hidden;
+    display: flex;
+    border-top: 1px solid #ccc;
+    transition: max-height 0.3s ease;
+    z-index: 999;
+}
+
+.navOptionsMenu.open {
+    max-height: 60px; /* adjust if needed */
+}
+
+/* Menu items horizontal */
+.navOptionsMenu .navBar-item {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.navOptionsMenu .navBar-item:last-child {
+    border-right: none;
+}
+
+/* Page content pushed down */
+#content {
+    margin-top: 50px; /* adjust to navbar height */
+    padding: 10px;
+}
+</style>
+</head>
+<body>
+
+<div id="navBar">
+  <div id="navOptions">
+    <div class="navBar-btn" data-target="menu1">Chamber: All</div>
+    <div class="navBar-btn" data-target="menu2">Page: 1</div>
+    <div class="navBar-btn" data-target="menu3">Search</div>
+    <div class="navBar-btn" data-target="menu1">Extra 1</div>
+    <div class="navBar-btn" data-target="menu2">Extra 2</div>
+    <div class="navBar-btn" data-target="menu3">Extra 3</div>
+    <div class="navBar-btn" data-target="menu1">Extra 4</div>
+    <div class="navBar-btn" data-target="menu2">Extra 5</div>
+    <div class="navBar-btn" data-target="menu3">Extra 6</div>
+  </div>
+</div>
+
+<!-- Menus outside navbar -->
+<div id="menu1" class="navOptionsMenu">
+  <div class="navBar-item">item 1</div>
+  <div class="navBar-item">item 2</div>
+  <div class="navBar-item">item 3</div>
+  <div class="navBar-item">item 4</div>
+  <div class="navBar-item">item 5</div>
+  <div class="navBar-item">item 6</div>
+</div>
+
+<div id="menu2" class="navOptionsMenu">
+  <div class="navBar-item">item 10</div>
+  <div class="navBar-item">item 20</div>
+  <div class="navBar-item">item 30</div>
+  <div class="navBar-item">item 40</div>
+  <div class="navBar-item">item 50</div>
+  <div class="navBar-item">item 60</div>
+</div>
+
+<div id="menu3" class="navOptionsMenu">
+  <div class="navBar-item">item 100</div>
+  <div class="navBar-item">item 200</div>
+  <div class="navBar-item">item 300</div>
+  <div class="navBar-item">item 400</div>
+  <div class="navBar-item">item 500</div>
+</div>
+
+<div id="content">
+  <p>Scroll down to see navbar stay fixed.</p>
+  <p>More content...</p>
+  <p>More content...</p>
+  <p>More content...</p>
+  <p>More content...</p>
+  <p>More content...</p>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const buttons = document.querySelectorAll('#navOptions .navBar-btn');
+
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetMenu = document.getElementById(btn.dataset.target);
+
+            // Close other menus
+            document.querySelectorAll('.navOptionsMenu').forEach(menu => {
+                if(menu !== targetMenu) menu.classList.remove('open');
+            });
+
+            // Toggle this menu
+            targetMenu.classList.toggle('open');
+
+            // Update button selection
+            buttons.forEach(b => b.classList.remove('selected'));
+            if(targetMenu.classList.contains('open')) btn.classList.add('selected');
+        });
+    });
+});
+</script>
+
+</body>
+</html>

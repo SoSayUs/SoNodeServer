@@ -1,0 +1,29 @@
+{% load static %}
+
+<div class='pouponsMobile'>
+
+    <div class='navTop'>   
+        
+        <div class='shadow'></div>
+
+        <div class='searchTab' id='searchBox'>Poupons</div>
+        <div class='searchTab right' id='clearAll' onclick='sidebarSort("messages")'>clear</div>
+        
+    </div>
+    <div class='mobileNavigation'>
+        {% comment %}
+        <div class='searchTabContent stayShowing block' id='messages'>
+            <ul>
+                {% for n in notifications %}
+                    <li class='notification' id={{ n.id }}><a href={{ n.link }} style='text-decoration:none;'>{{ n.title }}</a><span onclick="removeNotification('{{ n.id }}')">X</span></li>
+                {% endfor %} 
+            </ul>
+        </div>
+        {% endcomment %}
+    
+    
+
+    </div>
+
+
+</div>

@@ -1,0 +1,62 @@
+
+{% load static %}
+<html>
+    <style>   
+        *{
+            color: white;
+        }
+        body{
+            background: linear-gradient(to bottom, #181f2d, black);
+            background-attachment: fixed;
+        }
+    </style>
+    <body>
+        {% if request.user.is_superuser %}
+        <a href='/'>Home</a>
+        <br>
+        <a href='/utils/super'>Back</a>
+        <div>
+            <ul class='commands' id='fourthPane'>
+                <div class='header'>{{ region }} Commands</div>
+                
+                
+                {% for key, value_list in scripts.items %}
+                <br>
+                <li><strong>----{{ key }}-----</strong></li>
+                <br>
+                    {% for item in value_list %}
+                        {% for countryName, func in item.items %}
+                            <li><strong>{{ func }}</strong></li>
+                            <li><a href='/utils/run_super_function/{{ countryName }}/{{ func }}/False/Test'>Test</a>&nbsp;
+                                <a href='/utils/run_super_function/{{ countryName }}/{{ func }}/True/Test'>TestWorker</a>&nbsp;
+                                <a href='/utils/run_super_function/{{ countryName }}/{{ func }}/False/Super'>Super</a>&nbsp;
+                                <a href='/utils/run_super_function/{{ countryName }}/{{ func }}/True/Super'>SuperWorker</a>&nbsp;
+                                <a href='/utils/run_super_function/{{ countryName }}/{{ func }}/False/False'>Standard</a>&nbsp;
+                                <a href='/utils/run_super_function/{{ countryName }}/{{ func }}/True/False'>StandardWorker</a>&nbsp;
+                            </li>
+                            <br>
+                        {% endfor %}
+                    {% endfor %}
+                    <br>
+                {% endfor %}
+
+                <br>
+                <br>
+                <br>
+                {% comment %}
+                <li><strong>----Carefull!!----</strong></li>
+                <li><strong>DELETE</strong></li>
+                    <li><a href='/utils/remove_target_test_data_confirm/{{ region }}/Block_unvalidated'>Blocks - unvalidated</a></li>
+                    {% for model in models %}
+                    <li><a href='/utils/remove_target_test_data_confirm/{{ region }}/{{ model }}'>{{ model }}</a></li>
+                    {% endfor %}
+                <br>
+                {% endcomment %}
+                
+                
+            </ul>
+            <div class='fadeOut'></div>
+        </div>
+        {% endif %}
+    </body>
+</html>

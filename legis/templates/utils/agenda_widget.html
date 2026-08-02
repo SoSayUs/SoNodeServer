@@ -1,0 +1,26 @@
+{% load static %}
+{% with agenda=updatedAgenda.Agenda_obj %}
+<div id='agenda' class='header'>{% if agenda.is_today %}{{ agenda.DateTime|date:"l" }}'s{% else %}{{ agenda.DateTime|date:"M d" }}{% endif %} Agenda <span class="material-icons"  onclick='calendarWidget()'>calendar_month</span></div>
+<div>
+    <ul class='agenda' id='fourthPane'>
+    <div id='calendarForm'>
+        <form method="POST" id='post-form' enctype="multipart/form-data">{% csrf_token %}
+            {% for i in agendaForm %}{{ i }}<input type="submit" class='btn btn-default' value="enter"/>{% endfor %}
+        </form> 
+    </div> 
+    {% if agenda.is_last %}<li style='width:80%;'>{{ updatedAgenda|get_updated_field:'current_status' }}</li>{% endif %}
+
+        {% for a in agendaItems %}
+            {% if a.DateTime %}                                  
+            <li class='agendaTime' style='width:80%;'><a href='{{ a.get_absolute_url }}'>{{ a.DateTime|date:"h:iA" }}</a></li>
+            {% endif %}
+            {% if a.Bill_obj %}                   
+                <li style='padding-left: 5px; width:80%; border-bottom:0px solid white;'><a href={{ a.Bill_obj.get_absolute_url }}>{{ a.Text }}</a></li>
+            {% else %}
+                <li style='padding-left: 5px; width:80%; cursor:default; border-bottom:0px solid white;'>{{ a.Text }}</li>
+            {% endif %}
+        {% endfor %}
+    </ul>
+    <div class='fadeOut'></div>
+</div>
+{% endwith %}

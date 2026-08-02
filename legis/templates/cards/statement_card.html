@@ -1,0 +1,205 @@
+{% load static %}
+
+<div class="cardContainer">
+{% if not hasContext or hasContext|is_int and hasContext == statement.order or hasContext and hasContext == statement.id %}
+<div class='postContext' style="text-align: center;"><a href='{{ statement.get_absolute_url }}'><span>Context: </span>{{ statement.Meeting_obj.Chamber }} {{ statement.Meeting_obj.meeting_type }}{% if statement.Meeting_obj.Title %} - {{ statement.Meeting_obj.Title }}{% endif %}{% if debateUpdate|get_updated_field:'statement_count' and statement.order %} - {{ statement.order }} of {{ debateUpdate|get_updated_field:'statement_count' }}{% endif %} - ({{ statement.DateTime|date:"M/j/y" }})</a></div>
+{% endif %}
+<div class='card debate {% if id|to_int == statement.order or id == statement.id %}moveToHere{% endif %}' id='{{ statement.id }}'>
+
+    <div class='sponsor'>
+        <div>
+        <a href={{ statement.Person_obj.get_absolute_url }}><img class='profilePic' style='border-bottom:{% if request.user_agent.is_mobile %}9px{% else %}4px{% endif %} solid {{ statement.Party_obj.Color }};' src="{{ statement.Person_obj.get_image|default:'/static/img/user-coloured.png' }}"></a>
+    
+        <div class='sponsorInfo'>
+            {% if statement.Person_obj %}
+                <div style='text-align:center; padding:0px; padding-bottom:7px;'><a href='{{ statement.Meeting_obj.get_absolute_url }}/?speaker={% if statement.Person_obj.GovIden %}{{ statement.Person_obj.GovIden }}{% else %}{{ statement.Person_obj.id }}{% endif %}'>{{ statement.Person_obj|get_person_field:'FullName' }}</a></div>
+            {% else %}
+                <div style='text-align:center; padding:0px; padding-bottom:7px;'>{{ statement.PersonName }}</div>
+            {% endif %}    
+            {% if statement.District_obj %}
+                {% if statement.District_obj.ProvState_obj %}
+                    <div style='text-align:center; padding:0px; padding-bottom:7px;'>{{ statement.District_obj.ProvState_obj.Name }}</div>
+                    <div style='text-align:center; padding:0px; padding-bottom:7px;'>{{ statement.District_obj.Name }}</div>
+                {% else %}
+                    <div style='text-align:center; padding:0px; padding-bottom:7px;'>{{ statement.District_obj.Name }}</div>
+                {% endif %}
+                {% endif %}
+        </div>
+        {% comment %}
+            {% if statement.Person_obj|get_person_field:'PhotoLink' %}
+            {% else %}
+                <img class='miniProfilePic' src={% static 'img/user-colored.png' %}>
+                
+                <div class='sponsorInfo'>
+                    <div style='text-align:center; padding:0px; padding-bottom:7px;'><a href='{{ statement.Meeting_obj.get_absolute_url }}/?speakerName={{ statement.PersonName|replace_spaces }}'>{{ statement.PersonName }}</a></div>
+                </div>
+            {% endif %}
+        {% endcomment %}
+
+        <ul style='padding-left:17px; margin:0px; list-style: none;'>
+            {% if statement.DateTime %}
+                <li>{{ statement.DateTime|date:"M/j/y" }}</li>
+                {% if statement.Meeting_obj.hide_time != 'hour' %}
+                    <li>{{ statement.DateTime|time:"g:i:s a" }}</li>
+                {% endif %}
+            {% else %}
+                <li>{{ statement.Meeting_obj.DateTime|date:"N/j/y" }}</li>
+            {% endif %}
+
+        </ul>
+    </div>
+    </div>
+    
+    <div class='cardContent'>
+    <div class='debateContent'>
+        <div class='debateTitle'>
+            <a href='{{ statement.Meeting_obj.get_absolute_url }}/?business={{ statement.SubjectOfBusiness|replace_spaces }}'>{{ statement.SubjectOfBusiness }}</a>
+        </div>
+        <div class='debateInfo'>
+        <ul>
+            {% if statementUpdate|get_updated_field:'VideoURL' %}
+                <li class='watch' onclick='insertEmbed("statement-{{ statement.id }}", "{{ statementUpdate|get_updated_field:'VideoURL' }}")'>Watch</li>
+            {% endif %}
+            {% if not isMobile %}
+                {% if statement.bill_dict %}
+                <li>Re: {% for key, value in statement.bill_dict.items %}<a href={{ value|get_item:'localLink' }}>{{ key }}</a>&nbsp;{% endfor %}</li>
+                {% endif %}
+            {% endif %}
+            </ul>
+        </div>
+        <div class='Embed' ></div>
+        <div class='TextContent'>
+        {% if statement.Content %}
+            <div class='Text hashable'>
+                <div>{{ statement.Content }}</div>
+                {% comment %}
+                <ParaText>
+                {{ statement.Content|safe }}
+                </ParaText>
+                {% endcomment %}
+            </div>
+        {% comment %}
+        {% else %}
+            <div class='Text'>
+                {% for q in h.questions.all %}
+                    <div>{{ q.QuestionNumber }}</div>
+                    {% if q.QuestionContent %}
+                        <div>Questioner: {{ q.questioner_name }}</div>
+                        <ParaText>
+                        {{ q.QuestionContent|safe }}
+                        </ParaText>
+                    {% elif q.ResponseContent %}
+                        <div>Responder: {{ q.responder_name }}</div>
+                        <ParaText>
+                        {{ q.ResponseContent|safe }}
+                        </ParaText>
+                    {% endif %}
+                {% endfor %}
+
+            </div>
+        {% endcomment %}
+        {% endif %}
+        </div>
+        {% if isMobile %} 
+            {% if statement.word_count %}
+                <div class='wordCount'>{{ statement.word_count }} words</div>
+            {% else %}
+                <br>
+            {% endif %}
+            {% if statement.Terms_array|length > 3 %}
+            <div class='readMoreTerms' onclick='continue_reading("statement-{{ statement.id }}","{{ topicList }}")'>All Topics</div>
+            {% endif %}
+            {% if statement.Terms_array %}
+                <div class='Terms'>
+                    <ul> 
+                        {% if topicList %}
+                            {% with terms=statement.Terms_array|order_terms:topicList %}
+                                {% for term in terms|slice:":3"%}
+                                    <li {% if term in topicList %}class='activeTerm'{% endif %}><a href='{{ statement.Meeting_obj.get_absolute_url }}/?topic={{ term }}' class='shorten1'>{{ term }}</a></li>
+                                {% endfor %}
+                            {% endwith %}
+                            {% with terms=statement.keyword_array|order_terms:topicList %}
+                                {% for term in terms|slice:":3"%}
+                                    <li {% if term in topicList %}class='activeTerm'{% endif %}><a href='{{ statement.Meeting_obj.get_absolute_url }}?topic={{ term }}' class='shorten1'>{{ term|title }}</a></li>
+                                {% endfor %}
+                            {% endwith %}
+                        {% else %}
+                            {% for term in statement.Terms_array|slice:":3"%}
+                                <li {% if term in topicList %}class='activeTerm'{% endif %}><a href='{{ statement.get_absolute_url }}&topic={{ term }}' class='shorten1'>{{ term }}</a></li>
+                            {% endfor %}
+                            {% for term in statement.keyword_array|slice:":3"%}
+                                <li {% if term in topicList %}class='activeTerm'{% endif %}><a href='{{ statement.Meeting_obj.get_absolute_url }}?topic={{ term }}' class='shorten1'>{{ term|title }}</a></li>
+                            {% endfor %}
+                        {% endif %}
+                    </ul>
+                </div>
+            {% elif statement.keyword_array %}  
+                <div class='Terms'>
+                    <ul>
+                    {% for term in statement.keyword_array|slice:":3"%}
+                        <li {% if term in topicList %}class='activeTerm'{% endif %}><a href='{{ statement.Meeting_obj.get_absolute_url }}?topic={{ term }}' class='shorten1'>{{ term|title }}</a></li>
+                    {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+        
+        {% else %}
+            {% if statement.word_count %}
+                <div class='wordCount'>{{ statement.word_count }} words</div>
+            {% else %}
+                <br>
+            {% endif %}
+            {% if request.user_agent.is_mobile %} 
+                {% if statement.Terms_array|length > 3 %}
+                <div class='readMoreTerms' onclick='continue_reading("statement-{{ statement.id }}","{{ topicList }}")'>All Topics</div>
+                {% endif %}
+            {% else %}
+                {% if statement.Terms_array|length > 5 %}
+                <div class='readMoreTerms' onclick='continue_reading("statement-{{ statement.id }}","{{ topicList }}")'>All Topics</div>
+                {% endif %}
+            {% endif %}
+            {% if statement.Terms_array %}
+                <div class='Terms'>
+                    <ul>
+                        {% if topicList %}
+                            {% with terms=statement.Terms_array|order_terms:topicList %}
+                                {% for term in terms|slice:":5"%}
+                                    <li {% if term in topicList %}class='activeTerm'{% endif %}><a href='{{ statement.Meeting_obj.get_absolute_url }}/?topic={{ term }}{% if speaker_id %}&speaker={{speaker_id}}{% endif %}' class='shorten1'>{{ term }}</a></li>
+                                {% endfor %}
+                            {% endwith %}
+                            {% with terms=statement.keyword_array|order_terms:topicList %}
+                                {% for term in terms|slice:":5"%}
+                                <li {% if term in topicList %}class='activeTerm'{% endif %}><a href='{{ statement.Meeting_obj.get_absolute_url }}?topic={{ term }}{% if speaker_id %}&speaker={{speaker_id}}{% endif %}' class='shorten1'>{{ term|title }}</a></li>
+                                {% endfor %}
+                            {% endwith %}
+                        {% else %}
+                            {% if request.user_agent.is_mobile %} 
+                                {% for term in statement.Terms_array|slice:":3"%}
+                                    <li {% if term in topicList %}class='activeTerm'{% endif %}><a href='{{ statement.get_absolute_url }}&topic={{ term }}{% if speaker_id %}&speaker={{speaker_id}}{% endif %}' class='shorten1'>{{ term }}</a></li>
+                                {% endfor %}
+                            {% else %}
+                                {% for term in statement.Terms_array|slice:":5"%}
+                                    <li {% if term in topicList %}class='activeTerm'{% endif %}><a href='{{ statement.get_absolute_url }}&topic={{ term }}{% if speaker_id %}&speaker={{speaker_id}}{% endif %}' class='shorten1'>{{ term }}</a></li>
+                                {% endfor %}
+                                {% for term in statement.keyword_array|slice:":5"%}
+                                    <li {% if term in topicList %}class='activeTerm'{% endif %}><a href='{{ statement.Meeting_obj.get_absolute_url }}?topic={{ term }}{% if speaker_id %}&speaker={{speaker_id}}{% endif %}' class='shorten1'>{{ term|title }}</a></li>
+                                {% endfor %}
+                            {% endif %}
+                        {% endif %}
+                    </ul>
+                </div>
+            {% elif statement.keyword_array %}  
+            <div class='Terms'>
+                <ul>
+                {% for term in statement.keyword_array|order_terms:topicList|slice:":5"%}
+                    <li {% if term in topicList %}class='activeTerm'{% endif %}><a href='{{ statement.Meeting_obj.get_absolute_url }}?topic={{ term }}' class='shorten1'>{{ term|title }}</a></li>
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        {% endif %}
+    </div>
+    </div>
+</div>
+{% include 'utils/reaction_bar.html' %}
+</div>

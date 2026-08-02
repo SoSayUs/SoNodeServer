@@ -1,0 +1,116 @@
+{% load static %}
+
+<div class='card agendaItem' id='{{ meeting.id }}'>
+
+    <div class='sponsor'>
+        <div>
+            {% if agenda.province %}
+            <img class='sponsorPic' src={{ agenda.province.logo_link }}>
+            {% else %}
+            <img class='sponsorPic' src={% static 'img/house_coat_of_arms.png' %}>
+            {% endif %}
+        </div>
+    </div>
+    <div class='cardContent'>
+    <div class='Info'>
+            <div class='Code'>
+                <h2>{% if 'Assembly' in meeting.Chamber %}Assembly{% else %}{{ meeting.Chamber }}{% endif %} Debates</h2>
+                {% with g=meeting %}
+                {% include 'utils/gov_details.html' %}
+                {% endwith %}
+            </div>
+        <div class='Details'>
+            <div>{{ meeting.Title }}</div><br>
+            <div>
+            {% if agenda.VideoURL and meetingUpdate|get_updated_field:'has_transcript' %}
+                <a style='display:inline-block;'style='margin-left:10px;' href='{{ meeting.get_absolute_url }}'>View from start</a>
+            {% elif agenda.VideoURL %}
+                <a style='display:inline-block;'style='margin-left:10px;' href='{{ meeting.get_absolute_url }}'>Watch from start</a>
+            {% elif meetingUpdate|get_updated_field:'has_transcript' %}
+                <a style='display:inline-block;'style='margin-left:10px;' href='{{ meeting.get_absolute_url }}'>Read from start</a>
+            {% else %}
+                <a style='display:inline-block;'style='margin-left:10px;' href='{{ meeting.get_absolute_url }}'>Transcript not yet available</a>
+            {% endif %}
+            </div>
+            {% comment %}
+
+            {% if 'House' in a.organization or 'Assembly' in a.organization or 'Senate' in a.organization and a.agendaitem_set.all %}
+
+                <ul>
+                {% for i in a.agendaitem_set.all %}
+                    {% if i.date_time %}                  
+                        <li style='margin-top: 5px; margin-bottom: 3px; '><a style='text-decoration: underline;' href='{{ h.get_absolute_url }}?time={{ i.date_time|date:"h:iA" }}'>{{ i.date_time|date:"h:iA" }}</a></li>
+                        {% endif %}
+                    {% if i.bill %}
+                        <li style='display:block; list-style: inside;'><a href={{ i.bill.get_absolute_url }} class='shorten2' >&nbsp;{{ i.text }}</a></li>
+                    {% elif i.text %}
+                        <li class='shorten2' style='display:block; list-style: inside;'>&nbsp;{{ i.text }}</li>
+                    {% endif %}
+                {% endfor %}
+                </ul>
+            {% elif a.organization == 'Senate' %}
+                <ul>
+                    <li style='margin-top: 5px; margin-bottom: 3px; text-decoration: underline;'><a href='{{ a.get_absolute_url }}'>{{ a.date_time|date:"h:iA" }}</a></li>
+                    <li style='font-size:110%'><b>Senators' Statements</b> (18 minutes)</li>
+                    
+                    <li><b style='font-size:120%'>ROUTINE PROCEEDINGS</b> (30 MINUTES)</li>
+                    <li>&nbsp;Tabling of Documents</li>
+                    <li>&nbsp;Presenting or Tabling Reports from Committees</li>
+                    <li>&nbsp;Introduction and First Reading of Bills</li>
+                    <li>&nbsp;Reading of Petitions</li>
+                    
+                    <li style='font-size:110%'><b>Question Period</b> (30 minutes)</li>
+                    
+                    <li style='font-size:110%'><b>Delayed Answers</b></li>
+                    
+                    <li style='font-size:110%'><b>Government Business</b></li>
+                    <li>&nbsp;Bills — Third Reading</li>
+                    <li>&nbsp;Bills — Reports of Committees</li>
+                    <li>&nbsp;Bills — Second Reading</li>
+                    <li>&nbsp;Motions</li>
+                    <li>&nbsp;Inquiries</li>
+                    
+                    <li style='font-size:110%'><b>Other Business</b></li>
+                    <li style='margin-top: 5px; margin-bottom: 3px; text-decoration: underline;'>{{ a.end_date_time|date:"h:iA" }}</li>
+                </ul>
+            {% endif %}
+            
+            {% endcomment %}
+        </div>        
+
+        <div class='TextContent'>
+            <br>
+            <ul class='Text'>
+                {% comment %}
+                {% for t in h.Terms %}
+                    <li style='display:block; list-style: inside;'><a href="{{ h.get_absolute_url }}?topic={{t}}" class='shorten1' >&nbsp;{{ t }}</a></li>
+                {% endfor %}
+                {% endcomment %}
+                {% for key, value in meetingUpdate|list_75_terms %}
+                    <li><span>({{ value }})</span>&nbsp; <a href='{{ meeting.get_absolute_url }}/?topic={{ key }}' title={{ key }} >{{ key|title }}</a></li>
+                {% endfor %}
+                {% with remainder=meetingUpdate|get_terms_overflow %}
+                    {% if remainder %}
+                        <br>
+                        <li><a href='{{ meeting.get_absolute_url }}'>{{ remainder }} more...</a></li>
+                    {% endif %}
+                {% endwith %}
+
+            {% comment %}
+                {% for key, value in h.list_75_terms %}
+                    <li><span>({{ value|add:'1' }})</span>&nbsp; <a href='{{ h.get_absolute_url }}/?topic={{ key }}' title={{ key }} >{{ key }}</a></li>
+                {% endfor %}
+                {% with remainder=h.get_terms_overflow %}
+                    {% if remainder %}
+                        <br>
+                        <li><a href='{{ h.get_absolute_url }}'>{{ remainder }} more...</a></li>
+                    {% endif %}
+                {% endwith %}
+            {% endcomment %}
+            </ul>
+        
+        </div>  
+    </div>  
+    </div>
+</div>
+{% include 'utils/reaction_bar.html' %}

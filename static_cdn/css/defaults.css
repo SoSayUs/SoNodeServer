@@ -1,0 +1,1754 @@
+
+
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  color: black;
+}
+html {
+  scrollbar-width: auto;
+  font-size: 90%;
+}
+body{
+  background: linear-gradient(to bottom, #0b559a, #01213f);
+  background-attachment: fixed;
+}
+
+/* loading ring */
+.lds-dual-ring {
+  display: inline-block;
+  width: 80px;
+  height: 80px;
+  margin-top: 100px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.lds-dual-ring:after {
+  content: " ";
+  display: block;
+  width: 64px;
+  height: 64px;
+  margin: 8px;
+  margin-left: 2px;
+  border-radius: 50%;
+  border: 6px solid #0b559a;
+  border-color: #0b559a transparent #0b559a transparent;
+  animation: lds-dual-ring 1.2s linear infinite;
+}
+@keyframes lds-dual-ring {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+body{
+  margin: 0%;
+  scrollbar-width: auto;
+}
+h1{
+  font-weight: 100;
+}
+body a{
+  text-decoration: none;
+}
+body a:hover{
+  text-decoration:underline;
+}
+/* active is used on reactionBar */
+.active{
+  background-color: #c4c4c4;
+}
+#container{
+  position: relative;
+  display: block;
+  margin-left: auto;
+  margin-right: auto; 
+  padding: 0px;
+  width:90%;
+  max-width: 1200px;
+  min-height: 100vh;
+  z-index: 0;
+  scrollbar-width: auto;
+  top: 0px;
+  margin-top: 0px;
+}
+.darkenOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.3);
+  z-index: 8000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.5s ease, visibility 0s linear 0.5s;
+}
+.darkenOverlay.darken {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.5s ease;
+}
+.modalWidget{
+  display: none;
+  opacity: 0;
+  -webkit-opacity: 0;
+  transition: 0.3s !important;
+  -webkit-transition: 0.3s;
+  position:fixed;
+  z-index:9000;
+  bottom: 50%;
+  left: 50%;
+  transform: translate(-50%, 50%);
+  margin-left: auto;
+  margin-right: auto;
+  padding: 35px;
+  min-width: 250px;
+  min-height: 350px;
+  max-width: 750px;
+  max-height: 750px;
+  max-height: 75vh;
+  background-color: rgba(249, 249, 249,1);
+  border: 1px solid #727272;
+  border-radius: 10px;
+  box-shadow: 0px 0px 10px 2px gray;
+  overflow: scroll;
+}
+.modalWidget.show{
+  display: block;
+}
+.modalWidgetClose{
+  display: block;
+  position:relative;
+  text-align:right;
+  font-size: larger;
+  top: -15px;
+  left: 10px;
+  cursor: pointer;
+}
+.modalWidget #modalTitle{
+  display: block;
+  position: relative;
+  font-size: 115%;
+  text-align: center;
+  width: 100%;
+  top: -35px;
+  margin: auto;
+}
+.modalWidget #modalContent{
+  display: block;
+  position: relative;
+  text-align: center;
+  width: 100%;
+  left: 50%;
+  transform: translate(-50%, 0);
+  overflow-y: scroll;
+}
+.modalWidget #showAllClose{
+  position:relative;
+  text-align: right;
+  margin: 10px;
+}
+.modalWidget #showAllClose:hover{
+  text-decoration: underline;
+  cursor:pointer;
+}
+.modalWidget #title{
+  position:relative;
+  display: block;
+  height: 30px;
+  font-size: 120%;
+  margin: 10px;
+}
+.modalWidget ul{
+  position:relative;
+  display: block;
+  list-style: none;
+  padding: 20px;
+  padding-top: 0px;
+  margin: 0px;
+}
+.modalWidget ul > li{
+  position:relative;
+  margin: 6px 0px;
+  border-bottom: 1px solid transparent; 
+}
+.clickable:hover{
+  text-decoration: underline;
+  cursor: pointer;
+}
+.modalWidget ul > li span:not(.material-icons){
+  position:relative;
+  float: right;
+  /* border: 1px solid red; */
+}
+.modalWidget ul > li span.material-icons{
+  position:relative;
+  font-size: 20px;
+  padding-right: 5px;
+  top: 4px;
+}
+.justify_left {
+  text-align: left !important;
+}
+/* #modalForm #field2{
+  position: relative;
+  left: 11px;
+} */
+#modalForm input{
+  width: 200px;
+}
+#passwordVisibility {
+  /* border: 1px solid yellow; */
+  position: relative;
+  right: 30px;
+  top: 8px;
+  width: 15px;
+  cursor: pointer;
+  color:gray;
+}
+.indexMobile{
+  display: none;
+}
+#index {
+  position: fixed;
+  display: block;
+  height: 100%;
+  width:206px;
+  background-color: rgba(249, 249, 249,1);
+  border-top-left-radius: 7px;
+}
+#navigation{
+  position: fixed;
+  height: calc(100vh - 100px);
+  width:205px;
+  top: 100px;
+  padding: 0px;
+  padding-bottom:500px;
+  display: block;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  border-left: 1px solid #727272;
+  border-top: 1px solid #727272;
+  border-radius: 7px;  
+  scrollbar-width: none;
+}
+.navTop{
+  position: fixed;
+  margin: 0%;
+  top: 0px;
+  height: 104px;
+  width:205px;
+  border-left: 1px solid #727272;
+  border-top: 1px solid #727272;
+  padding: 0px;
+  background-color: rgba(249, 249, 249,1);
+  border-top-left-radius: 7px;
+  text-decoration: none;
+}
+.navTop .shadow, #feedTop .shadow{
+  position: absolute;
+  display: block;
+  width: 100%;
+  height: 30px;
+  top: 0px;
+  left: 0px;
+  margin: 0px;
+  background: linear-gradient(to top, RGBA(255, 255, 255, 0), #d3d3d3);
+}
+.navTop .shadow{
+  border-top-left-radius: 7px;
+}
+#feedTop .shadow{
+  border-top-right-radius: 7px;
+}
+.navTop:hover{
+  text-decoration:none;
+}
+#logo{
+  top: 18px;
+  height: 60px;
+  position: relative;
+  display: inline-block;
+  margin-left: 12px;
+  margin-right: auto;
+}
+.navTop .net-title{
+  position: relative;
+  display: inline-block;
+  margin: -43px auto 0px 85px;
+  width: 100px;
+  font-size: 200%;
+  text-align: center;
+}
+.navTop .net-subtitle{
+  position: relative;
+  display: inline-block;
+  margin: 4px auto 0px 85px;
+  width: 100px;
+  top: -13px;
+  text-align: center;
+  font-style: italic;
+  font-weight: lighter;
+  font-size: 100%;
+}
+#navigation .lds-dual-ring {
+  margin-left: 50px;
+}
+#navigation #userProfile, .indexMobile #userProfile{
+  position: relative;
+  display: block;
+  width: 100%;
+  height: auto;
+  padding-left: 15px;
+  padding-top: 15px;
+  padding-bottom: 15px;
+  margin-bottom: 0px;
+}
+#navigation #userProfile li, .indexMobile #userProfile li{
+    display: inline-block;
+    padding: 0px;
+}
+#navigation #userPic, .indexMobile #userPic{
+  position: relative;
+  display: inline-block;
+  height: 40px;
+}
+#navigation #userName, .indexMobile #userName{
+  position: relative;
+  display: inline-block;
+  top: -15px;
+  margin-left: 5px;
+  font-size: 110%;
+  height: 16px;
+}
+.feedTop #userName{
+  height: 24px;
+}
+#navigation #userName:hover, #navigation #userPic:hover{
+  cursor: pointer;
+}
+#navigation #userProfile .settings, .indexMobile #userProfile .settings{
+  position: relative;
+  float: right;
+  right: 30px;
+  top:8px;
+}
+.shadyParent{
+      display: inline-block;
+      padding: 0px;
+      border: 1px dashed orange;
+}
+.shady{
+    display: inline-block;
+    position: relative;
+    top: 4px;
+    height: 100%;
+    margin: 0px 2px;
+}
+#line_one {
+    background-color:#002395;
+    float:bottom;
+    height:60%;
+    width:1.5px;
+}
+#line_two {
+    background-color:#ED2E38;
+    float:top;
+    height:40%;
+    width:1.5px;
+    position:absolute;
+}
+#navigation > ul{
+  list-style: none;
+  margin-top: 0px;
+  padding: 0px;
+  padding-left: 15px;
+  font-size: 115%;
+}
+#navigation > ul > li{
+  margin: 3px 0px;
+}
+#navigation > ul > li > a:hover{
+  text-decoration: underline;
+  cursor: pointer;
+  margin: 3px 0px;
+}
+#navigation #theme:hover{
+  cursor:pointer;
+  text-decoration: underline;
+}
+#navigation .navSubmenu{
+  position: relative;
+  list-style: none;
+  padding: 0px;
+  padding-left: 7px;
+  max-height: 500px;
+  margin-bottom: -5px;
+  overflow:scroll;
+  transition: 0.5s;
+}
+#navigation .navSubmenu > li{
+  padding: 1px 0px 0px 0px;
+}
+#bottomNavBar{
+  display: none;
+}
+.arrowdown {
+  position: relative;
+  left: 8px;
+  bottom: 5px;
+  border: solid black;
+  border-width: 0 1px 1px 0;
+  display: inline-block;
+  padding: 3px;
+  transform: rotate(45deg);
+  -webkit-transform: rotate(45deg);
+  transition: 300ms;
+}
+.arrowdown:hover{
+  cursor:pointer;
+}
+#sidebar{
+  background-color: rgba(249, 249, 249,1);
+  max-height: calc(100vh - 13px);
+  width:205px;
+  padding-bottom: 10px;
+  position: absolute;
+  top: 100px;
+  right: 0px;
+  display: block;
+  border-right: 1px solid #727272;
+  border-left: 1px solid #727272;
+  border-top: 1px solid #727272; 
+  border-bottom: 1px solid #727272; 
+  border-radius: 7px;
+  scrollbar-width: none;
+}
+#sidebar.fixed{
+  border-top-left-radius: 0px;
+}
+#sidebar a:hover{
+  text-decoration: none;
+}
+#sidebar h2{
+  position: relative;
+  display: block;
+  margin: 10px auto;
+  font-weight: lighter;
+  font-size: 115%;
+  text-align: center;
+  font-family: 'Lucida Bright', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+}
+#sidebar div{
+  position:relative;
+  max-height: 55vh;
+  overflow: scroll;
+  scrollbar-width: none;
+}
+#sidebar .header{
+  position:relative;
+  display:block;
+  font-size: 130%;
+  text-align: left;
+  margin: 1px 0px;
+  padding: 3px 10px;;
+  width: calc(100% - 22px);
+}
+#sidebar .header span:hover{
+  cursor:pointer;
+  text-decoration: underline;
+}
+#sidebar .header .sort{
+  position: absolute;
+  right: 9px;
+  font-size: 80%;
+  font-weight: lighter;
+  bottom: 5px;
+}
+#sidebar ul{
+  position: relative;
+  list-style: none;
+  margin: 0px;
+  margin-bottom: -70px;
+  padding: 5px 0px 0px 0px;
+  max-height:calc(100vh - 30vh - 45vh - 20px - 20px - 61px);
+  overflow: scroll;
+  border-top: 1px solid #727272; 
+  border-top-right-radius: 6px;
+  border-top-left-radius: 6px;
+  transition: 0.4s;
+  scrollbar-width: none;
+}
+#sidebar ul > li{
+  position: relative;
+  border-bottom: 1px solid transparent; 
+  margin: 6px 15px;
+  width:71%;
+}
+#sidebar ul > li.fullWidth{
+  width:100%;
+}
+#sidebar ul > li span{
+  position: absolute;
+  border-bottom: 1px solid transparent; 
+  margin: 6px 20px;
+  right:-37px;
+  bottom: -7px;
+  width:10%;
+}
+#sidebar ul > li:hover{
+  cursor: pointer;
+  border-bottom: 1px solid #c4c4c4; 
+}
+#sidebar .readMore{
+  cursor:pointer
+}
+#sidebar .readMore:hover{
+  text-decoration: underline;
+}
+#sidebar ul > li.tocItem span.tocText{
+  position: relative;
+  border-bottom: 1px solid transparent; 
+  margin: 0px 0px;
+  left: 0px;
+  bottom: 0px;
+  width:90%;
+}
+#sidebar .tocItem span.tocText:hover{
+  cursor:pointer;
+}
+#sidebar .tocItem .tocShare{
+  position: absolute;
+  border-bottom: 1px solid transparent; 
+  margin: 6px 15px;
+  right:-45px;
+  bottom: -7px;
+  width:10%;
+  font-size: 120%;
+}
+#sidebar .notification > span{
+  opacity:0;
+}
+#sidebar .notification:hover span{
+  opacity:1;
+}
+#sidebar .agenda{
+  padding: 0px;
+  overflow:scroll;
+}
+#sidebar #calendarForm{
+  position: relative;
+  height: 0px;
+}
+#sidebar #calendarForm input{
+  color:black;
+}
+#sidebar #calendarForm.showForm{
+  height: auto;
+  padding: 10px;
+  padding-bottom: 0px;
+}
+#sidebar .agenda .agendaTime{
+  border-bottom: 1px solid #c4c4c4; 
+}
+#sidebar .agenda li a:hover, #sidebar .notifications li a:hover{
+  text-decoration:underline;
+}
+#feedContainer {
+  background-color: rgba(249, 249, 249,1);
+  position: relative;
+  display: block;
+  padding: 0px;
+  top: 0px;
+  left: 206px;
+  border-left: 1px solid #727272;
+  border-right: 1px solid #727272;
+  border-top: 1px solid #727272;
+  border-top-right-radius: 7px; 
+  width:calc(100% - 205px - 4px - 205px);
+}
+#feed{
+  position: relative;
+  margin: 0%;
+  top: 100px;
+  width: 100%;
+  display: block;
+  border-top-left-radius: 7px;
+  border-top-right-radius: 7px;
+  min-height: calc(100% - 40px);
+  scrollbar-width: none;
+  border-top: 1px solid #727272; 
+  z-index: 1;
+  transition: opacity 0.1s ease;
+}
+#feed.fade-out {
+    opacity: 0;
+}
+#feedTop{
+  position: absolute;
+  margin: 0%;
+  top: 0px;
+  height: 100px;
+  width: 100%;
+}
+#feedTop .countryBanner{
+  position:relative;
+  width: 100%;
+  top: -50px;
+  border-radius: 7px;
+}
+#feedTop h1{
+  position: relative;
+  display: inline-block;
+  margin: 18px;
+  top:0px;
+  max-width:95%;
+}
+.feedTop #subtitle{
+  position: absolute;
+  display: inline-block;
+  font-size: 110%;
+  top:17px;
+}
+.feedTop #subtitle2{
+  position: absolute;
+  display: inline-block;
+  top:32px;
+}
+.feedTop #navBar:before {
+  /* border-left: 0;
+  -moz-border-radius: 0 0 5px 0;
+  -webkit-border-radius: 0 0 5px 0;
+  border-radius: 0 0 5px 0; */
+  /* left: -12px;
+  border: 4px solid orange; */
+}
+.feedTop #navBar:after {
+  /* border-right: 0;
+  -moz-border-radius: 0 0 0 5px;
+  -webkit-border-radius: 0 0 0 5px;
+  border-radius: 0 0 0 5px; */
+  /* right: -5px;
+  border: 1px solid blue; */
+}
+#navBar {
+  position: absolute;
+  bottom: -1;
+  right: -1;
+  max-width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  background-color: rgba(249, 249, 249,1);
+  padding: 0px;
+  scrollbar-width: none;
+  z-index: 1000;
+  margin: 0px;
+  transition: opacity 0.25s ease;
+}
+#navBar.fixed {
+  position: fixed;
+  bottom: unset;
+  border-bottom-left-radius: 7px;
+  top: -1;
+  right: calc(200px + 4px + 210px);
+  max-width: calc(100% - 200px - 4px - 210px);
+}
+#navBar .fade-out {
+  opacity: 0;
+}
+#navOptions {
+  display: flex;
+  overflow-x: auto;
+  justify-content: flex-start;
+  gap: 0px;
+  scrollbar-width: none;
+}
+#navOptions > .navBar-btn {
+  height: 20px;
+  border-right: 1px solid #727272;
+  border-bottom: 1px solid #727272;
+  border-top: 1px solid #727272;
+  margin: 0px;
+  padding: 6px;
+  cursor:pointer;
+  white-space: nowrap;
+}
+#navOptions > .navBar-btn.selected {
+  border-bottom: 1px solid transparent;
+}
+#navBar > #navOptions > :first-child {
+  border-top-left-radius: 7px;
+  border-left: 1px solid #727272;
+}
+#navBar.fixed > #navOptions > .navBar-btn:first-child {
+  border-top-left-radius: 0px;
+  border-bottom-left-radius: 7px;
+  border-left: 1px solid #727272;
+}
+#navOptions > .navBar-btn::before {
+  height: 20px;
+  margin: 0px;
+  padding: 6px;
+  background: linear-gradient(to top, #0b559a, white);
+  opacity: 0;
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transition: opacity 0.5s ease-in-out;
+  z-index: -1;
+}
+#navOptions > .navBar-btn:hover::before {
+    /* opacity: 1; */
+}
+.navOptionsMenu {
+  position: absolute;
+  top: 100%;
+  left: 0px;
+  right: -25px;
+  width: calc(100% - 2px);
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.05s ease-in-out;
+  height: auto;
+  max-width: 100%;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  scrollbar-width: none;
+  background-color: rgba(249, 249, 249,1);
+  border-bottom-left-radius: 7px;
+}
+.navOptionsMenu.open {
+  transition: max-height 0.5s ease-in-out;
+  max-height: 100px;
+  z-index: 100;
+  border-bottom: 1px solid #727272;
+  border-left: 1px solid #727272;
+  border-right: 1px solid #727272;
+}
+#navBar:has(.navOptionsMenu.open) {
+    border-bottom-left-radius: 0px;
+    border-bottom-right-radius: 0px;
+}
+#navBar.fixed > #navOptions:has(.navOptionsMenu.open) > :first-child {
+    border-bottom-left-radius: 0px;
+}
+.navBar-item {
+  display: inline-block;
+  padding: 10px 7px;
+  margin: 0 5px;
+  border-radius: 4px;
+  text-align: center;
+  white-space: nowrap;
+}
+.flash {
+  box-shadow: inset 0px 0px  35px 5px rgba(234, 223, 9, 0.75);
+}
+.card .cardInfo {
+  display: block;
+  position: absolute;
+  top:5px;
+  right:10px;
+  z-index: 1000;
+  color: #848484;
+}
+.card{
+  position: relative;
+  display:flex;
+  flex-flow:row;
+  overflow: hidden;
+  width: calc(100% + 1px);
+  height: auto;
+  scrollbar-width: none;
+  z-index: 100;
+}
+.cardCover {
+  background-color: rgba(249, 249, 249,1);
+  z-index: 101;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cardContainer {
+  z-index: 101;
+}
+.card .profilePic{
+  position: relative;
+  display: inline-block;
+  margin: 20px;
+  border-radius: 5px;
+  width: 140px;
+}
+.miniProfilePic{
+  position: relative;
+  display: block;
+  margin: 5px;
+  border-radius: 5px;
+  max-width: 35px;
+  max-height:35px;
+  height: 65px;
+}
+.image-cropper {
+  height: 90px;
+  width: 90px;
+  min-width: 58px;
+  position: relative;
+  overflow: hidden;
+  position: relative;
+    overflow: hidden;
+  border-radius: 50%;
+  margin: 5px;
+  display: flex;
+  align-items: center;
+}
+.image-cropper > a > .profilePic{
+  height: auto;
+  width: 100%;
+  display: block;
+  position: relative;
+  margin-left: auto;
+  margin-right: auto;
+  top:25px;
+}
+.card .profileInfo{
+  position: relative;
+  display: inline-block;
+  margin: 20px;
+}
+.card .profileInfo h2,.card .profileInfo h3{
+  font-weight: lighter;
+}
+.card .profileInfo ul{
+  list-style: none;
+  padding: 0px;
+}
+.card .profileInfo{
+  position:relative;
+  height: 4px;
+  width: 150px;
+  border-radius: 2px;
+  margin: 5px 0px;
+}
+.card .profileInfo li{
+  margin: 5px 0px;
+}
+.card .votePic{
+  position: relative;
+  display: inline-block;
+  margin: 5px 7px;
+  border-radius: 5px;
+  width: 75px;
+}
+.vote .profileInfo{
+  margin: 5px 15px;
+  width: 200px;
+}
+.card .sponsor{
+  position:relative;
+  display: inline-block;
+  top: 0%;
+  padding: 5px;
+  width: 110px;
+  vertical-align: top;
+}
+.card .sponsor{
+  position:relative;
+  height: 3px;
+  width: 100%;
+  border-radius: 2px;
+  margin: -15px 20px;
+}
+.card .sponsor h3{
+  position:relative;
+  display: block;
+  margin:5px;
+}
+.card .sponsor img{
+  position:relative;
+  display: block;
+  max-width: 90px;
+  max-height:150px;
+  margin-left:auto;
+  margin-right:auto;
+  border-radius: 7px;
+}
+.card .sponsor img.sprenPic {
+  position:relative;
+  display: block;
+  max-width: 60px;
+  max-height:110px;
+  margin-top: 25px;
+  margin-left:auto;
+  margin-right:auto;
+  border-radius: 7px;
+}
+.reactionBar img.miniSprenPic {
+  position:relative;
+  display: block;
+  max-width: 21px;
+  max-height:21px;
+  margin-top: -3px;
+  margin-left:-3px;
+  margin-right:-3px;
+  border-radius: 7px;
+}
+.card .sponsorInfo div{
+  position:relative;
+  display: block;
+  padding-left: 10px;
+  margin-top: 0px;
+}
+.cardContent{
+  position:relative;
+  display: inline-block;
+  min-height: 50px;
+  width: 100%;
+  margin: 0px;
+  top: 0%;
+  padding: 5px;
+}
+.cardContent .profileInfo{
+  top: 0px !important;
+}
+.card .Info{
+  position: relative;
+  display: inline-block;
+  top: 0px;
+  width: 100%;
+  padding: 10px;
+  padding-left: 0px;
+}
+.card .Code{
+  position: relative;
+  padding: 0px;
+}
+.card .Code h2{
+  position: relative;
+  display: inline-block;
+  margin: 0px 10px 10px 0px;
+  padding-right: 5px;
+  max-width: 70%;
+  top:0px;
+  vertical-align: top;
+}
+.card .Code .Parl{
+  position: relative;
+  display: inline-block;
+  top: 0px;
+  margin:0px 0px;
+}
+.card .Details{
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+.card .Details > div{
+  display: inline-block;
+  position:relative;
+  margin-right: 20px;
+}
+.card .Details > .title{
+  display: block;
+  position:relative;
+  margin-top: 15px;
+  font-size: 120%;
+  font-weight:bold;
+}
+.card .Details > .subtitle{
+  margin-top: 15px;
+  font-size: 125%;
+}
+.card .Details > .subtitle2{
+  margin-top: 15px;
+  font-size: 125%;
+  margin-left:20px;
+}
+.card .Details > ul{
+  display: block;
+  position:relative;
+  padding-left: 20px;
+  max-width: 100%;
+}
+.card .Details > ul li{
+  display: block;
+  position:relative;
+}
+.motion .Details ul{
+  position: relative;
+  display: inline-block;
+  list-style: none;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+.motion .Details ul li{
+  position: relative;
+  display: inline-block;
+  padding: 5px;
+  margin: 0px 5px;
+}
+.vote .cardContent{
+  left: -10px;
+  width: calc(100% - 135px);
+}
+.vote .cardContent ul{
+  display: inline-block;
+  list-style: none;
+}
+.vote .cardContent li{
+  display: inline-block;
+}
+.vote .Details ul{
+  display: inline-block;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+.vote .Details ul li{
+  display: inline-block;
+  padding: 0px;
+  margin: 0px 5px;
+}
+.card .Details .motionOutline a:hover{
+  text-decoration: none;
+}
+.agendaItem .Details .date{
+  font-size: 120%;
+}
+.agendaItem li{
+  font-size: 90%;
+}
+.vote .Details{
+  /* position: absolute; */
+  /* border: 1px solid red; */
+  /* height: 110px; */
+  /* padding:0px; */
+  /* padding-top: 32px; */
+  /* padding-left: 0px; */
+  /* text-align: center; */
+}
+.vote-yea{
+  position:relative;
+}
+.vote-nay{
+  position:relative;
+  left: 45px;
+}
+.vote-present{
+  position:relative;
+  left: 90px;
+}
+.vote-absent{
+  position:relative;
+  left: 135px;
+}
+.card .Details .billSummary{
+  max-height: 150px;
+  width: 100%;
+  overflow: hidden;
+  transition: 0.15s;
+}
+.card .billProgress{
+  display: block;
+  overflow: hide;
+}
+.card .billProgress ul{
+  position: relative;
+  display: inline-block;
+  border:1px solid gray;
+  list-style: none;
+  padding: 0px;
+  margin: 25px 15px 10px 15px;
+  border-radius: 5px;
+  max-width: 100%;
+  overflow: hidden;
+}
+.card .billProgress li{ 
+  position: relative;
+  display: inline-block;
+  margin: 0px -2px;
+  padding: 10px; 
+}
+.card .billProgress li.complete{
+  border-left:1px solid black;
+  color: white;
+}
+.card .billProgress li.complete:first-child{
+  border-left:0px solid gray;
+}
+.card .billProgress .passed, .card .billProgress .Passed{
+  background-color: #427A26;
+}
+.card .billProgress .current, .card .billProgress .Current{
+  background-color: #5b5b5b;
+}
+.card .billProgress .failed{
+background-color: #7A041D;
+}
+.card .billProgress .other{
+  background-color: #5b5b5b;
+}
+.card .billProgress .house{
+  background-color: #427A26;
+}
+.card .billProgress .senate{
+background-color: #7A041D;
+}
+.card .billProgress .president{
+background-color: #030491;
+}
+.card .billProgress .assent{
+background-color: #030491;
+}
+.card .motionOutline{
+  margin-top: 30px;
+  padding: 5px 0px;
+  border: 1px solid gray;
+  border-radius: 5px;
+}
+.card .motionOutline > li{
+  position: relative;
+  display: block;
+  padding: 5px 0px;
+}
+.riding{
+  padding: 15px;
+  width: calc(100% - 30px);
+}
+.debate{
+  min-height: 150px;
+}
+.debate .profilePic, .committee .profilePic{
+  position: relative;
+  display: block;
+  margin: 5px;
+  border-radius: 5px;
+  max-width: 90px;
+  max-height:200px;
+}
+.debate .cardContent{
+  min-height: 175px;
+}
+.debate .debateContent, .committee .committeeContent{
+  position: relative;
+  display: block;
+  width: calc(100% - 15px);
+  padding-right: 10px;
+  padding-left: 0px;
+  padding-bottom: 7px;
+  top:0px;
+}
+.postContext{
+  font-size: 130%;
+  position: relative;
+  display: block;
+  padding: 10px;
+  margin-left: auto;
+  margin-right: auto;
+  border-bottom: 1px solid #c4c4c4;
+}
+.debate .debateTitle, .committee .committeeTitle{
+  position: relative;
+  display: block;
+  font-style: italic;
+  margin-top: 10px;
+  margin-left: 5px;
+  font-size: 125%;
+}
+.debate .debateTitle a, .committee .committeeTitle a {
+  color: #427A26;
+}
+.debate div, .committee div, .bill div, .motion .div, .agendaItem div{
+  position: relative;
+}
+.debate .profileInfo, .committee .profileInfo{
+  position: relative;
+  display: inline-block;
+  color: #427A26;
+  font-size: 110%;
+  top: 0px;
+  margin: 0px;
+  width: 100%;
+}
+.debate .profileInfo b, .committee .profileInfo b{
+  color: #427A26;
+}
+.debate .debateInfo, .committee .committeeInfo{
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+.debate .debateInfo > ul, .committee .committeeInfo > ul{
+  position: relative;
+  display: inline-block;
+  list-style: none;
+  padding: 0px;
+  margin: 10px 0px 0px 0px;
+}
+.debate .debateInfo > ul > li, .committee .committeeInfo > ul > li{
+  position: relative;
+  display: inline-block;
+  margin: 3px 10px;
+}
+.debate .watch:hover, .debate .listen:hover, .committee .watch:hover, .committee .listen:hover{
+  cursor: pointer;
+  text-decoration: underline;
+}
+.card .EmbedContent{
+  position: relative;
+  display: block;
+  width:99%;
+  border: 1px solid #727272;
+  border-radius: 6px;
+  aspect-ratio: 450 / 280;
+}
+.card .TextContent{
+  position: relative;
+  display: inline-block;
+  max-height: 150px;
+  padding: 0px;
+  width: 100%;
+}
+.card .Text{
+  position: relative;
+  display: block;
+  max-height: 150px;
+  overflow: hidden;
+  padding-left: 20px;
+  padding-right: 30px;
+  margin: 0px;
+  max-width: 100%;
+}
+.card .Text li{
+  position: relative;
+  display: block;
+}
+.card .Text .showFullText, .card .TextContent .showFullText, .showFullText{
+  max-height: 10000px !important;
+  transition: 3s;
+  overflow: scroll;
+}
+#navigation .showFullText{
+  max-height: 500px !important;
+  padding-bottom: 25px;
+}
+#sidebar .showFullText{
+  max-height: 45vh !important;
+  padding: 5px 0px 35px 0px;
+}
+#sidebar .showFullText#thirdPane{
+  /* list-style-type: disc; */
+  /* padding-left: 5px; */
+}
+.debate .Text > div, .debate pre, .debate ParaText, .committee ParaText{
+  display: block;
+  margin: 10px 0px;
+  font-size: 105%;
+  white-space: pre-wrap;
+  word-wrap: break-all;
+  overflow-wrap: break-word;
+}
+.agendaItem .readMore:hover, .debate .readMore:hover, .committee .readMore:hover, .motion .readMore:hover, .spren .readMore:hover{
+  text-decoration: underline;
+}
+.debate .Terms, .committee .Terms{
+  position: relative;
+  display: block;
+  margin-top: 10px;
+  margin-bottom: 5px;
+}
+.debate .Terms > ul, .committee .Terms > ul{
+  list-style: none;
+  padding: 0px;
+  margin: 0px;
+  margin-bottom: 10px;
+}
+.debate .Terms > ul > li, .committee .Terms > ul > li{
+  position: relative;
+  display: inline-block;
+  margin-right: 8px;
+  margin-top: 4px;
+  padding: 2px;
+  border: 1px solid #c4c4c4;
+  border-radius: 4px;
+}
+.debate .Terms > ul > li > a, .committee .Terms > ul > li > a{
+  color: #848484;
+}
+.debate .Terms > ul > li:hover, .committee .committeeTerms > ul > li:hover{
+  cursor: pointer;
+  text-decoration: underline;
+}
+.activeTerm{
+  background-color: #427A26;
+}
+.activeTerm > a{
+  color: white !important;
+}
+.spren {
+  padding-bottom: 20px;
+}
+.spren .Text {
+  line-height: 120%;
+}
+.spren .TextContent {
+    margin-top: 0px !important;
+}
+.bottomDivider{
+  position: relative;
+  display: block;
+  width: 100%;
+  border-bottom: 1px solid #c4c4c4;
+}
+.reactionBar{
+  position: relative;
+  width: 100%;
+  height: 40px;
+  padding: 0px;
+  bottom: 0px;
+  display: flex;
+  border-bottom: 1px solid #c4c4c4;
+  overflow-x:scroll;
+  overflow-y:hidden;
+}
+.reactionBar ul{
+  position: relative;
+  display: block;
+  list-style: none;
+  padding: 0px;
+  padding-left: 2px;
+  margin: 0px;
+  left:110px;
+  bottom: -5px;
+  z-index: 102;
+  overflow-x:scroll;
+}
+.reactionBar ul > li, .reactionBar ul > li a {
+  position: relative;
+  display: inline-block;
+  margin: 0;
+  float: left;
+  padding: 10px;
+  height: 100%;
+  bottom: 0;
+  border: 1px solid #c4c4c4;
+  border-bottom: none;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  overflow: hidden;
+}
+.reactionBar ul > li a{
+  border: none;
+}
+.reactionBar ul > li > a{
+  position: relative;
+  display:block;
+  overflow:scroll;
+}
+.reactionBar ul > li.readingButton, .reactionBar ul > li.commentsLink, .reactionBar ul > li.commentsLink > a{
+  /* for when using a inside li, see next item */
+  padding: 0px;
+}
+.reactionBar ul > li:hover{
+  cursor: pointer;
+}
+.reactionBar ul > li.depress{
+    margin-top: 8px !important;
+    height:8px !important;
+}
+.reactionBar ul > li{
+  height:16.5px;
+  transition: 0.2s;
+  background: linear-gradient(to bottom, #f4f4f4, transparent 25px) !important;
+}
+.reactionBar ul > li.active{
+  background: transparent;
+}
+.reactionBar ul > li.yea span, .reactionBar ul > li.nay span{
+  transition: 0s;
+}
+.reactionBar ul > li.yea.active span{
+    color: white;
+}
+.reactionBar ul > li.reactionbarSpren.active, .reactionBar ul > li.reactionbarSpren:hover{
+  background-color: #00e9ff !important;
+}
+.reactionBar ul > li.yea.active, .reactionBar ul > li.yea:hover{
+  background-color: #0b559a !important;
+}
+.reactionBar ul > li.nay.active, .reactionBar ul > li.nay:hover{
+  background-color: #ed7600 !important;
+}
+.reactionBar ul .material-icons{
+  transition: 0s;
+  font-size: 16px;
+}
+.reactionBar ul .count{
+  transition: 0s;
+  position: relative;
+  top: -7px;
+}
+.reactionBar ul > li.discussionLink.active{
+  background-color: #e0e002 !important;
+}
+.reactionBar ul > li.saveButton.active, .reactionBar ul > li.saveButton:hover{
+  background-color: #e0a102 !important;
+}
+.reactionBar ul > li.insight.active, .reactionBar ul > li.insight:hover{
+  background-color: #e0e002 !important;
+}
+.reactionBar ul > li.moreVert.active, .reactionBar ul > li.moreVert:hover{
+  background-color: #a5a5a5 !important;
+}
+.reactionBar ul > li.share.active, .reactionBar ul > li.share:hover{
+  background-color: #00e9ff !important;
+}
+.reactionBar ul > li.follow.active, .reactionBar ul > li.follow:hover{
+  background-color: #0c991a !important;
+}
+.reactionBar ul > li {
+  --speed: 0.8s;
+  --glow-height: 40%;
+  --blur-size: 5px;
+  position: relative;
+  overflow: hidden;
+}
+.reactionBar ul > li > a {
+  position: relative;
+  z-index: 1;
+}
+.miniMore {
+  position: absolute;
+  right: 10px;
+  bottom: 5px;
+  cursor: pointer;
+}
+.follow.active, .follow:hover{
+  background-color: #0c991a !important;
+}
+.copyToClipboard:hover {
+  text-decoration: underline;
+  cursor: pointer;
+}
+#detailExtension{
+  position:relative;
+  display: block;
+  width: 100%;
+}
+#detailExtension .billText{
+  padding: 5px 25px;
+  /* zoom: 150%; */
+  /* below is for firefox, not using because it extends below bottomcard, dont use with zoom */
+  /* transform: scale(1.5);
+  transform-origin: top left;
+  width: 64%; */
+}
+.region-reps {
+  transition: opacity 0.5s ease-out;
+}
+.fade-out {
+  opacity: 0;
+}
+.fade-in {
+  opacity: 1;
+}
+.form{
+  position: relative;
+  display: flex;
+  flex-flow:column;
+  justify-content: center;
+}
+.form div{
+  position: relative;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 40px;
+  height: auto;
+  width: 100%;
+  text-align: center;
+}
+.form ul{
+  list-style: none;
+  margin: auto;
+}
+.form li{
+  padding: 5px;
+}
+.form input{
+  position: relative;
+  display: inline-block;
+  margin-left: auto;
+  margin-right: auto;
+  color: black;
+}
+.cosponsors > li {
+  list-style: none;
+}
+.cosponsors > li::before {
+  content: "•";
+  color: var(--bullet-color);
+  margin-right: 8px;
+}
+.shorten3 {
+  display: inline-block;
+  white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60%;
+}
+#splash{
+  position: relative;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 50px;
+  font-size: 110%;
+}
+#splash #splashLogo{
+  position:relative;
+  display:block;
+  margin: auto;
+  max-height: 100px;
+  margin-bottom: 50px;
+}
+#splash h1{
+  text-align:center;
+  margin-top: -10px;
+  margin-bottom: 35px;
+}
+#splash h2{
+  font-size:130%;
+  text-align:center;
+}
+#splash ul#flags, .modalWidget ul#flags{
+  display: flex;
+    justify-content: center;
+  padding-left: 0px;
+}
+#splash #flag, .modalWidget #flag{
+  position:relative;
+  display:inline-block;
+  padding: 0px 20px 25px 20px;
+}
+#splash #flag a img, .modalWidget #flag img{
+  max-height: 100px;
+}
+.values{
+  position: relative;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 50px;
+}
+.values ul{
+  position: relative;
+  display: block;
+  list-style: none;
+  text-align: center;
+  padding: 0px;
+}
+.values > ul > li{
+  position: relative;
+  display: block;
+  margin: 20px;
+  font-style: italic;
+  font-weight: lighter;
+  font-size: 140%;
+}
+.pageDivider{
+  position: relative;
+  display: block;
+  height: auto;
+  min-height: 10px;
+  padding: 0px;
+  margin: 0px 0px 0px 0px;
+  border-bottom: 1px solid #c4c4c4;
+}
+.pageDivider ul{
+  position: relative;
+  text-align: center;
+  list-style: none;
+  padding: 0px;
+}
+.pageDivider > ul > li{
+  position: relative;
+  display: inline-block;
+  text-align: center;
+}
+#bottomCard{
+  background-color: rgba(249, 249, 249,1);
+  position: relative;
+  display: flex;
+  height: calc(100%);
+  max-height: 100vh;
+}
+.pagination{
+  display: block;
+  position: relative;
+  text-align: center;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  text-decoration: none;
+  font-weight: normal;
+  font-family: "georgia";
+}
+.pagination .pagePicker{
+  display: inline-block;
+  list-style: none;
+  padding: 0px;
+}
+.pagePicker li{
+  display: inline-block;
+  float: left;
+  border: 1px solid #c4c4c4;
+}
+.pagePicker a{
+  display: inline-block;
+  padding: 8px 16px;
+  text-decoration: none;
+}
+.pagePicker li.active {
+  background: linear-gradient(to top, RGBA(255, 255, 255, 0), #d1d1d1);
+}
+.pagePicker li:first-child {
+  border-top-left-radius: 5px;
+  border-bottom-left-radius: 5px;
+}
+.pagePicker li:last-child {
+  border-top-right-radius: 5px;
+  border-bottom-right-radius: 5px;
+}
+.pagePicker li:hover:not(.active) {
+  background: linear-gradient(to top, RGBA(255, 255, 255, 0), #d1d1d1);
+}
+.blinking {
+  animation: mymove 1s infinite alternate;
+}
+@-webkit-keyframes mymove {
+  from {opacity:0;}
+  to {opacity: 1;}
+}
+/* for text content on card */
+.fadeOut{
+  position: absolute;
+  display: block;
+  background: linear-gradient(to top, rgba(249, 249, 249,1), RGBA(249, 249, 249, 0));
+  width: calc(100%-1px);
+  left: 1px;
+  height: 70px;
+  bottom: 0px;
+  margin: 0px;
+  z-index: 100;
+  pointer-events:none;
+}
+.debate .fadeOut, .committee .fadeOut, .bill .fadeOut, .agendaItem .fadeOut{
+  /* couldnt figure out why this is needed  but it is */
+  bottom: 68px;
+}
+.motion .fadeOut, .spren .fadeOut, .agendaItem .fadeOut, .daily .fadeOut, .vote .fadeOut{
+  width:100%;
+}
+#navigation .fadeout{
+  position:relative;
+  height: 40px;
+}
+#sidebar .fadeOut{
+  bottom: 0px;
+}
+.readMore, .readMoreTerms{
+  position: relative;
+  display: block;
+  margin: 6px auto 4px auto;
+  text-align: center;
+  width: 100px;
+  cursor:pointer;
+  z-index: 101;
+}
+.readMore{
+  top: 20px;
+  margin-top: -14px;
+  background-color: rgba(249, 249, 249,1);
+}
+.readMoreTerms{
+  float: right;
+  width: 200px;
+  margin-top: -17px;
+  margin-bottom: 0px;
+}
+.agendaItem .readMore{
+  margin-top: 5px;
+}
+.wordCount{
+  position:relative;
+  padding-left: 20px;
+}
+img#hidden{
+  position:fixed;
+  display:block;
+  bottom: 4px;
+  right: 4px;
+  height: 15px;
+}
+#logoutLink a:hover{
+  text-decoration: underline;
+  cursor: pointer;
+}
+/* autocomplete search */
+.autocomplete-result-list{
+  position: relative;
+  margin:0;
+  border:1px solid rgba(0,0,0,.12);
+  padding:0;
+  box-sizing:border-box;
+  max-height:500px;
+  overflow-y:auto;
+  background:#fff;
+  list-style:none;
+  box-shadow:0 2px 2px rgba(0,0,0,.16);
+  z-index: 20001 !important;
+}
+[data-position=below] 
+.autocomplete-result-list{
+  position: relative;
+  margin-top:-1px;
+  border-top-color:transparent;
+  border-radius:0 0 8px 8px;
+  padding-bottom:8px;
+  z-index: 20001 !important;
+}
+[data-position=above] 
+.autocomplete-result-list{
+  position: relative;
+  margin-bottom:-1px;
+  border-bottom-color:transparent;
+  border-radius:8px 8px 0 0;
+  padding-top:8px;
+  z-index: 20001 !important;
+}
+.autocomplete-result{
+  position: relative;
+  cursor:default;
+  padding:12px 12px 12px 48px;
+  background-repeat:no-repeat;
+  background-position:12px;
+  z-index: 20001 !important;
+}
+.autocomplete-result:hover,.autocomplete-result[aria-selected=true]{
+  background-color:rgba(0,0,0,.06)
+}
+@keyframes rotate{0%{
+  transform:translateY(-50%) rotate(0deg)}to{transform:translateY(-50%) rotate(359deg)
+  }}

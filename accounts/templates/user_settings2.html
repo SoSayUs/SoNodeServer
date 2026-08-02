@@ -1,0 +1,797 @@
+
+{% load static %}
+
+<div>
+
+</div>
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Account Settings</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg-secondary: #f7f7f5;
+    --bg-tertiary: #f0efe9;
+    --text-primary: #1a1a18;
+    --text-secondary: #6b6b67;
+    --text-tertiary: #a3a39e;
+    --border: rgba(0,0,0,0.12);
+    --border-strong: rgba(0,0,0,0.25);
+    --accent: #1a1a18;
+    --danger: #a32d2d;
+    --danger-bg: #fcebeb;
+    --danger-border: #f7c1c1;
+    --success: #0f6e56;
+    --success-bg: #e1f5ee;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --sidebar-w: 220px;
+    --font: -apple-system, 'Segoe UI', sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --bg-secondary: #252522;
+      --bg-tertiary: #2e2e2b;
+      --text-primary: #f0efe9;
+      --text-secondary: #9a9a95;
+      --text-tertiary: #5f5f5a;
+      --border: rgba(255,255,255,0.1);
+      --border-strong: rgba(255,255,255,0.22);
+      --danger-bg: #2d1515;
+      --danger-border: #5a2222;
+      --success-bg: #0a2a20;
+    }
+  }
+
+  html, body {
+    height: 100%;
+    font-family: var(--font);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .shell {
+    max-width: 900px;
+    margin: 2rem auto;
+    background: var(--bg);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    display: grid;
+    grid-template-columns: var(--sidebar-w) 1fr;
+    min-height: 600px;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    border-right: 0.5px solid var(--border);
+    padding: 1.5rem 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-group { margin-top: 1rem; }
+  .sidebar-group:first-child { margin-top: 0; }
+
+  .sidebar-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    padding: 0 1rem 0.4rem;
+  }
+
+  .nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 7px 1rem;
+    font-size: 14px;
+    font-family: var(--font);
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.12s, color 0.12s;
+  }
+  .nav-btn svg { width: 17px; height: 17px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .nav-btn:hover { background: var(--bg-secondary); color: var(--text-primary); }
+  .nav-btn.active {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-weight: 500;
+    border-left: 2px solid var(--text-primary);
+    padding-left: calc(1rem - 2px);
+  }
+
+  /* ── Content ── */
+  .content { padding: 2rem 2.5rem; overflow: auto; }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .section-title { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
+  .section-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 2rem; }
+
+  /* ── Avatar row ── */
+  .avatar-row {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1.125rem;
+    background: var(--bg-secondary);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 1.5rem;
+  }
+  .avatar {
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    background: #cecbf6;
+    color: #3c3489;
+    font-size: 20px;
+    font-weight: 500;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    cursor: pointer;
+  }
+  .avatar-edit-btn {
+    position: absolute; bottom: -1px; right: -1px;
+    width: 22px; height: 22px;
+    background: var(--bg);
+    border: 0.5px solid var(--border-strong);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .avatar-edit-btn svg { width: 12px; height: 12px; stroke: var(--text-secondary); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .avatar-meta strong { font-size: 15px; font-weight: 500; display: block; }
+  .avatar-meta span { font-size: 13px; color: var(--text-secondary); }
+
+  /* ── Form fields ── */
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field { margin-bottom: 1.125rem; }
+  label { font-size: 13px; font-weight: 500; color: var(--text-secondary); display: block; margin-bottom: 5px; }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  select,
+  textarea {
+    width: 100%;
+    padding: 8px 11px;
+    font-size: 14px;
+    font-family: var(--font);
+    color: var(--text-primary);
+    background: var(--bg);
+    border: 0.5px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    transition: border-color 0.15s, box-shadow 0.15s;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%236b6b67' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='2 4 6 8 10 4'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 30px; cursor: pointer; }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--text-primary);
+    box-shadow: 0 0 0 3px rgba(26,26,24,0.08);
+  }
+  textarea { resize: vertical; min-height: 80px; }
+
+  hr.divider { border: none; border-top: 0.5px solid var(--border); margin: 1.75rem 0; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    font-size: 13.5px;
+    font-family: var(--font);
+    font-weight: 500;
+    color: var(--text-primary);
+    background: var(--bg);
+    border: 0.5px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 0.12s, transform 0.1s;
+  }
+  .btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .btn:hover { background: var(--bg-secondary); }
+  .btn:active { transform: scale(0.98); }
+
+  .btn-primary {
+    background: var(--text-primary);
+    color: var(--bg);
+    border-color: var(--text-primary);
+  }
+  .btn-primary:hover { opacity: 0.82; background: var(--text-primary); }
+
+  .btn-danger { border-color: var(--danger-border); color: var(--danger); }
+  .btn-danger:hover { background: var(--danger-bg); }
+
+  .btn-sm { padding: 5px 11px; font-size: 12.5px; }
+
+  .btn-row { display: flex; gap: 0.625rem; flex-wrap: wrap; margin-top: 1.5rem; }
+
+  /* ── Toggle switch ── */
+  .toggle-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .toggle-row:last-of-type { border-bottom: none; }
+  .toggle-label strong { font-size: 14px; font-weight: 500; display: block; }
+  .toggle-label span { font-size: 13px; color: var(--text-secondary); margin-top: 2px; display: block; }
+
+  .toggle { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+  .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .toggle-track {
+    position: absolute; inset: 0;
+    background: var(--border-strong);
+    border-radius: 11px;
+    transition: background 0.2s;
+    cursor: pointer;
+  }
+  .toggle input:checked + .toggle-track { background: #1d9e75; }
+  .toggle-thumb {
+    position: absolute;
+    width: 16px; height: 16px;
+    background: white;
+    border-radius: 50%;
+    top: 3px; left: 3px;
+    transition: transform 0.2s;
+    pointer-events: none;
+  }
+  .toggle input:checked ~ .toggle-thumb { transform: translateX(18px); }
+
+  /* ── Sessions ── */
+  .session-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px 0;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .session-item:last-child { border-bottom: none; }
+  .session-main { display: flex; align-items: center; gap: 12px; flex: 1; }
+  .session-icon {
+    width: 36px; height: 36px;
+    background: var(--bg-secondary);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .session-icon svg { width: 18px; height: 18px; stroke: var(--text-secondary); fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .session-info strong { font-size: 14px; font-weight: 500; }
+  .session-info span { font-size: 12px; color: var(--text-secondary); display: block; margin-top: 1px; }
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 20px;
+    margin-left: 6px;
+    background: var(--success-bg);
+    color: var(--success);
+  }
+
+  /* ── Billing ── */
+  .plan-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.125rem;
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 1rem;
+  }
+  .plan-name { font-size: 15px; font-weight: 500; }
+  .plan-price { font-size: 13px; color: var(--text-secondary); margin-top: 3px; }
+
+  .payment-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 1.5rem;
+  }
+  .card-icon {
+    width: 40px; height: 26px;
+    background: var(--bg-secondary);
+    border: 0.5px solid var(--border);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: var(--text-secondary);
+    letter-spacing: 0.03em;
+    flex-shrink: 0;
+  }
+  .payment-main { display: flex; align-items: center; gap: 12px; }
+  .payment-info strong { font-size: 14px; font-weight: 500; display: block; }
+  .payment-info span { font-size: 12px; color: var(--text-secondary); }
+
+  .invoice-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .invoice-table thead th {
+    text-align: left; padding: 6px 0;
+    color: var(--text-secondary); font-weight: 500;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .invoice-table thead th:last-child { text-align: right; }
+  .invoice-table tbody td { padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+  .invoice-table tbody tr:last-child td { border-bottom: none; }
+  .invoice-table .amount { text-align: right; font-weight: 500; }
+  .invoice-table .dl-cell { text-align: right; }
+  .invoice-table .dl-btn {
+    font-size: 12px; color: var(--text-secondary);
+    background: none; border: none; cursor: pointer;
+    display: inline-flex; align-items: center;
+  }
+  .invoice-table .dl-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .invoice-table .muted { color: var(--text-secondary); }
+
+  /* ── Danger zone ── */
+  .danger-zone {
+    border: 0.5px solid var(--danger-border);
+    background: var(--danger-bg);
+    border-radius: var(--radius-lg);
+    padding: 1.125rem;
+  }
+  .danger-zone .dz-title { font-size: 14px; font-weight: 500; color: var(--danger); margin-bottom: 4px; }
+  .danger-zone p { font-size: 13px; color: #993c1d; margin-bottom: 1rem; }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .shell { grid-template-columns: 1fr; margin: 0; border-radius: 0; }
+    .sidebar { border-right: none; border-bottom: 0.5px solid var(--border); padding: 0.75rem 0; }
+    .sidebar-group { margin-top: 0; }
+    .sidebar-label { display: none; }
+    .sidebar { flex-direction: row; overflow-x: auto; }
+    .nav-btn { flex-direction: column; gap: 4px; font-size: 11px; padding: 8px 12px; white-space: nowrap; }
+    .nav-btn.active { border-left: none; border-bottom: 2px solid var(--text-primary); padding-left: 12px; padding-bottom: calc(8px - 2px); }
+    .field-row { grid-template-columns: 1fr; }
+    .content { padding: 1.5rem 1.25rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-group">
+      <p class="sidebar-label">Account</p>
+      <button class="nav-btn active" onclick="show('profile',this)">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        Profile
+      </button>
+      <button class="nav-btn" onclick="show('keys',this)">
+        <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        Keys
+      </button>
+      {% comment %}
+      <button class="nav-btn" onclick="show('sessions',this)">
+        <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 20h8M12 18v2"/></svg>
+        Sessions
+      </button>
+      {% endcomment %}
+    </div>
+    {% comment %}
+    <div class="sidebar-group">
+      <p class="sidebar-label">Preferences</p>
+      <button class="nav-btn" onclick="show('notifications',this)">
+        <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Notifications
+      </button>
+      <button class="nav-btn" onclick="show('appearance',this)">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a4.5 4.5 0 0 0 0 9 4.5 4.5 0 0 1 0 9"/></svg>
+        Appearance
+      </button>
+    </div>
+    <div class="sidebar-group">
+      <p class="sidebar-label">Billing</p>
+      <button class="nav-btn" onclick="show('billing',this)">
+        <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+        Billing
+      </button>
+    </div>
+    {% endcomment %}
+  </nav>
+
+  <!-- Content -->
+  <main class="content">
+
+    <!-- Profile -->
+    <div id="panel-profile" class="panel active">
+      <p class="section-title">Profile</p>
+      <p class="section-sub">Manage your personal information and public presence.</p>
+
+      <div class="avatar-row">
+        <div class="avatar" title="Change avatar">
+          JD
+          <div class="avatar-edit-btn">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+        </div>
+        <div class="avatar-meta">
+          <strong>Jordan Davis</strong>
+          <span>jordan.davis@example.com &middot; Member since Jan 2023</span>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="fname">First name</label>
+          <input id="fname" type="text" value="Jordan" />
+        </div>
+        <div class="field">
+          <label for="lname">Last name</label>
+          <input id="lname" type="text" value="Davis" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="email">Email address</label>
+        <input id="email" type="email" value="jordan.davis@example.com" />
+      </div>
+      <div class="field">
+        <label for="username">Username</label>
+        <input id="username" type="text" value="@jordandavis" />
+      </div>
+      <div class="field">
+        <label for="bio">Bio</label>
+        <textarea id="bio">Product designer. Coffee enthusiast. Building things on the internet.</textarea>
+      </div>
+      <div class="field">
+        <label for="tz">Timezone</label>
+        <select id="tz">
+          <option>UTC−05:00 Eastern Time</option>
+          <option>UTC−08:00 Pacific Time</option>
+          <option>UTC+00:00 London</option>
+          <option>UTC+01:00 Paris</option>
+          <option>UTC+09:00 Tokyo</option>
+        </select>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary">Save changes</button>
+        <button class="btn">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Security -->
+    <div id="panel-keys" class="panel">
+      <p class="section-title">Keys</p>
+      <p class="section-sub">Keep your account safe with a strong password and two-factor authentication.</p>
+
+      <button class="btn btn-primary" style="margin-top:0.25rem;">New Key</button>
+      {% for upk in upks %}
+        <div class="session-item">
+          <div class="session-main">
+            <div class="session-info">
+              <strong><span class="badge">{{ upk.keyType|capfirst }} Key</span></strong>
+              {% if upk.nodeId %}<span>Node &middot; {{ upk.nodeId }}</span>{% endif %}
+              <span><strong>Created &middot; {{ upk.created }}</strong></span>
+              <span><strong>Strength &middot; {{ upk.algorithm }}</strong></span>
+              <span>Id &middot; {{ upk.id }}</span>
+              {% if upk.end_life_dt %}
+                <span>Ended &middot; {{ upk.end_life_dt }}</span>
+              {% endif %}
+            </div>
+          </div>
+        {% if not upk.end_life_dt %}
+          <button class="btn btn-sm">Revoke</button>
+        {% endif %}
+        </div>
+      {% endfor %}
+
+      {% comment %}
+      <div class="field">
+        <label for="cur-pw">Current password</label>
+        <input id="cur-pw" type="password" value="••••••••••••" />
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="new-pw">New password</label>
+          <input id="new-pw" type="password" placeholder="Min. 12 characters" />
+        </div>
+        <div class="field">
+          <label for="conf-pw">Confirm new password</label>
+          <input id="conf-pw" type="password" placeholder="Repeat password" />
+        </div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:0.25rem;">Update password</button>
+
+      <hr class="divider" />
+
+      <p style="font-size:15px;font-weight:500;margin-bottom:1rem;">Two-factor authentication</p>
+      <div class="toggle-row">
+        <div class="toggle-label">
+          <strong>Authenticator app</strong>
+          <span>Use an app like 1Password or Authy to generate codes.</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" checked />
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-label">
+          <strong>SMS backup codes</strong>
+          <span>Get a one-time code sent to your phone number.</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" />
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </label>
+      </div>
+
+      <hr class="divider" />
+
+      <p style="font-size:15px;font-weight:500;margin-bottom:1rem;">Danger zone</p>
+      <div class="danger-zone">
+        <p class="dz-title">Delete account</p>
+        <p>Permanently remove your account and all associated data. This cannot be undone.</p>
+        <button class="btn btn-danger">
+          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          Delete my account
+        </button>
+      </div>
+      {% endcomment %}
+    </div>
+
+    <!-- Sessions -->
+    <div id="panel-sessions" class="panel">
+      <p class="section-title">Sessions</p>
+      <p class="section-sub">Manage where you're logged in. Revoke access from devices you don't recognise.</p>
+
+      <div class="session-item">
+        <div class="session-main">
+          <div class="session-icon">
+            <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 20h8M12 18v2"/></svg>
+          </div>
+          <div class="session-info">
+            <strong>MacBook Pro — Chrome <span class="badge">This device</span></strong>
+            <span>Cambridge, ON &middot; Active now</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="session-item">
+        <div class="session-main">
+          <div class="session-icon">
+            <svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><circle cx="12" cy="18" r="1" fill="currentColor"/></svg>
+          </div>
+          <div class="session-info">
+            <strong>iPhone 15 — Safari</strong>
+            <span>Cambridge, ON &middot; 2 hours ago</span>
+          </div>
+        </div>
+        <button class="btn btn-sm">Revoke</button>
+      </div>
+
+      <div class="session-item">
+        <div class="session-main">
+          <div class="session-icon">
+            <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="15" rx="2"/><path d="M8 21h8M12 18v3"/></svg>
+          </div>
+          <div class="session-info">
+            <strong>Windows PC — Firefox</strong>
+            <span>Toronto, ON &middot; 3 days ago</span>
+          </div>
+        </div>
+        <button class="btn btn-sm">Revoke</button>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-danger">
+          <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Revoke all other sessions
+        </button>
+      </div>
+    </div>
+
+    <!-- Notifications -->
+    <div id="panel-notifications" class="panel">
+      <p class="section-title">Notifications</p>
+      <p class="section-sub">Choose what you want to be notified about and how.</p>
+
+      <div class="toggle-row">
+        <div class="toggle-label">
+          <strong>Product updates</strong>
+          <span>New features, improvements, and release notes.</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" checked />
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-label">
+          <strong>Account activity</strong>
+          <span>Logins, password changes, and security alerts.</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" checked />
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-label">
+          <strong>Billing &amp; invoices</strong>
+          <span>Receipts, upcoming renewals, and payment issues.</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" checked />
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-label">
+          <strong>Marketing &amp; tips</strong>
+          <span>Occasional emails about how to get more from the product.</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" />
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Appearance -->
+    <div id="panel-appearance" class="panel">
+      <p class="section-title">Appearance</p>
+      <p class="section-sub">Customise how the interface looks and feels for you.</p>
+
+      <div class="field">
+        <label for="theme">Theme</label>
+        <select id="theme">
+          <option>System default</option>
+          <option>Light</option>
+          <option>Dark</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="lang">Language</label>
+        <select id="lang">
+          <option>English (US)</option>
+          <option>English (UK)</option>
+          <option>French</option>
+          <option>Spanish</option>
+          <option>German</option>
+          <option>Japanese</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="date-fmt">Date format</label>
+        <select id="date-fmt">
+          <option>May 27, 2026</option>
+          <option>27 May 2026</option>
+          <option>2026-05-27</option>
+        </select>
+      </div>
+
+      <hr class="divider" />
+
+      <div class="toggle-row">
+        <div class="toggle-label">
+          <strong>Compact mode</strong>
+          <span>Reduce spacing to fit more content on screen.</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" />
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-label">
+          <strong>Reduce motion</strong>
+          <span>Minimise animations and transitions.</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" />
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </label>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary">Save preferences</button>
+      </div>
+    </div>
+
+    <!-- Billing -->
+    <div id="panel-billing" class="panel">
+      <p class="section-title">Billing</p>
+      <p class="section-sub">Manage your plan, payment method, and invoices.</p>
+
+      <div class="plan-card">
+        <div>
+          <p class="plan-name">Pro plan <span class="badge">Active</span></p>
+          <p class="plan-price">$12 / month &middot; renews June 27, 2026</p>
+        </div>
+        <button class="btn btn-sm">Change plan</button>
+      </div>
+
+      <div class="payment-row">
+        <div class="payment-main">
+          <div class="card-icon">VISA</div>
+          <div class="payment-info">
+            <strong>Visa ending in 4242</strong>
+            <span>Expires 08 / 2027</span>
+          </div>
+        </div>
+        <button class="btn btn-sm">Update</button>
+      </div>
+
+      <p style="font-size:15px;font-weight:500;margin-bottom:1rem;">Recent invoices</p>
+      <table class="invoice-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th style="text-align:right">Amount</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="muted">May 27, 2026</td>
+            <td>Pro plan — monthly</td>
+            <td class="amount">$12.00</td>
+            <td class="dl-cell"><button class="dl-btn" title="Download invoice"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button></td>
+          </tr>
+          <tr>
+            <td class="muted">Apr 27, 2026</td>
+            <td>Pro plan — monthly</td>
+            <td class="amount">$12.00</td>
+            <td class="dl-cell"><button class="dl-btn" title="Download invoice"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button></td>
+          </tr>
+          <tr>
+            <td class="muted">Mar 27, 2026</td>
+            <td>Pro plan — monthly</td>
+            <td class="amount">$12.00</td>
+            <td class="dl-cell"><button class="dl-btn" title="Download invoice"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  function show(id, btn) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('panel-' + id).classList.add('active');
+    btn.classList.add('active');
+  }
+</script>
+</body>
+</html>

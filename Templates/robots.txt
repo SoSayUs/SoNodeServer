@@ -1,0 +1,10 @@
+
+
+User-agent: *
+Disallow: /bills 
+Disallow: /debates
+Disallow: /motions 
+Disallow: /committees
+Disallow: /officials
+Disallow: /elections
+Disallow: /trending

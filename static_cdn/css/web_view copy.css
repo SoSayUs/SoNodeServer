@@ -1,0 +1,599 @@
+
+html {
+    font-size: 100%;
+    width: 100% !important;
+    height: 95% !important;
+  }
+  
+#container{
+    width: 100%;
+    height: 90% !important;
+    border: 1px solid red;
+    /* left: -1%; */
+}
+.indexMobile, .searchMobile, .notificationsMobile{
+    font-size: 100%;
+    line-height: 100%;
+}
+.indexMobile .navTop{
+    height: 55px;
+}
+.indexMobile .navTop ul{
+    top: 0px;
+    margin-top: -27px;
+}
+.indexMobile .navTop h1, .searchMobile .navTop h1{
+    font-size: 180%;
+    top: 2px;
+    margin-right: 20px;
+}
+#mobileNavigation{
+    height: calc(100% - 65px);
+    border-radius: 15px;    
+    /* font-size: 300%; */
+    padding-left: 2px;
+}
+.indexMobile #mobileNavigation{
+    margin-top: 55px;
+}
+.shady{
+    top: 4px;
+    height: 15px;
+    margin: 0px 6px;
+}
+.feedTop .shady{
+    top: 4px;
+    height: 100%;
+    margin: 0px 6px;
+}
+#line_one, #line_two {
+    width:4px;
+}
+  #navigation > ul{
+    padding-left: 15px;
+    font-size: 100%;
+
+  }
+
+.indexMobile .container1{
+    left: 0px;
+    width: 35%;
+    padding-left: 10%;
+}
+.indexMobile .container2{
+    width: 20%;
+    padding-left: 10%;
+}
+.indexMobile ul{
+    width: 40%;
+    padding-left: 20px;
+}
+.indexMobile li{
+    padding: 10px 0px;
+
+}
+.indexMobile .userProfile .userPic{
+    height: 40px;
+    padding-left: 30%;
+}
+.indexMobile .userName{
+    font-size: 25px;
+    left: 3%;
+    top: -20px;
+}
+.indexMobile .userProfile .settings{
+    right: 25px;
+}
+
+
+.searchMobile{
+    left: 100%;
+    /* font-size: 100%; */
+}
+
+.searchMobile .navTop, .notificationsMobile .navTop{
+    position: relative;
+    /* display: block; */
+    height: 55px;
+    width:100%;
+    border: none;
+    display: flex;
+    flex-direction: row;
+    /* margin-bottom: 60px; */
+    /* text-align: center; */
+    vertical-align: middle;
+    padding: 0px;
+    /* left: -65px; */
+}
+.searchTab{
+    position: relative;
+    display: inline-block;
+    /* border: 1px solid #727272; */
+    /* margin-right: -12px; */
+    padding-left: 0px;
+    padding-bottom: 0px;
+    padding-top: 25px;
+    /* margin-right: -20px; */
+    left: -80px;
+    margin-left: -80px;
+    /* padding-top: 40px; */
+    /* border-radius: 10px; */
+    height: 35px;
+    font-size: 20px !important;
+    width: calc(90%/3) !important;
+    text-align: center;
+}
+.searchMobile #mobileNavigation, .notificationsMobile #mobileNavigation{
+    /* font-size: 50%; */
+    /* font-weight: lighter; */
+    overflow: scroll;
+    position: relative;
+    /* padding-bottom: 1000px; */
+    /* margin-bottom: 500px; */
+}
+.searchTabContent{
+    display: none;
+    position: absolute;
+    /* top:100px; */
+    opacity: 0;
+    transition: 0.2s;
+    overflow: scroll;
+    width: 100%;
+    /* height: 60px; */
+    /* margin-top: 80px; */
+    /* border: 1px solid red; */
+}
+/* .searchTabContent .shorten1{
+    font-size: 120%;
+} */
+.searchTabContent ul{
+    margin-top: 10px;
+    list-style: none;
+    padding-bottom: 100px;
+}
+.searchTabContent span{
+  position: absolute;
+  right: 30px;
+  font-size: 155%;
+  font-weight: lighter;
+  /* bottom: 5px; */
+  /* float:right; */
+}
+.searchTabContent .trending span{
+    font-size: 100%;
+}
+.searchTabContent ul li{
+    /* font-weight: 100px; */
+    /* font-size: 65%; */
+}
+.searchTabContent ul li{
+    line-height: 20px;
+    font-size: 100%;
+    margin-bottom: 15px;
+    margin-right: 60px;
+    margin-left: -20px;
+    /* left:-50px; */
+    /* border: 1px solid red; */
+}
+/* .searchTabContent > div > span{
+    font-size: 50%;
+} */
+.searchTabContent > div > span{
+    top: 20px;
+    font-size: 75%;
+    text-decoration: underline;
+}
+.searchTabContent#agenda a{
+    text-decoration: underline;
+}
+.searchTabContent#topics{
+    font-size: 100%;
+}
+.searchTabContent#speakers{
+    width: 100%;
+    font-size: 100%;
+}
+.searchTabContent#toc{
+    font-size: 100%;
+}
+.searchTab.right{
+    position: absolute;
+    display: block;
+    /* top: -50px; */
+    right: 30px !important;
+}
+.display{
+    left: 0% !important;
+}
+.blue{
+    border-bottom: 4px solid #0b559a;
+    width: 100%;
+}
+.show, .stayShowing{
+    opacity: 1;
+}
+.block{
+    display: block;
+}
+
+.navTop .shadow, .feedTop .shadow{
+    height: 35px;
+  }
+.navBarSpacer{
+    position: relative;
+    display: block;
+    height: 37px;
+    top:0px;
+    /* margin-bottom: 100px; */
+}
+#feed{
+    /* display: none; */
+    width:100%;
+    left: 0px;
+    /* top: -350px; */
+    margin-top: -115px;
+    border-radius: 15px;
+    padding-top: 20px;
+    /* border: 2px solid green; */
+}
+.feedTop{
+    display: block;
+    position: relative;
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100px;
+    /* border:  1px solid red;
+    z-index: 1101; */
+    /* top: 500px !important; */
+    /* margin-top: 70px; */
+}
+.feedTop h1{
+    top: 5px;
+    font-size: 150%;
+}
+.feedTop #subtitle{
+  top:25px;
+}
+.feedTop #subtitle2{
+  top:45px;
+}
+#navBar{
+    font-size: 100%;
+    padding: 0px;
+    position: fixed !important;
+  top: 0px !important;
+  left: 0px !important;
+  z-index: 600;
+  /* border: 2px solid red; */
+  width: 99% !important;
+    height: 30px;
+}
+#navBar > ul > li{
+    padding: 3px 5px;
+    border-right: 1px solid #727272;
+    margin: 0px 0px 0px -3px;
+    /* border: 4px solid blue; */
+    background: linear-gradient(to bottom, white, #d3d3d3);
+}
+#navBar > ul > li .material-icons{
+  position: relative;
+  display: inline-block;
+  top: 15px;
+  margin-top: -15px;
+  /* margin-bottom: -20px; */
+  height: 25px;
+  font-size: 100%;
+  /* border: 1px solid red; */
+}
+#navBar #datePickerForm input, #navBar #searchForm input{
+  /* height:50px;
+  width: 15%; */
+  font-size: 60%;
+}
+#pagePicker a{
+    padding: 35px 35px;
+    font-size: 115%;
+}
+#navBar #pagePicker a{
+  padding: 25px 25px;
+  font-size: 95%;
+}
+#bottomCard{
+    max-height: 350px !important;
+}
+.pageDivider{
+  border-bottom: 2px solid #c4c4c4;
+}
+.card{
+    padding-top: 0px;
+    padding-right: 5px;
+}
+.card .sponsor{
+  /* padding: 5px; */
+  width: 65px;
+  font-size: 10px !important;
+  /* border: 1px solid green; */
+}
+.card .sponsor > div{
+    margin-top: 30%;
+}
+.card .sponsor img{
+  max-width: 60px;
+  max-height:150px;
+  /* margin: 10px; */
+  /* vertical-align: middle; */
+}
+.hansard, .committee{
+    font-size: 100%;
+}
+.card .Code h2{
+    font-size: 135%;
+    max-width: 60% !important;
+}
+.card .Code .Parl{
+    font-size: 75%;
+}
+.card .Details > .title{
+  /* font-size: 70%; */
+  font-weight: normal;
+}
+.card .Details .subtitle{
+    /* white-space: nowrap; */
+    /* border: 1px solid red; */
+  /* font-size: 30px; */
+  /* font-weight: normal; */
+  width: 100%;
+  /* margin-right: 250px; */
+  /* border: 1px solid red; */
+}
+.card .Details > ul{
+    margin: 7px;
+  }
+.vote .cardContent{
+  width: calc(100% - 240px);
+}
+.bill{
+    font-size: 100%;
+}
+.billVersion{
+    font-size: 100%;
+}
+.bill .Details .subtitle{
+    font-size: 80%;
+}
+.card .billProgress li{ 
+  padding: 5px; 
+}
+.card .Details .date{
+    min-width:50px;
+}
+.hansard .Details > .title{
+  font-size: 100%;
+}
+.hansard .Details li{
+    /* line-height: 150%; */
+    margin-top: 30px !important;
+}
+.committee .Details li{
+    font-size: 70%;
+}
+.hansard .Terms > ul > li, .committee .Terms > ul > li{
+  font-size: 100%;
+  /* top: 20px; */
+  margin-top: 20px;
+  margin-bottom: 0px;
+  /* margin: 30px, 3px !important; */
+}
+.card .Text{
+    padding-right: 20px;
+    line-height: 100%;
+}
+.card .TextContent, .card .Text{
+  max-height: 150px;
+}
+.agendaItem li{
+  font-size: 100% !important;
+}
+.agendaItem .Parl{
+    font-size: 80% !important;
+}
+.readMoreTerms{
+    float: right;
+  width: 200px;
+  text-decoration: underline;
+  top: -33px;
+  margin-top: -15px;
+  margin-bottom: 0px;
+}
+.readMore{
+  width: 200px;
+  text-decoration: underline;
+  top: 20px;
+  margin-top: 0px;
+  margin-bottom: -10px;
+}
+.bill .readMore, .motion .readMore{
+    margin-bottom: 20px;
+    width: 100%;
+    /* border: 1px solid red; */
+}
+.bill .shorten1{
+    /* font-size: 45%; */
+}
+.motion, .vote{
+    font-size: 100%;
+}
+.card .motionOutline{
+  padding: 0px 0px;
+  font-size: 80%;
+}
+.card .motionOutline > li{
+  padding: 0px 0px;
+  margin: 0px;
+  /* border: 1px solid green; */
+}
+/* .vote .sponsor{
+    height: 120%;
+} */
+.vote .votePic{
+  width: 75px;
+
+}
+/* .vote .sponsor img{
+    max-width: 245px !important;
+    max-height:400px !important;
+} */
+.reactionBar{
+  /* width: 100%; */
+  height: 33px;
+  font-size: 90%;
+  bottom: 0px;
+  /* bottom: 0px !important; */
+  /* left: 30px !important; */
+  justify-content: center;
+  /* border: 1px solid red; */
+  /* border-bottom: 1px solid #c4c4c4 !important; */
+}
+.reactionBar ul{
+    position: relative;  
+    bottom: -3px;
+    left:0px;
+    height: 33px;
+    /* bottom: 0px; */
+    /* border: 1px solid green; */
+    /* padding-bottom: 0px; */
+    /* height: 100px; */
+}
+.reactionBar li{
+    height: 25px;
+    border: 1px solid #c4c4c4 !important;
+    /* border-bottom: none; */
+    border-top-left-radius: 5px !important;
+    border-top-right-radius: 5px !important;
+    /* margin-left: -8px !important; */
+  /* margin: 0px -4px 0px 0px !important; */
+
+}
+.reactionBar ul > li.yea, .reactionBar ul > li.nay, .reactionBar ul > li.discussionLink, .reactionBar ul > li.saveButton, .reactionBar ul > li.follow, .reactionBar li.shareButton{
+    /* margin-top: 8px; */
+  /* height:100%; */
+  height: 23px;
+  padding: 7px 11px;
+  padding-bottom: 0px;
+  /* transition: 0.1s; */
+}  
+
+.reactionBar ul > li.yea.previouslyActive, .reactionBar ul > li.nay.previouslyActive, .reactionBar ul > li.yea.active, .reactionBar ul > li.nay.active, .reactionBar ul > li.follow.active, .reactionBar ul > li.saveButton.active{
+  /* margin-top: 8px; */
+  /* height:49px; */
+}
+.reactionBar ul > li.yea.depress, .reactionBar ul > li.nay.depress, .reactionBar ul > li.follow.depress, .reactionBar ul > li.saveButton.depress{
+    margin-top: 3px;
+    height:20px;
+  }
+.reactionBar ul > li.yea:hover, .reactionBar ul > li.nay:hover, .reactionBar ul > li.follow:hover, .reactionBar ul > li.saveButton:hover{
+  /* background-color: unset; */
+  /* margin-top: 0px;
+  height:49px; */
+}
+
+.reactionBar ul .material-icons{
+  font-size: 16px;
+}
+/* .reactionBar ul > li.lastButton{  
+  margin: 0px 4px 0px 0px !important;
+} */
+
+
+#about img{
+    max-width: 250px !important;
+    /* max-height: 550px !important; */
+    height: 250px !important;
+  }
+
+
+.form{
+    font-size: 150%;
+}
+.form div{
+    height: auto;
+    /* height: 400px; */
+}
+.form input{
+    /* height: 80%;*/
+    font-size: 110% !important;
+    padding:15px;
+}
+
+.autocomplete-result-list{
+    max-width: 100%;
+    max-height: 50vh;
+}
+.autocomplete-result{
+  margin: 20px;
+}
+
+
+
+
+
+
+
+#bottomNavBar{
+    height: 87px;
+    width: calc(99%) !important;
+}
+#bottomNavBar .shadow{
+    height: 20px;
+  }
+#bottomNavBar > ul {
+    height: 73px;
+    padding-top: 7px;;
+    /* bottom: -20px; */
+}
+.bNavIcon{
+    height: 40px;
+}
+#bottomNavBar li:has(.display_label){
+    margin-top: -5px;
+}
+.bNavLogo{
+    position: fixed;
+    display: block;
+    left: 50%;
+    bottom:14px;
+    height: 50px;
+    width: 50px !important;
+}
+.bNavIcon > img{
+    height: 50px;
+}
+#bottomNavBar .material-icons{
+    font-size: 22px;
+}
+#bottomNavBar .label{
+    font-size: 15px;
+}
+.userProfile .material-icons{
+    font-size: 25px;
+}
+/* loading ring */
+.lds-dual-ring {
+  width: 50px;
+  height: 50px;
+  /* border: 1px solid red; */
+}
+.lds-dual-ring:after {
+  content: " ";
+  display: block;
+  width: 42px;
+  height: 42px;
+  margin: 4px;
+  margin-left: auto;
+  margin-right: auto;
+  border-radius: 50%;
+  border: 4px solid #0b559a;
+  border-color: #0b559a transparent #0b559a transparent;
+  animation: lds-dual-ring 1.2s linear infinite;
+}

@@ -1,0 +1,71 @@
+
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    {% if title %}
+        <title>{{ title }}</title>
+    {% endif %}
+</head>
+<body>
+
+<div>
+    <div>
+        <br>
+        <br>
+        <ul class="modalList">
+            {% if text %}
+                <pre>{{ text }}</pre>
+            {% endif %}
+            {% if buttons %}
+                {% for b in buttons %}
+                    <li><button onclick="{{ b|get_item:'action' }}({% for f in b|get_item:'fields' %}'{{f}}',{% endfor %})" >{{ b|get_item:'text' }}</button></li>
+                {% endfor %}
+            {% endif %}
+            {% if obj %}
+                {% for d in obj %}
+                    {% with x=obj|get_item:d %}
+                        {% if x or x == False %}
+                            {% if d|is_obj %}
+                                <li>{{ d }}: <a href=''>{{ x }}</a></li>
+                            {% else %}
+                                <li>{{ d }}: {{ x }}</li>
+                            {% endif %}
+                        {% endif %}
+                    {% endwith %}
+                {% endfor %}
+            {% endif %}
+            {% if update %}
+                <br>
+                <li>----------------</li>
+                {% for d in update %}
+                    {% with x=update|get_item:d %}
+                        {% if x or x == False %}
+                            {% if d|is_obj %}
+                                <li>{{ d }}: <a href=''>{{ x }}</a></li>
+                            {% else %}
+                                <li>{{ d }}: {{ x }}</li>
+                            {% endif %}
+                        {% endif %}
+                    {% endwith %}
+                {% endfor %}
+            {% endif %}
+            {% if post %}
+                <br>
+                <li>----------------</li>
+                {% for d in post %}
+                    {% with x=post|get_item:d %}
+                        {% if x or x == False %}
+                            {% if d|is_obj %}
+                                <li>{{ d }}: <a href=''>{{ x }}</a></li>
+                            {% else %}
+                                <li>{{ d }}: {{ x }}</li>
+                            {% endif %}
+                        {% endif %}
+                    {% endwith %}
+                {% endfor %}
+            {% endif %}
+        </ul>
+</div>
+</body>
+</html>

@@ -1,0 +1,181 @@
+{% load static %}
+
+{% if form %}
+<div class='form'>
+    <div><h2>Find your ridings and representatives. <br> Enter your address or postal code (postal code is less accurate).</h2></div>
+    <div>
+    <form {% if mobile %}id='mobile_form'{% endif %} method="POST" action="" enctype="multipart/form-data">{% csrf_token %}
+        
+         {% for i in form %}
+        {{ i }} <input type="submit" class='btn btn-default' value="search" />
+        {% endfor %}
+        
+    </form>    
+    </div>
+</div>
+<div class='bottomDivider'></div>
+{% endif %}
+
+{% for region in regions %}
+    <div>{{ region.Name }} -- {{ region.nameType }}</div>
+    {% for district in districts %}
+        {% if district.Region_obj == region %}
+            <div>{{ district.Name }} --{{district.id}}</div>
+            {% for r in roles %}
+                {% if r.District_obj == district %}
+                    <div>{{ r.Position }}</div>
+                    <div>{{ r.Person_obj.Name }}</div>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    {% endfor %}
+{% endfor %}
+
+{% comment %}
+<div class='card riding'>
+    <div class='cardContent'>
+        <div class='Details'>
+            <div class='title'>Federal Government of {{ request.user.Country_obj.Name }}</div>
+            <!-- <div class='title'>{{ u.ProvState.Type }} of {{ u.ProvState.Name }}</div> -->
+            <div class='title'>Constituency: {{ request.user.Federal_District_obj.Name }}</div>
+            <ul>
+            {% if request.user.Federal_District_obj.Population %}
+                <li>pop: {{ request.user.Federal_District_obj.Population }}</li>
+            {% endif %}
+            {% if request.user.Federal_District_obj.MapLink %}
+            <img style='width:90%;' src={{ request.user.Federal_District_obj.MapLink }}>
+            {% endif %}
+                
+            </ul>
+        </div>
+    </div>
+</div>
+<div class='bottomDivider'></div>
+
+
+{% if MP_role %}
+    {% with r=MP_role %}
+    {% with mp=r.Person_obj %}
+    {% include 'cards/mp_card.html' %}
+    {% endwith %}
+    {% endwith %}
+{% endif %}
+
+{% if MP_election %}
+    {% with e=MP_election %}
+        {% include 'cards/election_card.html' %}
+    {% endwith %}
+{% endif %}
+
+{% if request.user.ProvState_District_obj %}
+<div class='card riding'>
+    <div class='cardContent'>
+        <div class='Details'>
+            <div class='title'>Provincial Government of {{ request.user.ProvState_obj.Name }}</div>
+            <div class='title'>District: {{ request.user.ProvState_District_obj.Name }}</div>
+            <ul>
+            {% if request.user.ProvState_District_obj.Population %}
+                <li>pop: {{ request.user.ProvState_District_obj.Population }}</li>
+            {% endif %}
+            {% if request.user.ProvState_District_obj.MapLink %}
+            <img style='width:90%;' src={{ request.user.ProvState_District_obj.MapLink }}>
+            {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>
+<div class='bottomDivider'></div>
+
+{% with r=MPP_role %}
+{% with mp=r.Person_obj %}
+{% include 'cards/mp_card.html' %}
+{% load static %}
+{% load social_share %}
+{% comment %}
+<div class='reactionBar' id='{{ post.id }}'>
+    <ul>
+        <li title='Follow' class='follow {% if r.follow %}active{% endif %}' onclick='react("follow", "{{ post.id }}")'><span class="material-icons">add</span></li>
+    </ul>
+</div>
+{% endcomment %}
+{% endwith %}
+{% endwith %}
+
+{% if MPP_election %}
+    {% with e=MPP_election %}
+        {% include 'cards/election_card.html' %}
+    {% endwith %}
+{% endif %}
+{% endif %}
+
+{% if request.user.Greater_Municipality_obj %}
+<div class='card riding'>
+    <div class='cardContent'>
+        <div class='Details'>
+            <div class='title'>Regional Municipality of {{ request.user.Greater_Municipality_obj.Name }}</div>
+            <div class='title'>Regional District: {{ request.user.Greater_Municipal_District_obj.Name }}</div>
+            <ul>
+            {% if request.user.Greater_Municipal_District_obj.Population %}
+                <li>pop: {{ request.user.Greater_Municipal_District_obj.Population }}</li>
+            {% endif %}
+            {% if request.user.Greater_Municipal_District_obj.MapLink %}
+            <img style='width:90%;' src={{ request.user.Greater_Municipal_District_obj.MapLink }}>
+            {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>
+<div class='bottomDivider'></div>
+
+{% endif %}
+{% if request.user.Municipality_obj %}
+<div class='card riding'>
+    <div class='cardContent'>
+        <div class='Details'>
+            <div class='title'>Municipality of {{ request.user.Municipality_obj.Name }}</div>
+            <div class='title'>{{ request.user.Municipality_District_obj.Name }}</div>
+        </div>
+    </div>
+</div>
+<div class='bottomDivider'></div>
+
+{% if Mayor_role %}
+    {% with r=Mayor_role %}
+    {% with mp=r.Person_obj %}
+    {% include 'cards/mp_card.html' %}
+    {% endwith %}
+    {% endwith %}
+{% endif %}
+{% if Councillor_role %}
+    {% with r=Councillor_role %}
+    {% with mp=r.Person_obj %}
+    {% include 'cards/mp_card.html' %}
+    {% endwith %}
+    {% endwith %}
+{% endif %}
+{% endif %}
+
+{% endcomment %}
+
+{% comment %}
+{% if u.schoolBoardRegion %}
+<div class='card riding'>
+    <div class='cardContent'>
+        <div class='Details'>
+            <div class='title'>School District of {{ u.schoolBoardRegion.schoolBoard_name }}</div>
+            <div class='title'>Region: {{ u.schoolBoardRegion_name }}</div>
+            <ul>
+            {% if u.district.population %}
+                <li>pop: {{ u.district.population }}</li>
+            {% endif %}
+            {% if u.district.map_link %}
+            <img style='width:90%;' src={{ u.district.map_link }}>
+            {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>
+<div class='bottomDivider'></div>
+
+{% endif %}
+{% endcomment %}

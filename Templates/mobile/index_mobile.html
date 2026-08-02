@@ -1,0 +1,124 @@
+{% load static %}
+
+<div class='indexMobile'>
+
+{% if sonet %}
+<a href='/' class='navTop'>   
+    <div class='shadow'></div>
+    {% comment %}
+    <ul>
+    {% if sonet.Title == 'SoVote' %}
+    <li><h1 id="sonet-title" style="margin-left: 20px;">So<span style='font-size:100%'>V</span>ote</h1> </li> 
+    {% else %}
+    <li><h1 id="sonet-title" style="margin-left: 20px;">{{ sonet.Title }}</h1> </li> 
+    {% endif %}
+    <li><h1 style="margin-left: 10px; font-size: 100%;">{{ sonet.Subtitle }}</h1></li>
+    </ul>
+    {% endcomment %}
+
+    <div style="display: flex; justify-content: space-between; width: 98%; margin: 0 auto;">
+        <h1 id="sonet-title" style="margin-left: 2%;">{{ sonet.Title }}</h1>
+        <h1 style="font-size: 100%;">{{ sonet.Subtitle }}</h1>
+    </div>
+
+</a>
+{% else %}
+<a href='/' class='navTop'>   
+    
+    <div class='shadow'></div>
+    <ul>
+    <li><h1 id="sonet-title" style="margin-left: 20px;">Sonet</h1> </li> 
+    </ul>
+</a>
+{% endif %}
+
+<div class='mobileNavigation'>
+
+<div style="position: relative; margin: 15px auto -15px auto; font-style:italic; display: block; width: fit-content; text-align: center; font-size: 85%;">in development</div>
+<ul id='userProfile'>
+    <li><img id='userPic' src={% static 'img/user-coloured.png' %}></li>
+    <li id='userName'>{% if user.id %}{{ user.get_userLink_html|safe }}{% else %}<span onclick="modalPopUp('Login / Signup', '/accounts/login-signup')">Login/Signup</span>{% endif %}</li>    
+</ul>
+
+<div class='container1'>
+{% comment %}
+<ul>
+    <li><a href='/{{ country.Name|lower }}/search'>Search</a></li>
+</ul>
+
+<ul>
+    {% if user.id %}
+    <li style='font-size:130%'><a href='/{{ country.lowerName }}/home'>Home</a></li>
+    <ul class='navSubmenu' id='home'>    
+        <li><a href='/{{ country.lowerName }}/region'>Region</a></li>
+        <li><a href='/{{ country.lowerName }}/following'>Following</a></li>
+    </ul>
+    {% else %}
+    <li style='font-size:130%'><a href='/{{ country.lowerName }}/home'>Home</a></li>
+    {% endif %}
+</ul>
+{% endcomment %}
+    
+<ul>
+    <li style="font-style: italic;"><a href='/'>What is Us?</a></li>
+    <li style="font-style: italic;"><a href='/values'>For All Things</a></li>
+    {% comment %}
+    {% if not xRequest %}
+    <li><a href='/get-the-app'>Get the App</a></li>
+    {% endif %}
+    <li style="font-style: italic;"><a href='/someta'>SoMeta</a></li>
+    {% endcomment%}
+    {% if user.is_superuser %}
+    <li><a href='/utils/super'>SuperUser</a></li>
+    {% endif %}
+    <br>
+    {% if theme == 'night' %}
+    <li id='theme' onclick='themer()'>Night Theme</a></li>
+    {% else %}
+    <li id='theme' onclick='themer()'>Day Theme</a></li>
+    {% endif %}
+    {% if user.id %}
+    <li id="logoutLink"><a onclick='logout("/accounts/logout")'>Log Out</a></li>
+    {% endif %}
+
+    <br>
+    <li style="display: block; margin-left: -30px;"><a onclick='select_node()'>
+        {% if self_node %}
+                <li>Connected:</li>
+                <li style="font-size: 80%; font-style: italic; color: gray; margin-top: -10px;">{{ self_node }}</li>
+        {% else %}
+            <li>Connected:</li>
+            <li style="font-size: 80%; font-style: italic; color: gray; margin-top: -10px;">unknown</li>
+        {% endif %}
+    </a></li>
+</ul>
+
+</div>
+
+<div class='container2'>
+    <div class="mobile_navigation">
+        <ul>
+            <br>
+            <br>
+            <li style='font-size:130%'><a href='/{{ country.Name|lower }}/legislature'>Legislature</a></li>
+            <ul class='navSubmenu' id='legislature'>    
+                {% if gov %} 
+                    {% for i in gov.menuItem_array %}
+                    <li><a href='/{{ country.Name|lower }}/{{i|lower}}'>{{ i }}</a></li>
+                    {% endfor %}
+                {% endif %}
+            <br>
+            <br>
+            </ul>
+        </ul>
+    </div>
+
+
+</div>
+<br>
+<br>
+<br>
+
+</div>
+
+</div>

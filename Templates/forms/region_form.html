@@ -1,0 +1,62 @@
+{% load static %}
+
+{% if form %}
+<div class='form'>
+    <div><h2>Find your ridings and representatives. <br> Enter your address or postal code (postal code is less accurate).</h2></div>
+    <div>
+    <form {% if mobile %}id='mobile_form'{% endif %} method="POST" action="" enctype="multipart/form-data">{% csrf_token %}
+        
+         {% for i in form %}
+        {{ i }} <input type="submit" class='btn btn-default' value="search" />
+        {% endfor %}
+        
+    </form>    
+    </div>
+</div>
+<div class='bottomDivider'></div>
+{% endif %}
+{% if data %}
+
+<div class='form'>
+    <div><strong style="font-size: 120%;">*Notice:</strong><br><br>The entire database is public.<br>The regions you register to your account, the votes you cast<br>and the comments you make are available to anyone with the right know-how.
+    <br><br>You may remove individual items below.<br>Review your regions then click 'Save to Account' above.</div>
+    <div>  
+    </div>
+</div>
+<div class='bottomDivider'></div>
+
+{% with reg=data|get_item:'Country'|get_item:'region' %}
+    {% include 'cards/region_reps_card.html' %}
+{% endwith %}
+
+{% with reg=data|get_item:'provState' %}
+    {% include 'cards/region_reps_card.html' %}
+{% endwith %}
+
+{% with reg=data|get_item:'County'|get_item:'region' %}
+    {% include 'cards/region_reps_card.html' %}
+{% endwith %}
+
+{% with reg=data|get_item:'City'|get_item:'region' %}
+    {% if reg %}
+        {% include 'cards/region_reps_card.html' %}
+    {% endif %}
+{% endwith %}
+
+
+
+{% else %}
+
+<div class='form'>
+    <div>Find your ridings and representatives. <br> Set Region above.</div>
+    <div>  
+    </div>
+</div>
+<div class='bottomDivider'></div>
+{% endif %}
+
+
+
+
+
+

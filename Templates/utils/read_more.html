@@ -1,0 +1,58 @@
+
+
+{% if topic == 'more' %}
+    {% if h.questions %}
+
+        {% for q in h.questions.all %}
+            <div>{{ q.QuestionNumber }}</div>
+            {% if q.QuestionContent %}
+                <div>Questioner: {{ q.questioner_name }}</div>
+                <ParaText>
+                {{ q.QuestionContent|safe }}
+                </ParaText>
+            {% elif q.ResponseContent %}
+                <div>Responder: {{ q.responder_name }}</div>
+                <ParaText>
+                {{ q.ResponseContent|safe }}
+                </ParaText>
+            {% endif %}
+        {% endfor %}
+        {{ h.wordCount }} words
+    {% else %}
+        {{ h.Content|safe }}
+        {{ h.word_count }} words
+    {% endif %}
+{% elif topic == 'less' %}
+    {% if h.questions %}
+
+        {% for q in h.questions.all|slice:":1" %}
+            <div>{{ q.QuestionNumber }}</div>
+            <div>Questioner: {{ q.questioner_name }}</div>
+            <ParaText>
+            {{ q.QuestionContent|safe|truncatewords:90 }}
+            {{ h.word_count }} words
+            </ParaText>
+        {% endfor %}
+    {% else %}
+        <ParaText>
+        {{ h.remove_tags|safe|truncatewords:90 }}
+        {{ h.word_count }} words
+        </ParaText>
+    {% endif %}
+
+{% elif h %}
+    <ul>
+        {% for term in h.Terms_array %}
+        <li {% if term in topicList %}class='active'{% endif %}><a href='{{ h.get_absolute_url }}/?topic={{ term }}'>{{ term }}</a></li>
+        {% endfor %}
+        {% for term in h.keyword_array %}
+        <li {% if term in topicList %}class='active'{% endif %}><a href='{{ h.get_absolute_url }}/?topic={{ term }}'>{{ term|title }}</a></li>
+        {% endfor %}
+    </ul>
+{% elif c %}
+    <ul>
+        {% for term in c.Terms_array %}
+            <li {% if term in topicList %}class='active'{% endif %}><a href='{{ c.get_absolute_url }}/?topic={{ term }}'>{{ term }}</a></li>
+        {% endfor %}
+    </ul>
+{% endif %}

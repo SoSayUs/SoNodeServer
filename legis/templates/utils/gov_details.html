@@ -1,0 +1,21 @@
+
+
+<div class='Parl'>
+                        
+    {% if g %}
+    {% if isMobile %}
+        <div>{{ g.Government_obj.gov_type|short_gov }} {{ g.Government_obj.GovernmentNumber }}-{{ g.Government_obj.SessionNumber }}</div>
+    {% else %}
+        <div>{{ g.Government_obj.GovernmentNumber|get_ordinal }} {{ g.Government_obj.gov_type|short_gov }} {{ g.Government_obj.SessionNumber|get_ordinal }} Sess.</div>
+    {% endif %}
+    {% if g.objType == 'Meeting' and g.hide_time == 'hour' %}
+        {% if isMobile %}
+            <div>{{ g.DateTime|timezonify:g|date:"M. j, Y" }}</div>
+        {% else %}
+            <div>{{ g.DateTime|timezonify:g|date:"F. j, Y" }}</div>
+        {% endif %}
+    {% else %}
+        <div>{{ g.DateTime }}</div>
+    {% endif %}
+    {% endif %}
+</div>

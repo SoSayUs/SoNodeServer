@@ -1,0 +1,41 @@
+{% load static %}
+<!--DOCTYPE html-->
+<html>
+<head>
+</head>
+
+<body>
+<div id='container'>
+    {% include 'index.html' %}
+
+<div id='feed'>
+<h1>({{ b.GovNumber }}-{{ b.SessionNumber }}) {{ b.NumberCode }}</h1>
+<h2>{{ b.LongTitleEn }}</h2>
+<br>
+
+<h3>SUMMARY</h3>
+<p>{{ b.summary }}</p>
+
+<ul>
+    {% for i in b.get_fields %}
+        <li>{{ i }}</li>
+    {% endfor %}
+</ul>
+
+{% if votes %}
+    <h2>Votes</h2>
+    <ul>
+    {% for v in votes %}
+        <li>{{ v }}</li>
+    {% endfor %}
+    </ul>
+{% endif %}
+<div>
+    {{ b.first_reading_html |safe }}
+</div>
+
+</div>
+{% include 'happening.html' %}
+</div>
+</body>
+</html>

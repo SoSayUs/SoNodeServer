@@ -1,0 +1,29 @@
+{% load static %}
+
+<div class='card daily' id='daily-{{ dailyCard.id }}'>
+        
+    <div class='sponsor'>            
+        <img class='sprenPic' src={% static 'img/spren.png' %}>
+
+    </div>
+    <div class='cardContent'>
+        <div class='Info' style=width:100%;>
+            <div class='Code'>
+                <h2><a href='{{ dailyCard.get_absolute_url }}'>{{ dailyCard.date_time|date:"D M j Y" }} </a></h2>
+                <div>
+                    <div></div>  
+                </div>
+            </div>
+                <div class='TextContent'>
+                <ul class='Text'>
+                    {{ dailyCard.content|safe }}
+                
+                </ul>
+                </div>
+
+            <div class='Embed' ></div>
+        </div>  
+    </div>
+</div>
+<br>
+<div class='bottomDivider'></div>

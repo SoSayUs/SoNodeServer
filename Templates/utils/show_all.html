@@ -1,0 +1,16 @@
+<div id='showAllContent'> 
+    <ul>
+        {% if item == 'terms' %}
+            {% for key, value in setlist %}
+                <li><a href='{{ hansard.get_absolute_url }}/?term={{ key }}'>{{ key }} <span>{{ value }}</span></a></li>
+            {% endfor %}
+        {% else %}
+            {% for key, value in hansard.list_all_people %}
+            <li><a href='{{ hansard.get_absolute_url }}/?speaker={{ key.id }}'>{{ key.last_name }}, {{ key.first_name }} <span>{{ value }}</span></a></li>
+            {% endfor %}
+            {% for key, value in committee.list_all_people %}
+            <li><a href='{{ committee.get_absolute_url }}/?speaker={{ key.id }}'>{{ key.last_name }}, {{ key.first_name }} <span>{{ value }}</span></a></li>
+            {% endfor %}
+        {% endif %}
+    </ul>
+</div>

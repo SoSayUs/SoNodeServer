@@ -1,0 +1,88 @@
+<script>
+    $(window).scroll(InView);
+
+    let loadingNextPage = false;
+    let lastLoadTime = 0;
+    const LOAD_INTERVAL = 1000; // 1 second
+
+    function InView() {
+        var bottom = document.getElementById("bottomCard");
+        if (!bottom || loadingNextPage) {
+            return
+        };
+        var docViewBottom = window.innerHeight;
+    
+        var elemTop = bottom.offsetTop;
+        var distanceScrolled = document.body.scrollTop;
+        var target = distanceScrolled + docViewBottom
+        if (target >= (elemTop+100)){
+            if (loadingNextPage) return;
+            const now = Date.now();
+            if (now - lastLoadTime < LOAD_INTERVAL) return;
+            lastLoadTime = now;
+            if (!$("#bottomCard").hasClass("active")) {
+                var spinner = document.getElementsByClassName("step-links")[0];
+                if (spinner) {
+                    lastLoadTime = now;
+                    spinner.innerHTML = '<div class="lds-dual-ring"></div>';
+                    infinite(bottom);
+                };
+            };
+        };
+    };
+    
+    function infinite(bottom) {
+        try{
+            var page = document.getElementById("nextPage").name;
+            var url = document.getElementById("nextUrl").name;    
+            var cards = document.getElementsByClassName('card');
+            var myList = new Array();
+            for (f = 0; f < cards.length; f++){
+                try {
+                    var iden = cards[f].id
+                    var n = iden.search("-");
+                    n += 1
+                    var id = iden.slice(n,)
+                    myList.push(id);
+                } catch (err) {console.log('inf errx',err)};
+            };
+            loadingNextPage = true;
+            $("#bottomCard").addClass("active");
+            $.ajax({
+                url: page,
+                success: function (data) {
+                    ParsedElements = $.parseHTML(data);
+                    var new_cards =  $(ParsedElements);
+                    var newList = new Array();
+                    var remove_paginator = true
+                    var remove_paginator_border = false
+                    for (f = 0; f < new_cards.length; f++){
+                        if (remove_paginator && f < 5 && new_cards[f].classList && new_cards[f].classList.contains('pagination')) {
+                            remove_paginator = false
+                            remove_paginator_border = true
+                        } else if (remove_paginator_border && new_cards[f].classList && new_cards[f].classList.contains('bottomDivider')) {
+                            remove_paginator_border = false
+                        } else {
+                            newList.push(new_cards[f])
+                        };
+                    };
+                    $('#feed').append(newList);
+                    var cards = document.getElementsByClassName('card');
+                    shorten_text(cards);
+                    document.getElementById("bottomCard").outerHTML='';
+                    window.history.pushState({page, url}, '', url);
+                    page = new_cards.filter(".pageNum");
+                    currentPage = document.getElementById('currentPage');
+                    currentPage.innerHTML = page[0].id;
+                    page_picker = document.getElementsByClassName('pagePicker');
+                    page_form = document.getElementById("pageForm");
+                    page_form.innerHTML = page_picker[page_picker.length - 1].outerHTML;
+                    loadingNextPage = false;
+                    },
+                dataType: 'html'
+            });
+        }catch(err){
+            console.log('inf err',err);
+        };
+    };
+</script>

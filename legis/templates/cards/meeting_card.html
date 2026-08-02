@@ -1,0 +1,75 @@
+{% load static %}
+
+<div class='card debate' id='{{ meeting.id }}'>
+    
+    <div class='sponsor'>
+        <div>
+            {% if meeting.Government_obj and meeting.Government_obj.LogoLinks and meeting.Chamber in meeting.Government_obj.LogoLinks %}
+                <img class='sponsorPic' src={% static meeting.Government_obj.LogoLinks|get_item:meeting.Chamber %}>
+            {% elif meeting.Region_obj and meeting.Region_obj.LogoLinks and 'flag' in meeting.Region_obj.LogoLinks %}
+                <img class='sponsorPic' src={% static meeting.Region_obj.LogoLinks|get_item:'flag' %}>
+            {% elif meeting.Country_obj and meeting.Country_obj.LogoLinks and 'flag' in meeting.Country_obj.LogoLinks %}
+                <img class='sponsorPic' src={% static meeting.Region_obj.LogoLinks|get_item:'flag' %}>
+            {% endif %}
+        </div>
+    </div>
+    <div class='cardContent'>
+    <div class='Info'>
+            <div class='Code'>
+                <h2><a href='{{ meeting.get_absolute_url }}'>{% if 'Assembly' in meeting.Chamber %}Assembly{% else %}{{ meeting.Chamber }}{% endif %} Debates {% if meeting.Title %}{% if isMobile %}<br><span style='font-size: 75%;'>{{ meeting.Title }}</span>{% else %} - {{ meeting.Title }}{% endif %}{% endif %}</a></h2>
+                {% with g=meeting %}
+                {% include 'utils/gov_details.html' %}
+                {% endwith %}
+            </div>
+        <div class='Details'>
+            <div>
+            {% if agenda.VideoURL and meetingUpdate|get_updated_field:'has_transcript' %}
+                <a style='display:inline-block;'style='margin-left:10px;' href='{{ meeting.get_absolute_url }}'>View from start</a>
+            {% elif agenda.VideoURL %}
+                <a style='display:inline-block;'style='margin-left:10px;' href='{{ meeting.get_absolute_url }}'>Watch from start</a>
+            {% elif meetingUpdate|get_updated_field:'has_transcript' %}
+                <a style='display:inline-block;'style='margin-left:10px;' href='{{ meeting.get_absolute_url }}'>Read from start</a>
+            {% else %}
+                <a style='display:inline-block;'style='margin-left:10px;' href='{{ meeting.get_absolute_url }}'>Transcript not yet available</a>
+            {% endif %}
+            {% if meetingUpdate|get_updated_field:'statement_count' %}
+                <a style="margin-left: 5px;">({{ meetingUpdate|get_updated_field:'statement_count' }})</a>
+            {% endif %}
+            </div>
+            
+        </div>        
+
+        <div class='TextContent'>
+            <br>
+            <ul class='Text'>
+                {% if topicList %}
+                    {% with result=meetingUpdate|match_terms:topicList %}
+                        {% with terms=result|get_list_item:0 %}
+                            {% for key, value in terms.items %}
+                                <li><span>({{ value }})</span>&nbsp; <a href='{{ meeting.get_absolute_url }}/?topic={{ key }}' title={{ key }} >{{ key|title }}</a></li>
+                            {% endfor %}
+                        {% endwith %}
+                        {% if result|get_list_item:1 %}
+                            <br>
+                            <li><a href='{{ meeting.get_absolute_url }}'>{{ result|get_list_item:1 }} more...</a></li>
+                        {% endif %}
+                    {% endwith %}
+                {% else %}
+                    {% for key, value in meetingUpdate|list_75_terms %}
+                        <li><span>({{ value }})</span>&nbsp; <a href='{{ meeting.get_absolute_url }}/?topic={{ key }}' title={{ key }} >{{ key|title }}</a></li>
+                    {% endfor %}
+                    {% with remainder=meetingUpdate|get_terms_overflow:75 %}
+                        {% if remainder %}
+                            <br>
+                            <li><a href='{{ meeting.get_absolute_url }}'>{{ remainder }} more...</a></li>
+                        {% endif %}
+                    {% endwith %}
+                {% endif %}
+
+            </ul>
+        
+        </div>  
+    </div>  
+    </div>
+</div>
+{% include 'utils/reaction_bar.html' %}

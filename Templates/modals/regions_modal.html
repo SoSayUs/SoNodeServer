@@ -1,0 +1,21 @@
+
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+</head>
+<body>
+
+<div>
+    <div>
+        <ul class="modalList">
+            <li><a href='/{{ baseLink }}'>All</a></li>
+            {% for r in subRegions %}
+                <li><a href='/{{ baseLink }}?subRegion={{ r.Name }}'>{{ r.Name }}</a></li>
+            {% endfor %}
+        </ul>
+</div>
+</div>
+</body>
+</html>

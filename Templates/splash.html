@@ -1,0 +1,55 @@
+{% load static %}
+<div id='splash'>
+    <img id='splashLogo' src={% static sonet.LogoLink %}>
+    <h1>{{ sonet.Title }}</h1>
+    <h2><span style="font-style: italic;">A Decentralized Democracy</span></h2>
+    <h2><span style="font-style: italic;">Experiment</span></h2>
+    <br>
+    <ul id='flags'>
+        {% for region in supported_regions %}
+        <li id='flag'><a href='/{{ region.lowerName }}/home'><img src={% static region.ImgLinks|get_item:'flag' %}></a></li>
+        {% endfor %}
+    </ul>
+    <h2>If you could run your own government as easily as using Facebook,</h2><h2>Would you?</h2>
+    <br>
+    <div>
+        <p style="text-indent: 10px;">Currently, participation in democracy means to check a box for one of two or three people, every four years. Many years ago when democracy was created, that was not the case.</p>
+        <p style="text-indent: 10px;">Then, citizens could vote on laws and issues themselves, not others to make those decisions on their behalf. It failed partly because citizens either voted 
+            in ignorance or were unable to vote at all. Things are different today; almost everyone is able to learn with great convenience and vote from great distance.
+        </p>
+    </div>
+    <div>
+        <p style="text-indent: 10px;">Today, legislation consists of two chambers, The House and The Senate. The conditions have come to be for a third: The Citizenry. 
+            A chamber that consists of every Citizen and empowers them with a duty to collectively navigate a way forward.</p>
+        <p>As Citizens,</p>
+        <p>We say that reponsibly engaging with our government is part of our civic duty.</p>
+        <p>We say we can enable ourselves by unifiying our collective will.</p>
+        <p>We say if enough of us gather, we will be heard.</p>
+        <p>Here you will:
+            <ul>
+                <li>Represent yourself in all levels of government.</li>
+                <li>Debate the merits of any bill or issue.</li>
+                <li>Vote yea or nay on any bill.</li>
+                <li>Write your own bills.</li>
+                <br>
+                <li>Match your voting history to candidates to see who would best represent your will.</li>
+                <li>Reduce partisan politics by taking power from those who would vote along party lines.</li>
+                <br>
+                <li>Write all votes to an open source, decentralized blockchain.</li>
+                <li>Run a node in each and every locality by common citizens.</li>
+                <br>
+                <li>Decentralize Democracy.</li>
+            </ul>  
+        
+        </p>
+    </div>
+    <br>
+    <br>
+    <br>
+    <ul id="flags">
+        {% for region in supported_regions %}
+            <li style="display:inline-block; padding:30px"><a href='/{{ region.lowerName }}'>{{ region.Name }}</a></li>
+        {% endfor %}
+    </ul>
+    <br>
+</div>

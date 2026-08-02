@@ -1,0 +1,30 @@
+{% load static %}
+<!--DOCTYPE html-->
+<html>
+<head>
+</head>
+
+<body>
+<div id='container'>
+    {% include 'index.html' %}
+
+<div id='feed'>
+<h1>All Bills</h1>
+<br>
+
+{% for b in bills %}
+
+<h2>{{ b.ShortTitle }}</h2>
+<h3>{{ b.NumberCode }} ({{ b.GovNumber }}-{{ b.SessionNumber }})</h3>
+<a href='/bill/{{ b.GovNumber }}/{{ b.SessionNumber }}/{{ b.NumberCode }}'>More Info</a>
+<br>
+
+{% endfor %}
+
+
+
+</div>
+    {% include 'happening.html' %}
+</div>
+</body>
+</html>

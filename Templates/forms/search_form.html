@@ -1,0 +1,38 @@
+
+<div class='form'>
+    {% comment %}
+    <div id='searchForm'>
+        <form class="autocomplete" {% if mobile %}id='mobile_form'{% endif %} method="POST" enctype="multipart/form-data">{% csrf_token %}
+            {% for i in searchForm %}{{ i }}<input type="submit" class='btn btn-default' value="enter"/>{% endfor %}
+        </form> 
+    </div>  
+    {% endcomment %}
+    <div id="autocomplete" class="autocomplete">
+        <input class="autocomplete-input" autofocus="autofocus" />
+        <ul class="autocomplete-result-list"></ul>
+      </div>
+    <script src="https://unpkg.com/@trevoreyre/autocomplete-js"></script>
+    
+
+<script>
+    new Autocomplete('#autocomplete', {
+        search : input => {
+            console.log(input)
+            const url = '/search/?search=' + input
+            return new Promise(resolve => {
+                fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    // console.log(data)
+                    resolve(data.data)
+                })
+            })
+        },
+        onSubmit : result => {
+            window.location.href = '/search/' + result;
+        }
+    })
+</script>
+
+</div>
+<div class='bottomDivider'></div>

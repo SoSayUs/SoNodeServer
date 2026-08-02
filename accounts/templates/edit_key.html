@@ -1,0 +1,93 @@
+
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+</head>
+  <script type="module">
+    import { generateMnemonic } from 'https://cdn.skypack.dev/@scure/bip39';
+    import { wordlist } from 'https://cdn.skypack.dev/@scure/bip39/wordlists/english';
+  </script>
+<body>
+
+<div class='form'>
+    <div>
+
+        <form method="POST" id="modalForm">
+            <span id="field0" style="display: block;">
+            </span>
+            {% if strength %}
+                <span id="field1">{{ strength|upper }} Strength</span>
+            {% elif iden %}
+                <span id="field1">ID {{ iden }}</span>
+            {% endif %}
+
+            <br>
+            <br>
+            <br>
+                <span id="accountPassword">
+                <label for="accountPassword" style="display: block; margin-bottom: 0.15rem;">Account Passphrase:</label>
+                <input type="password" id="pass1" name="accountPassword" style="text-align: center; width: 100%; padding: 0.2rem; margin-bottom: 0.1rem;" autocomplete="off">
+                </span>
+                <br>
+                <br>
+                <span id="field3"><button style='color: black;' type="button" onclick="displayPassword('showAccountPassword','pass1')" id="showAccountPassword">Show</button>
+                <br>
+                </span>
+                <br>
+            {% if requires == 'security' %}
+                <span id="securityPassword">
+                <label for="securityPassword" style="display: block; margin-bottom: 0.15rem;">Security Passphrase:</label>
+                <input type="text" id="pass2" name="securityPassword" style="-webkit-text-security: disc; text-align: center; width: 100%; padding: 0.2rem; margin-bottom: 0.1rem;" autocomplete="off">
+                </span>
+                <br>
+                <br>
+                <span id="field3"><button style='color: black;' type="button" onclick="displayPassword('showSecurityPassword','pass2')" id="showSecurityPassword">Show</button>
+                <br>
+                </span>
+                <br>
+            {% endif %}
+            {% if new_password == 'account' %}
+                <span id="newPassword">
+                <label for="newPassword" style="display: block; margin-bottom: 0.15rem;">New Account Passphrase:</label>
+                <input type="password" id="pass3" name="newPassword" style="text-align: center; width: 100%; padding: 0.2rem; margin-bottom: 0.1rem;" autocomplete="off">
+                </span>
+                
+                <br>
+                <br>
+
+                <span id="field3"><button style='color: black; margin-right: 5px;' type="button" onclick="displayPassword('showPassword', 'pass3')" id="showPassword">Show</button><button style='color: black; margin-left: 5px;' type="button" onclick="generatePassword()">Suggest</button> </span>
+            
+            {% elif new_password == 'security' %}
+                <span id="newPassword">
+                <label for="newPassword" style="display: block; margin-bottom: 0.15rem;">New Security Passphrase:</label>
+                <input type="text" id="pass3" name="newPassword" style="-webkit-text-security: disc; text-align: center; width: 100%; padding: 0.2rem; margin-bottom: 0.1rem;" autocomplete="off">
+                </span>
+                
+                <br>
+                <br>
+
+                <span id="field3"><button style='color: black; margin-right: 5px;' type="button" onclick="displayPassword('showPassword', 'pass3')" id="showPassword">Show</button><button style='color: black; margin-left: 5px;' type="button" onclick="generatePassword()">Suggest</button> </span>
+            
+            {% endif %}
+            <br>
+            <br>
+            <br>
+            <span id="field4">Passphrase never leaves device.<br>It cannot be reset if lost.<br>Only enter while on a trusted domain.</span>
+            <br>
+            <br>
+            <span id="field5">
+            <button style='color: black;' type="button" onclick="modifyKey({{ blank_upkData }}, '{{ keyType }}', '{{ strength }}', '{{ requires }}', {{ extra_data }})">Create Key</button>
+            </span>
+            
+            </form>
+        
+            </div>
+</div>
+<br>
+<br>
+<br>
+
+</body>
+</html>

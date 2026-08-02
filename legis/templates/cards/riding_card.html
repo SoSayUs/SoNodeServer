@@ -1,0 +1,16 @@
+{% load static %}
+
+<div class='card rep'>
+    <p>riding</p>
+    {% if rep.logo %}
+        <a href={{ rep.get_absolute_url }}><img class='profilePic' src={{ rep.logo }}></a>
+    {% else %}
+        <img class='profilePic' style='height:100px; width:100px;' src={% static 'img/user-colored.png' %}>
+    {% endif %}
+    <div class='profileInfo'>
+    <ul>
+
+    </ul>
+    </div>  
+</div>
+<div class='bottomDivider'></div>

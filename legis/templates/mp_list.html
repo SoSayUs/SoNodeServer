@@ -1,0 +1,22 @@
+{% load static %}
+<!--DOCTYPE html-->
+<html>
+<head>
+</head>
+
+<body>
+<div id='container'>
+{% include 'index.html' %}
+
+<div class='feedTop'>
+<h1>{{ title }}</h1>
+
+</div>
+
+{% include 'utils/feed.html' %}
+
+{% include 'happening.html' %}
+</div>
+</body>
+{% include 'utils/infinite.html' %}
+</html>

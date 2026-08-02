@@ -1,0 +1,29 @@
+{% load static %}
+[{% for post in feed_list %}{% with r=reactions|get_item:post.id %}
+        {% if post.agendaTime %}
+            {% with a=post.agendaTime %}
+                {% include 'json/json_card.html' %}
+            {% endwith %}
+        {% elif post.bill %}
+            {% with j=post.bill %}
+                {% include 'json/json_card.html' %}
+            {% endwith %}
+        {% elif post.hansard_key %}
+            {% with j=post.hansard_key %}
+                {% include 'json/json_card.html' %} 
+            {% endwith %}
+        {% elif post.hansardItem %}
+            {% with j=post.hansardItem %}
+                {% include 'json/json_card.html' %} 
+            {% endwith %}
+        {% elif post.committeeMeeting %}
+            {% with c=post.committeeMeeting %}
+                {% include 'cards/committee_card.html' %}
+            {% endwith %}
+        {% elif post.motion %}
+            {% with m=post.motion %}
+                {% include 'cards/motion_card.html' %}
+            {% endwith %}
+        {% endif %}{% endwith %}{% endfor %}
+]
+

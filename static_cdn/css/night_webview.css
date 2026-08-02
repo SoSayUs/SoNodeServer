@@ -1,0 +1,14 @@
+
+.reactionBar ul > li{
+    border: 1.5px solid #3a3939 !important;
+}
+.reactionBar{
+    border-bottom: 1.5px solid #3a3939 !important;
+}
+/* #navBar > ul{
+    background-color: #222222;
+}
+#navBar > ul > li{
+    border-right: 1px solid #4f4e4e;
+    background: linear-gradient(to bottom, #222222, rgb(56, 55, 55));
+  } */

@@ -1,0 +1,239 @@
+{% comment %}
+{% load socialaccount %}
+{% endcomment %}
+{% load static %}
+
+<div class='form'>
+    <div>
+        {% comment %}
+        {% if userForm.errors %}
+            <li>{{ userForm.errors }}</li>
+        {% endif %}
+        {% if optionsForm.errors %}
+            <li>{{ optionsForm.errors }}</li>
+        {% endif %}
+        {% endcomment %}
+        {% comment %}
+        <form method="POST" action="" enctype="multipart/form-data">{% csrf_token %}
+            <ul>
+
+                <span>Username:</span><li id="username">{{ userForm.username }}</li>
+                <span>Password:</span><li id="password">{{ userForm.password }}</li>
+                <span>Confirm Password:</span><li id="confirm_password">{{ userForm.password_confirm }}</li>
+            <button onclick="register({{ user_dict }})">Submit</button>
+            
+            </ul>
+        </form>
+        {% endcomment %}
+        <form id="userForm" method="POST" action="" enctype="multipart/form-data">{% csrf_token %}
+            
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username"><br>
+            
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password"><br>
+
+            <label for="confirm_password">Confirm Password:</label>
+            <input type="confirm_password" id="confirm_password" name="confirm_password"><br>
+            
+            <button onclick="register({{ user_dict }})">Submit</button>
+            <div></div>
+            <span>Be sure to save your username and password somewhere very safe.</span>
+        </form>
+        {% comment %}
+        <ul>
+            <label for="username">Username:</label><br>
+            <input type="text" id="username" name="username"><br>
+            <label for="password">Password:</label><br>
+            <input type="text" id="password" name="password"><br><br>
+            <label for="confirm_password">Confirm Password:</label><br>
+            <input type="text" id="confirm_password" name="confirm_password"><br><br>
+                <li>{{ user_dict }}</li>
+            <button onclick="register({{ user_dict }})">Submit</button>
+            <li>or</li>
+
+            <span id="success"></span>
+            <span id="error"></span>
+
+        </ul>
+        {% endcomment %}
+    </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/elliptic/6.5.4/elliptic.min.js"></script>
+<script src="https://unpkg.com/@simplewebauthn/browser@9.0.1/dist/bundle/index.umd.min.js" integrity="sha384-9+Bm5pUMP2324xMjhRahdomA9HaTxP6JcMhbl3tUAcV2+Jiohq8/T+dGj/rx/MaM" crossorigin="anonymous"></script>
+<script src="https://www.unpkg.com/browse/bip39@3.1.0/src/index.js"></script>
+
+<script
+    src="https://code.jquery.com/jquery-3.2.1.min.js"
+    integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+    crossorigin="anonymous"></script>
+    
+<script>
+
+function generatePassword() {
+    var length = 16,
+        charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&",
+        retVal = "";
+    for (var i = 0, n = charset.length; i < length; ++i) {
+        retVal += charset.charAt(Math.floor(Math.random() * n));
+    }
+    
+    var form = document.getElementById("userForm");
+    
+    // Access input values by their names
+    // var username = form.elements["username"].value;
+    // var email = form.elements["email"].value;
+    form.elements["password"].value = retVal;
+    form.elements["confirm_password"].value  = retVal;
+    // return retVal;
+}
+
+generatePassword()
+async function hashMessage(message) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(message);
+
+  const buffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(buffer));
+  const hashHex = hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('');
+
+  return hashHex;
+}
+
+
+async function createKeys(seed, id) {
+    data = seed + id + id
+
+    console.log("seed:", data);
+    const curve = new elliptic.ec('secp256k1');
+    let keyPair = curve.keyFromPrivate(data);
+    let privKey = keyPair.getPrivate("hex");    
+    console.log('privKey',privKey);
+    localStorage.setItem('userData', privKey);
+    var item = localStorage.getItem("userData");
+    let keyPair2 = curve.keyFromPrivate(privKey);
+    console.log('privKey2',keyPair2.getPrivate("hex"));
+    const publicKey = keyPair.getPublic();
+    const publicKeyHex = keyPair.getPublic().encode('hex');
+    console.log("Public Key:", publicKeyHex);
+    // const data = "testmessage1111";
+    hashed_data = await hashMessage(data)
+    console.log('msg',hashed_data);
+    const signature = keyPair.sign(hashed_data, { canonical: true });
+    console.log("Signature:", signature.toDER('hex'));
+
+    const isVerified = curve.verify(hashed_data, signature, publicKey);     
+    console.log("is valid:", isVerified);
+
+    let importedPublicKey = curve.keyFromPublic(publicKeyHex3, 'hex')
+    return publicKeyHex;
+}
+
+function gatherFormData() {
+    var form = document.getElementById("userForm");
+    
+    var username = form.elements["username"].value;
+    var password = form.elements["password"].value;
+    
+    console.log("Username:", username);
+    console.log("Password:", password);
+}
+async function register(user_data) {
+    console.log('start')
+    const json_data = JSON.stringify(user_data)
+
+    var form = document.getElementById("userForm");
+    
+    var username = form.elements["username"].value;
+    var password = form.elements["password"].value;
+    var confirm_password = form.elements["confirm_password"].value;
+    
+    console.log("Username:", username);
+    console.log("Password:", password);
+    console.log("confirm_password:", confirm_password);
+
+    if (username == '') {
+        alert('Please enter a username')
+    }else if (password == '') {
+        alert('Please enter a password')
+    } else if (password != confirm_password){
+        alert("Passwords don't match")
+    } else if (password == confirm_password){
+        console.log('go')
+        const data = user_data;
+        console.log('id', data['id'])
+        data['username'] = username
+        pubKey = await createKeys(password, data['id']);
+        console.log('retreived pubkey', pubKey)
+        data['public_key'] = pubKey
+        var privKey = localStorage.getItem("userData");
+        console.log('retreived privKey', privKey)
+        // data.options.private_key = privKey;
+        data['private_key'] = privKey
+
+        data['csrfmiddlewaretoken'] = '{{ csrf_token }}'
+        console.log('data', data)
+
+            $.ajax({
+            type:'POST',
+            url:'/receive_new_user/',
+            data: data,
+            success:function(verificationResp){
+            },
+        });
+
+    }
+
+}
+
+
+
+    const { startRegistration } = SimpleWebAuthnBrowser;
+
+    const elemBegin = document.getElementById('btnBegin');
+    const elemSuccess = document.getElementById('success');
+    const elemError = document.getElementById('error');
+
+    elemBegin.addEventListener('click', async () => {
+        elemSuccess.innerHTML = '';
+        elemError.innerHTML = '';
+
+        let attResp;
+        try {
+        attResp = await startRegistration(await resp.json());
+        } catch (error) {
+        if (error.name === 'InvalidStateError') {
+            elemError.innerText = 'Error: Authenticator was probably already registered by user';
+        } else {
+            elemError.innerText = error;
+        }
+
+        throw error;
+        }
+        console.log("return pubkey:", pubKey);
+
+
+        const storedData = localStorage.getItem('userData');
+        console.log("storedData:", storedData);
+        
+    });
+
+
+
+function ab2str(buf) {
+    return String.fromCharCode.apply(null, new Uint8Array(buf));
+}
+
+    function ab2b64(arrayBuffer) {
+        return window.btoa(String.fromCharCode.apply(null, new Uint8Array(arrayBuffer)));
+    }
+
+
+
+
+
+
+
+
+</script>
+

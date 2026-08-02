@@ -1,0 +1,13 @@
+
+
+{% load static %}
+
+<div class='modalWidget'>
+    <div class="modalWidgetClose" onclick="closeModal()">X</div>
+    <div id="modalTitle"></div>
+    <div id="modalContent">
+        {% if isMobile %}
+        {% include 'modals/so_modal.html' %}
+        {% endif %}
+    </div>
+</div>

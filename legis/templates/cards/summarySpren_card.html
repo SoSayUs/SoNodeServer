@@ -1,0 +1,98 @@
+{% load static %}
+{% comment %}
+{% with sum=b.bill.hasSummarySpren %}
+{% if sum %}
+    <div class='card spren' id='summary-{{ b.id }}'>
+        <div class='sponsor'>
+            {% if b.bill.provState %}
+            <img class='sponsorPic' src={{ b.bill.provState.logo_link }}>
+            {% endif %}
+        </div>
+            <div class='cardContent'>
+                <div class='Code'>
+                    <h3>SummarySpren</h3>
+                </div>
+            <div class='TextContent' style='margin-top: 10px;'>
+                <ul class='Text'>
+                        <li style="white-space: pre-wrap;">{{ sum.content }}</li>
+                </ul>
+            </div>
+            </div>
+    </div>
+    <div class='bottomDivider'></div>
+{% endif %}
+{% endwith %}
+{% endcomment %}
+{% if sprenPost %}
+    <div class='card spren' id='summary-{{ spren.id }}'>
+        <div class='sponsor'>
+        
+            <img class='sprenPic' src={% static 'img/spren2.png' %}>
+        
+        </div>
+            <div class='cardContent'>
+                <div class='Code'>
+                    <h3>Summary of "{{topic|title}}"</h3>
+                </div>
+            <div class='TextContent' style='margin-top: 10px;'>
+                <ul class='Text'>
+                    {% call_method sprenPost.Spren_obj "list_spren_items" "items" as results %}
+                    {% for iden, text in results %}
+                        <li style="white-space: pre-wrap;"><a href='?id={{ iden }}'>{{ text }}</a></li>
+                        <br>
+                    {% endfor %}
+
+                    {% comment %}
+                    {% for i in sprenPost.Spren_obj.sprenitem_set.all %}
+                        <li style="white-space: pre-wrap;"><a href='{{ i.get_absolute_url }}'>{{ i.content }}</a></li>
+                        <br>
+                    {% endfor %}
+                    {% endcomment %}
+                </ul>
+            </div>
+            </div>
+    </div>
+    <div class='bottomDivider'></div>
+
+{% endif %}
+{% with steelfor=b.bill.hasSteelForSpren %}
+{% with steelagainst=b.bill.hasSteelAgainstSpren %}
+{% if steelfor and steelagainst %}
+    <div class='card spren' id='for-{{ b.id }}'>
+        <div class='sponsor'>
+        
+            <img class='sprenPic' src={% static 'img/spren.png' %}>
+        </div>
+            <div class='cardContent'>
+                <div class='Code'>
+                    <h3>SteelmanSpren in Favour</h3>
+                </div>
+            <div class='TextContent' style='margin-top: 10px;'>
+                <ul class='Text'>
+                        <li style="white-space: pre-wrap;">{{ steelfor.content }}</li>
+                </ul>
+            </div>
+            </div>
+    </div>
+    <div class='bottomDivider'></div>
+
+    <div class='card spren' id='against-{{ b.id }}'>
+        <div class='sponsor'>
+        
+            <img class='sprenPic' src={% static 'img/spren.png' %}>
+        </div>
+            <div class='cardContent'>
+                <div class='Code'>
+                    <h3>SteelmanSpren Against</h3>
+                </div>
+            <div class='TextContent' style='margin-top: 10px;'>
+                <ul class='Text'>
+                        <li style="white-space: pre-wrap;">{{ steelagainst.content }}</li>
+                </ul>
+            </div>
+            </div>
+    </div>
+    <div class='bottomDivider'></div>
+{% endif %}
+{% endwith %}
+{% endwith %}

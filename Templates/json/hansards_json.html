@@ -1,0 +1,27 @@
+{% load static %}
+[{% for post in feed_list %}{% with r=reactions|get_item:post.id %}{% with h=post.hansard %}
+{
+    "id":{{ h.id }},
+    "title":"Debate {{ h.Title }}",
+    
+    "Logo":"http://10.0.2.2:3005{% static 'img/house_coat_of_arms.png' %}",
+    
+    "ParliamentNumber":"{{ h.ParliamentNumber }}th",
+    "SessionNumber":"{{ h.SessionNumber }}st",
+    "Publication_date_time":"{{ h.Publication_date_time|date:"F d, Y" }}",
+    "Publication_date_time2":"{{ h.Publication_date_time|date:"D M d, Y h:iA" }} EST",
+    "VideoURL":"none",
+    "hasText":"false",
+    {% if h.VideoURL %}
+    "VideoURL":"{{ h.VideoURL }}",
+    {% elif h.has_transcript %}
+    "hasText":"true",
+    {% endif %}
+    "vote":"{% if r.isYea %}Yea{% elif r.isNay %}Nay{% else %}none{% endif %}",
+    "following":"{% if post.bill in request.user.follow_bill.all %}true{% else %}false{% endif %}",
+    "starred":"{% if r.saved %}true{% else %}false{% endif %}",
+    "yeaCount":"{{ post.total_yeas }}",
+    "nayCount":"{{ post.total_nays }}",
+    "commentCount":"{{ post.total_comments }}"
+}{% if not forloop.last %},{% else %}{% endif %}{% endwith %}{% endwith %}{% endfor %}
+]

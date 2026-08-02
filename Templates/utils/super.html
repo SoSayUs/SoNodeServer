@@ -1,0 +1,168 @@
+<html>
+<style>
+    * {
+        color: white;
+    }
+
+    body {
+        background: linear-gradient(to bottom, #181f2d, black);
+        background-attachment: fixed;
+    }
+</style>
+
+<body>
+    <a href='/'>Home</a>
+    {% if request.user.is_superuser %}
+    <br>
+    <ul>
+        {% if self_node_name %}
+        <li>{{ self_node_name }}</li>
+        {% endif %}
+        {% if utc %}
+        <li>Now_utc: {{utc}}</li>
+        {% endif %}
+    </ul>
+    {% if confirm %}
+    <br>
+    <a onclick="direct_to('/utils/super')">Back</a>
+    <ul>
+        <li>{{region}}</li>
+        <li>Confirm delete all {{model}}s?</li>
+        <li>Count: {{count}}</li>
+        <li><a href='/utils/remove_target_test_data/{{ region }}/{{ model }}'>Confirm</a></li>
+    </ul>
+    {% elif is_logs %}
+    <br>
+    <a href='/utils/super'>Back</a>
+    <br>
+    <br>
+    {% for log in logs %}
+    {% if forloop.first %}
+    <a href='/utils/logs/{{ log.type }}'>{{ log.type }}</a>
+    {% endif %}
+    {% endfor %}
+    <ul>
+        {% for log in logs %}
+        <li><a href='/utils/show_log/{{ log.id }}?count=200'>{{ log.created }}</a></li>
+        {% endfor %}
+    </ul>
+    {% elif show_log %}
+    <br>
+    <a href='/utils/super'>Back</a>
+    <br>
+    <br>
+    <a href='/utils/logs/{{ log.type }}'>{{ log.type }}</a>
+    <ul>
+        {% for dt, event in log_data.items %}
+        <li>{{dt}} -- {{event}}</li>
+        {% endfor %}
+    </ul>
+    {% elif show_processes %}
+    <br>
+    <a href='/utils/super'>Back</a>
+    <ul>
+        <li><strong>--Resume A Process--</strong></li>
+        <br>
+        {% for process, info in data.items %}
+        <li><a href='/utils/resume_process/{{ info|get_item:"id" }}'>{{ info|get_item:"type" }}-{{ info|get_item:"dt"
+                }}</a></li>
+        {% endfor %}
+        <br>
+    </ul>
+    {% elif show_blocks %}
+    <br>
+    <a href='/utils/super'>Back</a>
+    <ul>
+        <li><strong>--Make not valid--</strong></li>
+        <br>
+        <li><strong>----None-----</strong></li>
+        {% for block, data in noneBlockData.items %}
+        <li><a href='/utils/make_not_valid/{{ data|get_item:"id" }}'>{{block}}-{{ data|get_item:"index" }}-{{
+                data|get_item:"created" }}</a></li>
+        {% endfor %}
+        <br>
+        <li><strong>----Failed-----</strong></li>
+        {% for block, data in failBlockData.items %}
+        <li><a href='/utils/make_valid_unknown/{{ data|get_item:"id" }}'>{{block}}-{{ data|get_item:"index" }}-{{
+                data|get_item:"created" }}</a></li>
+        {% endfor %}
+        <br>
+        <li><strong>----Passed-----</strong></li>
+        {% for block, data in passBlockData.items %}
+        <li><a href='/utils/make_not_valid/{{ data|get_item:"id" }}'>{{block}}-{{ data|get_item:"index" }}-{{
+                data|get_item:"created" }}</a></li>
+        {% endfor %}
+        <br>
+    </ul>
+    {% elif show_chains %}
+    <br>
+    <a href='/utils/super'>Back</a>
+    <ul>
+        {% for block, data in blockData.items %}
+        <li><a href='/utils/check_validation_consensus/{{ data|get_item:"id" }}'>Attempt validation: {{block}}</a></li>
+        {% endfor %}
+        <br>
+        {% for chainName, data in chainData.items %}
+        <li><a
+                href='/utils/create_test_block/{{ data|get_item:"id" }}'>{{chainName}}_/i:{{data|get_item:'length'}}/q:{{data|get_item:'queue'}}</a>
+        </li>
+        {% endfor %}
+    </ul>
+    {% elif scripts %}
+    <br>
+    <br>
+    <a href='/admin'>Admin</a>
+    <br>
+    <a href='/utils/django-rq'>RQ</a>
+    <div>
+        <ul class='commands' id='fourthPane'>
+            <div class='header'>Commands</div>
+            <br>
+            <li><strong>----Scripts-----</strong></li>
+            {% for region in regions %}
+            <li><a href='/utils/scrapers/{{ region }}/True'>{{ region }}</a></li>
+            {% endfor %}
+            <br>
+
+            <li><strong>----utils-----</strong></li>
+            <li><a href='/utils/logs/tasks'>Task Logs</a></li>
+            <li><a href='/utils/logs/logbook'>Event Logs</a></li>
+            <li><a href='/utils/logs/errors'>Error Logs</a></li>
+            <li><a href='/utils/logs/requesteditems'>Request Logs</a></li>
+            <br>
+            <li><a href='/utils/test_tasker'>Run Tasker</a></li>
+            <li><a href='/utils/supersign'>SuperSign</a></li>
+            <li><a href='/utils/create_test_blocks'>Create Block</a></li>
+            <li><a href='/utils/invalidate_test_blocks'>Invalidate Block</a></li>
+            <li><a href='/utils/resume_processes'>Resume Process</a></li>
+            <li><a
+                    href='/utils/get_assignment/0/?creator_only=False&dt=None&func=None&chainId=None&scrapers_only=False&return_receiverTransaction=False&full_validator_list=False&strings_only=False'>Get
+                    Assignment</a></li>
+            <li><a href='/utils/tidy_up'>Tidy Up</a></li>
+            <br>
+            <li><a href='/utils/remove_target_test_data_confirm/all/Block_unvalidated'>Remove All unvalidated blocks</a>
+            </li>
+            <br>
+            <li><a href='/utils/test_notify'>Clear All App Caches</a></li>
+            <li><a href='/utils/run_notifications'>Test send notification to shardHolder</a></li>
+            <li><a href='/utils/daily_update'>Daily Update</a></li>
+            <li><a href='/utils/get_model_fields'>Show model fields</a></li>
+            <li><a href='/utils/broadcast_datapackets'>Broadcast all DataPackets</a></li>
+            <li><a href='/utils/tester1?user={{ user.id }}'>Custom test script</a></li>
+            <br>
+            <li><a href='/utils/validate_test_data'>validate_test_data</a></li>
+            <li><a href='/utils/initial_setup'>initial_test_setup</a></li>
+            <br>
+            <li><a href='/utils/clear_test_data'>clear all test data CAREFULL!</a></li>
+            <br>
+            <br>
+            <li><a href='/utils/html_playground1'>html playground</a></li>
+            <br>
+        </ul>
+        <div class='fadeOut'></div>
+    </div>
+    {% endif %}
+    {% endif %}
+</body>
+
+</html>

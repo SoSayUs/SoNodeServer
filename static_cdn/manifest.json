@@ -1,0 +1,25 @@
+{
+  "name": "SoSayUs",
+  "short_name": "SoSayUs",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#01213f",
+  "theme_color": "#0b559a",
+  "icons": [
+    {
+      "src": "/static/img/icons/icon2_square3a-64.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/img/icons/icon2_square3a-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/img/icons/icon2_square3a-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

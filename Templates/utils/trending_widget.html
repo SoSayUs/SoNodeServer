@@ -1,0 +1,10 @@
+<div class='header' id='trending'>Trending</div>
+<div>
+    <ul class='trending showFullText' id='thirdPane'>
+        {% for t in trending %}
+            <li class='trending' ><a href='{{ t.get_absolute_url }}' style='text-decoration:none;'>{{ t.key|title }}<span>({{ t.recentOccurences }})</span></a></li>
+        {% endfor %} 
+    </ul>
+    <div class='fadeOut'></div>
+</div>
+    

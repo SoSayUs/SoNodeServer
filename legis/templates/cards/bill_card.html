@@ -1,0 +1,118 @@
+{% load static %}
+<div class='card bill' id='{{ bill.id }}'>
+    {% include 'utils/person.html' %}
+    
+    <div class='cardContent'>
+    <div class='Info'>
+        <div class='Code'>
+            <h2><a href='{{ bill.get_absolute_url }}'>{% if bill.Government_obj.gov_level != 'Federal' %}{{ bill.Region_obj.Name }}{% endif %} Bill {{ bill.NumberCode }}</a></h2>
+            
+            <div class='Parl'>
+                    <div>{{ bill.Government_obj.gov_type|short_gov }} {{ bill.Government_obj.GovernmentNumber }}-{{ bill.Government_obj.SessionNumber }}</div>
+                {% comment %}
+                <div>{{ bill.Government_obj.GovernmentNumber|get_ordinal }} {{ bill.Government_obj.gov_type|short_gov }} {{ bill.Government_obj.SessionNumber|get_ordinal }} Sess.</div>
+                {% if isMobile %}
+                {% else %}
+                    <div>{{ bill.Government_obj.GovernmentNumber|get_ordinal }} {{ bill.Government_obj.gov_type|short_gov }} {{ bill.Government_obj.SessionNumber|get_ordinal }} Sess.</div>
+                {% endif %}
+                {% endcomment %}
+                {% if billUpdate %}
+                    <div>{{ billUpdate.created|date:"M. j, Y" }}</div>  
+                {% else %}
+                    <div>{{ post.created|date:"M. j, Y" }}</div> 
+                {% endif %}
+
+            </div>
+        </div>
+        <div class='Details'>
+            {% if isMobile and cards == 'bills_list' %}
+                {% if bill.Title %}
+                    <div class='title shorten2'><a href='{{ bill.get_absolute_url }}' >{{ bill.Title }}</a></div>
+                {% else %}
+                    <div class='title'><a href='{{ bill.get_absolute_url }}' >{{ bill.ShortTitle }}</a></div>
+                {% endif %}
+            {% else %}
+                {% if bill.Title %}
+                    <div class='title'><a href='{{ bill.get_absolute_url }}' >{{ bill.Title }}</a></div>
+                {% else %}
+                    <div class='title'><a href='{{ bill.get_absolute_url }}' >{{ bill.ShortTitle }}</a></div>
+                {% endif %}
+
+            {% endif %}
+            <ul>
+                {% if billUpdate %}
+                    {% with subs=billUpdate|get_updated_field:'subjects'|get_count:"2" %}
+                    {% with subs.0 as terms %}
+                    {% with subs.1 as more %}
+                    {% for s in terms %}
+                        <li class='subtitle2 shorten1' style='display:inline-block; margin-right: 2px;'><span>{{ s }},</span></li>
+                    {% endfor %}
+                    {% if more %}
+                        <li title="{% for s in billUpdate|get_updated_field:'subjects' %}{{s}}, {% endfor %}" class='subtitle2 shorten1' style='display:inline-block; cursor: pointer; margin-right: 2px;'>+{{ more }} more</li>
+                    {% endif %}
+                    {% endwith %}
+                    {% endwith %}
+                    {% endwith %}
+                {% endif %}
+            </ul>
+            <ul>
+                {% comment %}
+                {% if updatedV and not isMobile %}<li class='subtitle' style='display:inline-block; margin-right:20px;'>{{ updatedV|get_updated_field:'Version' }}</li>{% endif %}
+                {% endcomment %}
+                
+                {% if billUpdate %}
+                <li class='subtitle shorten1' style='display:inline-block; margin-right: 10px; font-style: italic;'><span>{% if billUpdate|get_updated_field:'LatestBillEvent' %}{{ billUpdate|get_updated_field:'LatestBillEventDateTime'|dt_object|date:"M/j/y" }}: {{ billUpdate|get_updated_field:'LatestBillEvent' }}{% else %}{{ billUpdate|get_updated_field:'LatestCompletedMajorStageNameWithChamberSuffix' }}{% endif %}</span></li>
+                {% endif %}
+                {% comment %}
+                <li class='subtitle2' style='display:inline-block;'><a href='{{ bill.get_absolute_url }}?view=Text'>Read Bill</a> &nbsp;|&nbsp;</li>
+                {% endcomment %}
+                
+                {% if billUpdate %}
+                    {% if billUpdate|get_updated_field:'has_text' == True %}
+                        <li class='subtitle2' style='display:inline-block;'>&nbsp;-&nbsp;&nbsp;<a href='{{ bill.get_absolute_url }}?view=Text' style="text-decoration: underline;">Read Bill</a></li>
+                        <li class='subtitle2' style='display:inline-block; '>&nbsp;|&nbsp;&nbsp;<a href={{ bill.LegisLink }} style="text-decoration: underline;" target="_blank">Government Page</a></li>
+                    {% else %}
+                        <li class='subtitle2' style='display:inline-block; '>&nbsp;-&nbsp;&nbsp;<a href={{ bill.LegisLink }} style="text-decoration: underline;" target="_blank">Government Page</a></li>
+                    {% endif %}
+                {% endif %}
+            </ul>
+        </div>
+        
+        <div class='TextContent'>
+            <ul class='Text'>
+                {% comment %}
+                {% with sum=bill.hasSummarySpren %}
+                {% if sum %}
+                    <li {% if request.user_agent.is_mobile %}style='white-space: pre-wrap; line-height:128% !important;'{% endif %}>{{ sum.content }}</li>
+                    {% endwith %}
+                {% endcomment %}
+                {% if billUpdate %}
+                    {% if billUpdate|get_updated_field:'Summary' %}
+                        <li {% if request.user_agent.is_mobile %}style='line-height:128% !important;'{% endif %}>{{ billUpdate|get_updated_field:'Summary'|safe }}</li>
+                    {% elif billUpdate|get_updated_field:'has_text' == True %}
+                        <li {% if request.user_agent.is_mobile %}style='line-height:128% !important;'{% else %}style='margin-top:15px;'{% endif %}>Summary not yet available.</li>
+                    {% else %}
+                        <li {% if request.user_agent.is_mobile %}style='line-height:128% !important;'{% else %}style='margin-top:15px;'{% endif %}>Text not yet available.</li>
+                    {% endif %}
+                {% endif %}
+                
+            </ul>
+
+        </div>
+        <div class='billProgress'>
+
+        {% if billUpdate and billUpdate|get_updated_field:'billVersions' %}
+        <a href='{{ bill.get_absolute_url }}?view=LatestText'>
+            <ul>
+                {% for v in billUpdate|get_updated_field:'billVersions' %}
+                    <li {% if v|get_item:'status' or v|get_item:'started_dt' %}class="{{ v|get_item:'status' }} complete"{% endif %} >{{ v|get_item:'version' }}</li>
+                {% endfor %}
+            </ul>
+        </a>
+        {% endif %}
+        </div>
+    </div>
+    </div>
+
+</div>
+{% include 'utils/reaction_bar.html' %}

@@ -1,0 +1,11 @@
+{
+  "_readme": "STARTER file with a handful of words per tier so the mechanism can be tested -- not remotely exhaustive. Expand each tier using the free sources listed at the bottom of tiered_profanity_filter.py. Keep 'slur' empty until you've sourced a vetted list yourself; the filter works fine without it, just with that category disabled.",
+
+  "mild": ["damn", "hell", "crap", "darn", "freaking"],
+
+  "moderate": ["ass", "bitch", "bastard", "dick", "douche", "prick", "shit", "son of a bitch"],
+
+  "severe": ["fuck", "fucking", "motherfucker"],
+
+  "slur": []
+}

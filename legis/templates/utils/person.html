@@ -1,0 +1,79 @@
+{% load static %}
+
+<div class='sponsor'>
+    <div>
+    {% if bill.Person_obj %}
+        {% with personUpdate=bill.Person_obj.Update_obj %}
+            {% if personUpdate %}
+                <a href={{ bill.Person_obj.get_absolute_url }}><img class='sponsorPic' style='border-bottom:{% if request.user_agent.is_mobile %}9px{% else %}4px{% endif %} solid {{ bill.Party_obj.Color }};' src="{{ bill.Person_obj.get_image|default:'/static/img/user-colored.png' }}"></a>
+                <div class='sponsorInfo'>
+                    <div>Sponsor:</div>
+                    <div><h3><a href={{ bill.Person_obj.get_absolute_url }}>{% call_method bill.Person_obj "get_name" personUpdate %}</a></h3></div>
+                </div>
+            {% else %}
+                <img class='sponsorPic' src={% static 'img/user-colored.png' %}>
+                <div class='sponsorInfo'>
+                    <div>Sponsor:</div>
+                    <div><h3>{{ bill.SponsorPersonName }}</h3></div>
+                </div>
+            {% endif %}
+        {% endwith %}
+    {% else %}
+        <img class='sponsorPic' src={% static 'img/user-colored.png' %}>
+        <div class='sponsorInfo'>
+            <div>Sponsor:</div>
+            {% if bill.Party_obj %}
+            <div><h3 style='border-bottom:{% if request.user_agent.is_mobile %}9px{% else %}4px{% endif %} solid {{ bill.Party_obj.Color }};'>{{ bill.SponsorPersonName }}</h3></div>
+            {% else %}
+            <div><h3>{{ bill.SponsorPersonName }}</h3></div>
+            {% endif %}
+        </div>
+    {% endif %}
+    <ul style='padding-left:17px; margin:0px' class="cosponsors">
+        {% if billUpdate %}
+            {% with cosponsors=billUpdate|get_updated_field:'cosponsors' %}
+            {% if cosponsors %}
+                {% with co=cosponsors|get_count:"3" %}
+                {% with co.0 as people %}
+                {% with co.1 as more %}
+                {% for i in people %}
+                    {% if i|get_item:'obj_id' %}
+                        {% if i|get_item:'prty_colr' %}
+                            <li style="--bullet-color: {{ i|get_item:'prty_colr' }};"><a href={{ i|get_item:'obj_id'}}>{{ i|get_item:'fullName' }}</a></li>
+                        {% else %}
+                            <li>{{ i|get_item:'fullName' }}</a></li>
+                        {% endif %}
+                    {% else %}
+                        <li>{{ i|get_item:'fullName' }}</li>
+                    {% endif %}
+                {% endfor %}
+                {% if more %}
+                    <li><a href="{{ b.get_absolute_url }}?view=sponsors">+{{ more }} more</a></li>
+                {% endif %}
+                {% endwith %}
+                {% endwith %}
+                {% endwith %}
+            {% endif %}
+            {% endwith %}
+        {% endif %}
+    </ul>
+    {% comment %}
+    {% if bill.CoSponsor_objs.all %}
+        <ul style='padding-left:17px; margin:0px'>
+        {% with co=bill.CoSponsor_objs.all|get_count:"3" %}
+        {% with co.0 as people %}
+        {% with co.1 as more %}
+        {% for s in people %}
+            <li><a href={{ s.get_absolute_url }}>{{ s.FullName }}</a></li>
+        {% endfor %}
+        {% if more %}
+            <li><a href="{{ b.get_absolute_url }}?view=sponsors">+{{ more }} more</a></li>
+        {% endif %}
+        {% endwith %}
+        {% endwith %}
+        {% endwith %}
+        </ul>
+    {% endif %}
+    {% endcomment %}
+    </div>
+</div>

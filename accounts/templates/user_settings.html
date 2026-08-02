@@ -1,0 +1,149 @@
+
+{% load static %}
+
+<div class='card user' id='{{ request.user.id }}' style="padding: 10px;">
+        <div class='cardContent'>
+            <div class='Code'>
+                <h2>{{ request.user.get_userLink_html|safe }}</h2>
+                
+            </div>
+            <div class='Details'>
+                
+                <ul>
+                    <li><span><strong>ID</strong> &middot; {{ request.user.id }}</span></li>
+                    <li><span><strong>Created</strong> &middot; {{ request.user.created }} UTC</span></li>
+                    <li><span><strong>Last Update</strong> &middot; {{ request.user.last_update }} UTC</span></li>
+                    <br>
+                    <li class="clickable" onclick="react('modelData','{{request.user.id}}')"><span><strong>View Model Data</strong></span></li>
+                    <br>
+                    <ul>
+                        <li style="display: inline-block; position: relative; margin: 5px;">
+                            <button class="btn btn-sm">Change Username</button>
+                        </li>
+
+                        <li style="display: inline-block; position: relative; margin: 5px;">
+                            <button class="btn btn-sm">View Login Passphrase</button>
+                        </li>
+                    </ul>
+                    
+                </ul>
+            </div>
+
+        </div>
+</div>
+<div class='bottomDivider'></div>
+<br>
+<div class='bottomDivider'></div>
+<div class='card new_key' id='{{ request.user.id }}' style="padding: 10px;">
+        <div class='cardContent'>
+            <div class='Details'>
+                
+                <ul>
+                    {% if not security_upk %}
+                        <li style="display: inline-block; position: relative; margin: 5px;">
+                            <ul>
+                                <i style="display: block; position: relative; text-align: center;">* Recommended *</i>
+                                <li style="display: block; position: relative;"><button class="btn btn-sm" onclick="modalPopUp('Create Security Key','/user/settings?style=popup&cmd=new_key_security')">Create Security Key</button> </li>
+                            </ul>
+                        </li>
+                    {% endif %}
+
+                    <li style="display: inline-block; position: relative; margin: 5px;">
+                        <ul>
+                            <i style="display: block; position: relative; text-align: center;">(New Password)</i>
+                            <li style="display: block; position: relative;"><button class="btn btn-sm" onclick="modalPopUp('Change Account Key','/user/settings?style=popup&cmd=new_key_account')">Change Account Key</button> </li>
+                        </ul>
+                    </li>
+
+                    <li style="display: inline-block; position: relative; margin: 5px;">
+                        <ul>
+                            <li style="display: block; position: relative;"><button class="btn btn-sm" onclick="modalPopUp('Rotate Signing Key','/user/settings?style=popup&cmd=new_key_signing')">Rotate Signing Key</button> </li>
+                        </ul>
+                    </li>
+                    {% if security_upk %}
+                        <li style="display: inline-block; position: relative; margin: 5px;">
+                            <ul>
+                                <li style="display: block; position: relative;"><button class="btn btn-sm" onclick="modalPopUp('Change Security Key','/user/settings?style=popup&cmd=new_key_security')">Change Security Key</button> </li>
+                            </ul>
+                        </li>
+                        <li style="display: inline-block; position: relative; margin: 5px;">
+                            <ul>
+                                <li style="display: block; position: relative;"><button class="btn btn-sm" onclick="modalPopUp('Disable Key','/user/settings?style=popup&iden={{security_upk.id}}&cmd=disable_key')">Remove Security Key</button> </li>
+                            </ul>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+
+        </div>
+    
+</div>
+<div class='bottomDivider'></div>
+<div class='card keys' id='{{ request.user.id }}' style="padding: 10px;">
+        <div class='cardContent'>
+            <br>
+            <div class='Code'>
+                <h2>{{ view }} Keys</h2>
+                
+            </div>
+            <br>
+
+        </div>
+    
+</div>
+<div class='bottomDivider'></div>
+<br>
+<div class='bottomDivider'></div>
+{% for upk in upks %}
+    <div class='card key' id='{{ upk.id }}' style="padding: 10px;">
+        <div class='cardContent'>
+                <div class='Code'>
+                    <ul style="display: inline-block; position: relative; margin: 5px; padding: 0px;">
+                        <h2 style="display: inline-block; position: relative; margin: 5px;"><strong>{{ upk.keyType|capfirst }} Key</strong></h2>
+                        <li style="display: inline-block; position: relative; margin: 5px;"><button class="btn btn-sm" onclick="modalPopUp('Disable Key','/user/settings?style=popup&iden={{upk.id}}&cmd=disable_key')">Disable</button></li>
+                    </ul>
+                </div>
+
+            <div class='Details'>
+                <ul>
+                    <li><span><strong>Strength</strong> &middot; {{ upk.readable_strength }}</span></li>
+                    <br>
+                    <li><span><strong>ID</strong> &middot; {{ upk.id }}</span></li>
+                    {% if upk.nodeId %}
+                        <li><span><strong>NodeID</strong> &middot; {{ upk.nodeId }}</span></li>
+                    {% endif %}
+                    <li><span><strong>Created</strong> &middot; {{ upk.created }} UTC</span></li>
+                    <li><span><strong>Last Update</strong> &middot; {{ upk.last_update }} UTC</span></li>
+                    <li><span><strong>Block</strong> &middot; {% if upk.Block_obj %}{{ upk.Block_obj.id }}{% else %}-{% endif %}</span></li>
+                    {% if upk.end_life_dt %}
+                        <li><span><strong>Ended</strong> &middot; {{ upk.end_life_dt }}</span></li>
+                    {% endif %}
+                    <br>
+                    <li class="clickable" onclick="react('modelData','{{upk.id}}')"><span><strong>View Model Data</strong></span></li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+    <div class='bottomDivider'></div>
+{% endfor %}
+{% if not upks %}
+    <div class='card key' style="padding: 10px;">
+        <div class='cardContent'>
+                <div class='Code'>
+                    <ul style="display: inline-block; position: relative; margin: 5px; padding: 0px;">
+                        <h2 style="display: inline-block; position: relative; margin: 5px;"><strong>None Found</strong></h2>
+                    </ul>
+                </div>
+
+            <div class='Details'>
+                <ul>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+    <div class='bottomDivider'></div>
+
+{% endif %}
+

@@ -1,0 +1,24 @@
+{% load static %}
+
+<div class='card election highlight{% if e.district == request.user.district or e.riding == request.user.riding %}highlight{% endif %}'>
+
+<div class='sponsor'>
+    {% if e.provState %}
+    <img class='sponsorPic' src={{ e.provState.logo_link }}>
+    {% endif %}
+</div>
+<div class='cardContent'>
+    <div class='Details'>
+    <ul>
+        <li>{{ e.provState.name }} {{ e.level }} {{ e.type }}</li>
+        <li>{{ e.end_date|date:"F d, Y"  }}</li>
+        <br>
+        <li>{{ e.district.name }}</li>
+        <br>
+        <li><a href={{ e.get_absolute_url }}>Candidates</a></li>
+
+    </ul>
+    </div>
+</div>
+</div>
+<div class='bottomDivider'></div>

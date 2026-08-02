@@ -1,0 +1,30 @@
+
+{% load social_share %}
+
+
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Share Post</title>
+</head>
+<body>
+
+<div>
+    <div>
+        <br>
+        <br>
+        <br>
+        <br>
+        <ul class="modalList">
+            <li class="clickable">{% post_to_facebook post.get_absolute_url "Post to Facebook" %}</li>
+            <li class="clickable">{% post_to_twitter post.get_title post.get_absolute_url "Post to Twitter" %}</li>
+            <li class="clickable">{% post_to_reddit post.get_title  post.get_absolute_url "Post to Reddit" %}</li>
+            <li class="clickable">{% send_email post.get_title 'SoVote' post.get_absolute_url "Share via email" %}</li>
+            <li class='copyToClipboard, clickable' onclick="copyToClipboard('{{post.get_absolute_url}}')">Copy to Clipboard</li>
+        </ul>
+</div>
+</div>
+</body>
+</html>
+

@@ -1,0 +1,107 @@
+{% load static %}
+
+<div class='card committee {% if id == c.id %}moveToHere{% endif %}' id='c-{{ c.id }}'>
+   
+
+    <div class='sponsor'>
+        <div>
+        <!-- <img class="img-avatar" src='{{ h.person.logo }}'/> -->
+        {% if c.person.logo %}
+        <!-- <div class='image-cropper'> -->
+            <a href={{ c.person.get_absolute_url }} ><img class='profilePic' style='border-bottom:{% if request.user_agent.is_mobile %}9px{% else %}4px{% endif %} solid {{ c.person.party.colour }};' src={{ c.person.logo }}></a>
+        <!-- </div> -->
+        {% else %}
+            <img class='profilePic' style='max-height:90px;' src={% static 'img/user-coloured.png' %}>
+        {% endif %}
+        <div class='sponsorInfo'>
+            <div style='text-align:center; padding:0px;'>{{ c.person.first_name }} {{ c.person.last_name }}</div>
+        </div>
+    </div>
+    </div>
+    <div class='cardContent'>
+    <div class='committeeContent'>
+        {% if not hasContext or hasContext == c.id %}
+            <div class='postContext'><a href='{{ c.get_absolute_url }}'><span>Context:</span> {{ c.committeeMeeting.Title }} ({{c.committeeMeeting.code}}) - {{ c.Item_date_time|date:"M/j/y" }}</a></div>
+        {% endif %}
+        <div class='committeeTitle'>
+            <div class='profileInfo'><a href='{{ c.committeeMeeting.get_absolute_url }}/?speaker={{ c.person.id }}'><b>{{ c.person_name }}</b></a></div>
+        </div>
+        <div class='committeeInfo'>
+        <ul>
+            <li>{{ c.Item_date_time|time:"h:i:s a" }}</li>
+            {% if c.VideoURL %}
+                <li class='watch' onclick='insertEmbed("c-{{ c.id }}", "{{ c.VideoURL }}")'>Watch</li>
+            {% endif %}
+            <li class='listen' onclick='readAloud("c-{{ c.id }}")'>Read Aloud</li>
+
+                {% if c.OrderOfBusiness %}
+                    <li>{{ c.OrderOfBusiness }}</li>
+                {% endif %}
+                {% if c.SubjectOfBusiness %}
+                    <li>Re: {{ c.SubjectOfBusiness }}</li>
+                {% endif %}
+            </ul>
+        </div>
+        <div class='Embed' ></div>
+        <div class='TextContent'>
+        {% if c.Content %}
+                <div class='Text'>
+                    <ParaText>
+                    {{ c.Content|safe }}
+                    </ParaText>
+                </div>
+        {% else %}
+            <div class='Text'>
+                {% for q in c.questions.all %}
+                    <div>{{ q.QuestionNumber }}</div>
+                    {% if q.QuestionContent %}
+                        <div>Questioner: {{ q.questioner_name }}</div>
+                        <ParaText>
+                        {{ q.QuestionContent|safe }}
+                        </ParaText>
+                    {% elif q.ResponseContent %}
+                        <div>Responder: {{ q.responder_name }}</div>
+                        <ParaText>
+                        {{ q.ResponseContent|safe }}
+                        </ParaText>
+                    {% endif %}
+                {% endfor %}
+
+            </div>
+        {% endif %}
+        </div>
+        {% if c.wordCount %}
+            <div class='wordCount'>{{ c.wordCount }} words</div>
+        {% endif %}
+        {% if c.Terms %}
+            <div class='Terms'>
+                <ul>
+                    {% if topicList %}
+                        {% with terms=c.Terms|order_terms:topicList %}
+                            {% for term in terms|slice:":5"%}
+                                <li {% if term in topicList %}class='active'{% endif %}><a href='{{ c.get_absolute_url }}{% if "?" in c.get_absolute_url %}&{% else %}?{% endif %}topic={{ term }}' class='shorten1'>{{ term }}</a></li>
+                            {% endfor %}
+                        {% endwith %}
+                    {% else %}
+                        {% if request.user_agent.is_mobile %} 
+                            {% for term in c.Terms|slice:":3"%}
+                                <li {% if term in topicList %}class='active'{% endif %}><a href='{{ c.get_absolute_url }}{% if "?" in c.get_absolute_url %}&{% else %}?{% endif %}topic={{ term }}' class='shorten1'>{{ term }}</a></li>
+                            {% endfor %}
+                        {% else %}
+                        
+                            {% for term in c.Terms|slice:":5"%}
+                                <li {% if term in topicList %}class='active'{% endif %}><a href='{{ c.get_absolute_url }}{% if "?" in c.get_absolute_url %}&{% else %}?{% endif %}topic={{ term }}' class='shorten1'>{{ term }}</a></li>
+                            {% endfor %}
+                        {% endif %}
+                    {% endif %}
+                </ul>
+            </div>
+            {% if c.Terms|length > 5 %}
+            <div class='readMore' onclick='continue_reading("c-{{ c.id }}","{{ topicList }}")'>All Tags</div>
+            {% endif %}
+        {% endif %}
+    </div>
+    </div>
+    
+</div>
+{% include 'utils/reaction_bar.html' %}

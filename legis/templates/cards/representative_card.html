@@ -1,0 +1,108 @@
+{% load static %}
+{% load humanize %} 
+
+<div class='card person'>
+    <a href={{ person.get_absolute_url }}><img class='profilePic' src="{{ person.get_image|default:'/static/img/user-colored.png' }}"></a>
+    {% comment %}
+        {% if personUpdate|get_updated_field:'PhotoLink' %}
+        {% else %}
+            <img class='profilePic' style='height:100px; width:100px; margin-right: 62px;' src={% static 'img/user-colored.png' %}>
+        {% endif %}
+    {% endcomment %}
+    <div class='profileInfo'>
+    <h2><a href={{ person.get_absolute_url }}>{{ personUpdate|get_updated_field:'Honorific' }} {{ personUpdate|get_updated_field:'LastName' }}, {{ personUpdate|get_updated_field:'FirstName' }}</a></h2>
+    <ul>    
+        {% with position=personUpdate|get_updated_field:'Position' %}
+            {% if position %}
+            <li>{{ position }}</li>
+            {% endif %}
+            {% if post.Chamber %}
+            <li>{{ post.Chamber }}</li>
+            {% endif %}
+            <br>
+            {% with party=personUpdate|get_updated_field:'Party_id'|parse_extra_data:extra_data %}
+                {% if party %}
+                    <li>{{ party.Name }} Party</li>
+                {% endif %}
+                {% if party.Color %}
+                <div class='partyColour' style='background-color:{{ party.Color }}'></div>
+                {% endif %}
+            {% endwith %}
+
+            {% with district=personUpdate|get_updated_field:'District_id'|parse_extra_data:extra_data %}
+                {% if district %}
+                    <li>Distict: {{ district.Name }}</li>
+                {% endif %}
+            {% endwith %}
+            {% with provState=personUpdate|get_updated_field:'ProvState_id'|parse_extra_data:extra_data %}
+                {% if provState %}
+                    <li>{{ provState.nameType }}: {{ provState.Name }}</li>
+                {% endif %}
+            {% endwith %}
+            <li>Country: {{ post.Country_obj.Name }}</li>
+
+            {% comment %}
+            {% with dt=personUpdate|get_updated_field:'StartDate,extra,position' %}
+                {% if dt %}
+                <li>Since: {{ dt|dt_object|date:"F d, Y" }}</li>
+                {% endif %}
+            {% endwith %}
+            {% endcomment %}
+
+            {% with addresses=personUpdate|get_updated_field:'Addresses' %}
+            {% for addr in addresses %}
+                <li>{{addr}}</li>
+            {% endfor %}
+            {% endwith %}
+            
+            {% with items=personUpdate|get_updated_field:'Telephones' %}
+            {% for i in items %}
+                <li>{{i}}</li>
+            {% endfor %}
+            {% endwith %}
+
+            {% with fax=personUpdate|get_updated_field:'Fax' %}
+            {% if fax %}
+                <li>Fax: {{fax}}</li>
+            {% endif %}
+            {% endwith %}
+
+            {% with items=personUpdate|get_updated_field:'Emails' %}
+            {% for i in items %}
+                <li>{{i}}</li>
+            {% endfor %}
+            {% endwith %}
+            {% with items=personUpdate|get_updated_field:'Websites' %}
+            {% for i in items %}
+                <li><a href={{i}} target="_blank">{{i}}</a></li>
+            {% endfor %}
+            {% endwith %}
+            {% with platforms=personUpdate|get_updated_field:'Socials' %}
+            {% for platform in platforms %}
+                {% if platform|get_item:'type' == 'Twitter' or platform|get_item:'type' == 'X' %}
+                    <li><a href=https://x.com/{{ platform|get_item:'id' }} target="_blank">{{platform|get_item:'type'}} - {{ platform|get_item:'id' }}</a></li>
+                {% else %}
+                    <li>{{platform|get_item:'type'}} - {{ platform|get_item:'id' }}</li>
+                {% endif %}
+            {% endfor %}
+            {% endwith %}
+
+            {% comment %}
+            {% if r.attendancePercent %}
+            <li>Voting Attendance: {{ r.attendancePercent }}%</li>
+            {% endif %}
+            {% if r.quarterlyExpenseReport %}
+            <li>Expenses Last Quarter: ${{ r.quarterlyExpenseReport|floatformat:2|intcomma }}</li>
+            {% endif %}
+            {% endcomment %}
+            {% if person.GovProfilePage %}
+            <br>
+            <li><a href={{ person.GovProfilePage }} target="_blank">Government Page</a></li>
+            {% endif %}
+        {% endwith %}
+
+    </ul>
+    </div>  
+    <div class="miniMore", title='More' onclick="react('more','{{post.id}}')"><span class="material-icons">more_horiz</span></div>
+</div>
+<div class='bottomDivider'></div>

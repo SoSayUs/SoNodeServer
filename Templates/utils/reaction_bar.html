@@ -1,0 +1,25 @@
+{% load static %}
+{% with i=useractions|get_item:post.id %}
+<div class='reactionBar' id='{{ post.id }}'>
+    <span class="pointer_id" data-id="{{ post.pointerId }}"></span>
+    <span class="update_id" data-id="{{ post.Update_obj.id }}"></span>
+    <span class="network_id" data-id="{{ post.networkChain }}"></span>
+    <ul>
+        {% if post.Spren_obj %}
+        <li class="reactionbarSpren" title="SummarySpren" onclick='react("spren", "{{ post.id }}", "/utils/modal_picker/spren_modal/{{ post.Spren_obj.id }}")'><span><img class='miniSprenPic' src={% static 'img/spren2.png' %}></span></li>
+        {% endif %}
+        {% comment %}
+        <li title='Discuss' class='discussionLink'><span class="material-icons">forum</span> <span class='count'>{% if post.total_comments > 0 %}({{ post.total_comments }}){% endif %}</span></li>
+        {% endcomment %}
+        <li class='yea {% if i.voteValue and i.voteValue == "yea" %}active {% endif %}reaction-btn' onclick='react("yea", "{{ post.id }}")'><span>{% if post.pointerType == 'Bill' %}Yea{% else %}Hear!{% endif %}</span></li>
+        <li class='nay {% if i.voteValue and i.voteValue == "nay" %}active {% endif %}reaction-btn' onclick='react("nay", "{{ post.id }}")'><span>{% if post.pointerType == 'Bill' %}Nay{% else %}Rabble!{% endif %}</span></li>
+        <li class="insight" title='Insights' onclick="react('insight','{{post.id}}')"><span class="material-icons">bar_chart</span></li>
+        <li title='Follow Person' class='follow {% if post.id in request.user.follow_post_id_array %}active{% endif %}' onclick='react("{% if post.id in request.user.follow_post_id_array %}unfollow{% else %}follow{% endif %}", "{{ post.id }}")'><span class="material-icons">person_add</span></li>
+        {% comment %}
+        <li title='Save' class='saveButton {% if i.SavePost_obj and i.SavePost_obj.saved %}active{% endif %}' onclick='react("saveButton", "{{ post.id }}")'><span class="material-icons">star_border</span></li>
+        <li title='Share' class='share lastButton' {% if isApp %} onclick='mobileShare("{{post.id}}")'{% else %} onclick="react('share','{{post.id}}')"{% endif %}><span class="material-icons">share</span></li>
+        {% endcomment %}
+        <li class="moreVert" title='More' onclick="react('more','{{post.id}}')"><span class="material-icons">more_horiz</span></li>
+    </ul>
+</div>
+{% endwith %}

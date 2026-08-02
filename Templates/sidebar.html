@@ -1,0 +1,238 @@
+{% load static %}
+<div id='sidebar'>
+    <div class='header' id='notifications'><span onclick='sideBarExpand("firstPane")'>Notifications</span>{% comment %}<span class="sort" onclick='sidebarSort("notifications")'>clear</span>{% endcomment %}</div>
+    <div>
+        <ul class='sideBarWindow notifications' id='firstPane'>   
+            {% if notifications %}
+                {% for n in notifications %}
+                    {% if n.Notification_obj %}
+                        <li class='notification' id={{ n.id }}><a href={{ n.Notification_obj.Link }} style='text-decoration:none;'>{{ n.Notification_obj.Title }}</a><span onclick="removeNotification('{{ n.id }}')">X</span></li>
+                    {% else %}
+                        <li class='notification' id={{ n.id }}><a href={{ n.Link }} style='text-decoration:none;'>{{ n.Title }}</a></li>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <li>No Notifications</li>
+            {% endif %}
+            {% comment %}
+            <br>
+            <li onclick="addNotification('go')">add test notification</li>
+            {% endcomment%}
+        </ul>
+        {% if notifications|length > 4 %}
+            <div class='fadeOut'></div>
+        {% else %}
+            <br>
+            <div class='fadeOut'></div>
+            {% for p in notifications %}
+                <br>
+            {% endfor %}
+        {% endif %}
+    </div>
+{% if debate or committee %}
+    {% with terms_list=debateUpdate|get_updated_field:'Terms' %}
+    {% if terms_list or committee.TermsText %}
+    <div class='header' id='topics'><span onclick='sideBarExpand("thirdPane")'>Topics</span> <span class="sort" onclick='sidebarSort("topics-alpha")'>sort</span></div>
+    <div>
+        <ul class='sideBarWindow showFullText' id='thirdPane' >
+            
+            {% for term in debateUpdate.data|get_item:'Terms' %}
+                {% for key, value in term.items %}
+                    <li><a href='{{ debate.get_absolute_url }}/?topic={{ key }}' title='{{ key }}'>{{ key|truncatewords:12|title }}  <span>({{ value }})</span></a></li>
+                {% endfor %}
+            {% endfor %}
+
+        </ul>
+        <div class='fadeOut'></div>
+    </div>
+    {% endif %}
+    {% with people=debateUpdate.data|get_item:'People' %}
+        {% if people %}
+        <div class='header' id='speakers'><span onclick='sideBarExpand("fourthPane")'>Speakers</span> <span class="sort" onclick='sidebarSort("speakers-alpha")'>sort</span></div>
+            <div>
+                <ul class='sideBarWindow' id='fourthPane'>
+
+            {% for term in people %}
+                {% for key, value in term.items %}
+                    <li><a href='{{ debate.get_absolute_url }}/?speaker={{ key|jsonify|get_item:"obj_id" }}' title='{{ key|jsonify|get_item:"Name" }}'>{{ key|jsonify|get_item:'Name' }}  <span>({{ value }})</span></a></li>
+                {% endfor %}
+            {% endfor %}
+            </ul>
+            {% if people|length > 4 %}
+                <div class='fadeOut'></div>
+            {% else %}
+                <br>
+                <br>
+                {% for p in people %}
+                    <br>
+                    <br>
+                {% endfor %}
+            {% endif %}
+        </div>
+        {% endif %}
+    {% endwith %}
+    {% endwith %}
+
+    {% comment %}
+    {% else %}
+    <div class='header' id='speakers'>Speakers <span onclick='sidebarSort("speakers-alpha")'>sort</span></div>
+    <div>
+        <ul class='sideBarWindow showFullText' id='fourthPane'>
+    {% endif %}
+
+            {% for key, value in debateUpdate|list_all_people %}
+                <li><a href='{{ debate.get_absolute_url }}/?speaker={{ key.id }}'>{{ key.LastName }}, {{ key.FirstName }} <span>({{ value }})</span></a></li>
+            {% endfor %}
+
+            {% for key, value in committee.list_all_people %}
+            <li><a href='{{ committee.get_absolute_url }}/?speaker={{ key.id }}'>{{ key.LastName }}, {{ key.FirstName }} <span>({{ value }})</span></a></li>
+            {% endfor %}
+        </ul>    
+        <div class='fadeOut'></div>
+    </div>
+    {% endcomment %}
+{% elif personTerms %}
+    <div class='header'><span onclick='sideBarExpand("thirdPane")'>{{ person.full_name }}</span></div>
+    <div>
+        <ul class='sideBarWindow showFullText' id='thirdPane'>
+            {% for key, value in personTerms %}
+                <li><a href='{{ person.get_absolute_url }}/?topic={{ key }}'>{{ key|title }} <span>({{ value }})</span></a></li>
+            {% endfor %}
+        </ul>
+        <div class='fadeOut'></div>
+    </div>
+{% elif view and view|lower == 'text' %}
+    <div class='header'><span onclick='sideBarExpand("thirdPane")'>Table of Contents</span></div>
+    <div>
+        <ul class='sideBarWindow showFullText' id='thirdPane'>
+            {% if billText %}
+                {% for item in billText|get_toc %}
+                    {% for key, value in item.items %}
+                        {% with code=value|get_item:'code' %}
+                        {% with html=value|get_item:'html' %}
+                            <li class='tocItem' ><span class='tocText' onclick='tocNav(`{{ html }}`)'>{{ key }}</span> <span class="material-icons tocShare" title='share' {% if isApp %} onclick='mobileShare("{{post.id}}', code='{{code}}")'{% else %} onclick="react('share','{{post.id}}','{{code}}')"{% endif %}>share</span></li>
+                        {% endwith %}
+                        {% endwith %}
+                    {% endfor %}
+                {% endfor %}
+            {% endif %}
+            {% comment %}
+            {% if post and post.Bill_obj.modlVer >= 2 %}
+                {% for item in post.Bill_obj.BillText_obj|get_toc %}
+                    {% for key, value in item.items %}
+                        {% with code=value|get_item:'code' %}
+                        {% with html=value|get_item:'html' %}
+                            <li class='tocItem' ><span class='tocText' onclick='tocNav(`{{ html }}`)'>{{ key }}</span> <span class="material-icons tocShare" title='share' {% if isApp %} onclick='mobileShare("{{post.id}}', code='{{code}}")'{% else %} onclick="react('share','{{post.id}}','{{code}}')"{% endif %}>share</span></li>
+                        {% endwith %}
+                        {% endwith %}
+                    {% endfor %}
+                {% endfor %}
+            {% elif post %}
+                {% for item in post.Update_obj|get_toc %}
+                    {% for key, value in item.items %}
+                        {% with code=value|get_item:'code' %}
+                        {% with html=value|get_item:'html' %}
+                            <li class='tocItem' ><span class='tocText' onclick='tocNav(`{{ html }}`)'>{{ key }}</span> <span class="material-icons tocShare" title='share' {% if isApp %} onclick='mobileShare("{{post.id}}', code='{{code}}")'{% else %} onclick="react('share','{{post.id}}','{{code}}')"{% endif %}>share</span></li>
+                        {% endwith %}
+                        {% endwith %}
+                    {% endfor %}
+                {% endfor %}
+            {% endif %}
+            {% endcomment %}
+        </ul>
+        <div class='fadeOut'></div>
+    </div>
+
+{% elif committeeList %}
+    {% if filter == 'House' %}
+        <div class='header'><span onclick='sideBarExpand("thirdPane")'>House Committees</span></div>
+    {% elif filter == 'Senate' %}
+        <div class='header'><span onclick='sideBarExpand("thirdPane")'>Senate Committees</span></div>
+    {% else %}
+        <div class='header'><span onclick='sideBarExpand("thirdPane")'>Committees</span></div>
+    {% endif %}
+    <div>
+        <ul class='sideBarWindow showFullText' id='thirdPane'>
+            {% for c in committeeList %}
+            <li style='width:80%;'><a href={{ c.get_absolute_url }}>{{ c.Title }} ({{ c.code }})</a></li>
+            {% endfor %}
+        </ul>
+        <div class='fadeOut'></div>
+    </div>
+{% elif has_reps %}
+    <div class='header'><span onclick='sideBarExpand("thirdPane")'>Representatives</span></div>
+    <div>
+        <ul class='sideBarWindow showFullText' id='thirdPane'>
+            {% comment %}
+            {% if rep_role %}
+                <li><a href=''>{{ rep_role.Position|get_role_short }} | {{ rep_role.Person_obj.FullName }}</a></li>
+            {% endif %}
+            {% if minor_rep_role %}
+                <li><a href=''>{{ minor_rep_role.Position|get_role_short }} | {{ minor_rep_role.Person_obj.FullName }}</a></li>
+            {% endif %} 
+            {% if Mayor_role %}
+                <li><a href=''>{{ Mayor_role.Position|get_role_short }} | {{ Mayor_role.Person_obj.FullName }}</a></li>
+            {% endif %}
+            {% if Councillor_role %}
+                <li><a href=''>{{ Councillor_role.Position|get_role_short }} | {{ Councillor_role.Person_obj.FullName }}</a></li>
+            {% endif %}
+            {% endcomment %}
+
+        </ul>
+        <div class='fadeOut'></div>
+    </div>
+{% elif sidebarData %}
+    {% with trending=sidebarData|get_item:'trend_list' %}
+        {% if trending %}
+            <div class='header' id='trending'><span onclick='sideBarExpand("thirdPane")'>Trending</span></div>
+            <div>
+                <ul class='sideBarWindow trending showFullText' id='thirdPane'>
+                    {% for t in trending %}
+                        <li class='trending' ><a href='{{ t.get_absolute_url }}' style='text-decoration:none;'>{{ t.key|title }}<span>({{ t.recentOccurences }})</span></a></li>
+                    {% endfor %} 
+                </ul>
+                <div class='fadeOut'></div>
+            </div>
+        {% endif %}
+    {% endwith %}
+    {% with agendas=sidebarData|get_item:'agenda_list' %}
+        {% if agendas %}
+            <div id='agenda' class='header'><span onclick='sideBarExpand("fourthPane")'>Agendas</span> <span class="sort material-icons"  onclick='calendarWidget()'>calendar_month</span></div>
+            <div>
+                <ul class='sideBarWindow agenda' id='fourthPane'>
+                    <div id='calendarForm'>
+                        <form method="POST" id='post-form' enctype="multipart/form-data">{% csrf_token %}
+                            {% for i in agendaForm %}{{ i }}<input type="submit" class='btn btn-default' value="enter"/>{% endfor %}
+                        </form> 
+                    </div> 
+                    {% for agenda in agendas %}
+                            <li class="fullWidth">{{ agenda.Chamber }} - {{ agenda.DateTime }}</li>
+                    {% endfor %}
+                </ul>
+                {% if agendas|length > 4 %}
+                    <div class='fadeOut'></div>
+                {% else %}
+                    <br>
+                    <br>
+                    {% for agenda in agendas %}
+                        <br>
+                        <br>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+{% elif updatedAgenda or trending %}
+    {% if trending %}
+        {% include 'utils/trending_widget.html' %}
+    {% endif %}
+
+    {% if updatedAgenda %}
+        {% include 'utils/agenda_widget.html' %}
+    {% endif %}
+
+{% else %}
+
+{% endif %}
+</div>

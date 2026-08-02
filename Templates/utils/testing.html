@@ -1,0 +1,439 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Sodium Demo</title>
+</head>
+<body>
+  <h1>Sodium Keypair Sign/Verify Demo</h1>
+  <pre id="output"></pre>
+
+  
+
+  <script type="module">
+    // import { ml_dsa65 } from 'https://esm.sh/@noble/post-quantum@0.2.1/ml-dsa';
+    // import scrypt from 'https://esm.sh/scrypt-js@3.0.0';
+
+    // import { ml_dsa44, ml_dsa65, ml_dsa87 } from 'https://esm.sh/@noble/post-quantum@0.2.1/ml-dsa';
+
+
+    // helpers
+    function toBase64(uint8array) {
+      return btoa(String.fromCharCode(...uint8array));
+    }
+
+    function fromBase64(base64str) {
+      return Uint8Array.from(atob(base64str), c => c.charCodeAt(0));
+    }
+
+    async function getKeyPair(user_id, user_pass, security = 65) {
+      await loadLibs();
+      const { ml_dsa44, ml_dsa65, ml_dsa87 } = _pq;
+      const seed = await deriveKey(user_id, user_pass);
+      const { secretKey, publicKey } = getMLDSA(security).keygen(seed);
+      return [toBase64(secretKey), toBase64(publicKey)];
+    }
+
+    function simpleSign(secretKeyB64, data) {
+      const security = detectSecurityFromSK(secretKeyB64);
+      const sk = fromBase64(secretKeyB64);
+      const message = new TextEncoder().encode(data + '5uHPEF0DPaI4egus4sa6AX');
+      const signature = getMLDSA(security).sign(sk, message);
+      return toBase64(signature);
+    }
+
+    function simpleVerify(publicKeyB64, data, signatureB64) {
+      const security = detectSecurityFromPK(publicKeyB64);
+      const pk = fromBase64(publicKeyB64);
+      const sig = fromBase64(signatureB64);
+      const message = new TextEncoder().encode(data + '5uHPEF0DPaI4egus4sa6AX');
+      return getMLDSA(security).verify(pk, message, sig);
+    }
+
+    // old code below
+
+
+
+    let _pq = null;
+    let _scrypt = null;
+
+    async function loadLibs() {
+      if (!_pq) _pq = await import('https://esm.sh/@noble/post-quantum@0.2.1/ml-dsa');
+      if (!_scrypt) _scrypt = (await import('https://esm.sh/scrypt-js@3.0.0')).default;
+    }
+
+
+
+    function getMLDSA(security) {
+      const { ml_dsa44, ml_dsa65, ml_dsa87 } = _pq;
+      if (security === 44) return ml_dsa44;
+      if (security === 87) return ml_dsa87;
+      return ml_dsa65; // default
+    }
+
+
+
+    async function getKeyPair(user_id, user_pass, security = 65) {
+      await loadLibs();
+      const { ml_dsa44, ml_dsa65, ml_dsa87 } = _pq;
+      const scrypt = _scrypt;
+      const seed = await deriveKey(user_id, user_pass);
+      const { secretKey, publicKey } = getMLDSA(security).keygen(seed);
+      return [
+        Array.from(secretKey).map(b => b.toString(16).padStart(2, '0')).join(''),
+        Array.from(publicKey).map(b => b.toString(16).padStart(2, '0')).join('')
+      ];
+    }
+
+    async function simpleSign(secretKeyHex, data, security = 65) {
+      await loadLibs();
+      const { ml_dsa44, ml_dsa65, ml_dsa87 } = _pq;
+      // const scrypt = _scrypt;
+      const hexStr = secretKeyHex.toString();
+      const sk = new Uint8Array(hexStr.length / 2);
+      for (let i = 0; i < sk.length; i++) {
+        sk[i] = parseInt(hexStr.slice(i * 2, i * 2 + 2), 16);
+      }
+      const message = new TextEncoder().encode(data + '5uHPEF0DPaI4egus4sa6AX');
+      const signature = getMLDSA(security).sign(sk, message);
+      return Array.from(signature).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function simpleVerify(publicKeyHex, data, signatureHex, security = 65) {
+      await loadLibs();
+      const { ml_dsa44, ml_dsa65, ml_dsa87 } = _pq;
+      // const scrypt = _scrypt;
+      const pkStr = publicKeyHex.toString();
+      const sigStr = signatureHex.toString();
+      const pk = new Uint8Array(pkStr.length / 2);
+      for (let i = 0; i < pk.length; i++) {
+        pk[i] = parseInt(pkStr.slice(i * 2, i * 2 + 2), 16);
+      }
+      const sig = new Uint8Array(sigStr.length / 2);
+      for (let i = 0; i < sig.length; i++) {
+        sig[i] = parseInt(sigStr.slice(i * 2, i * 2 + 2), 16);
+      }
+      const message = new TextEncoder().encode(data + '5uHPEF0DPaI4egus4sa6AX');
+      return getMLDSA(security).verify(pk, message, sig);
+    }
+
+
+
+
+
+    async function deriveKey(user_id, user_pass) {
+      // const { ml_dsa44, ml_dsa65, ml_dsa87 } = _pq;
+      const scrypt = _scrypt;
+      const saltHex = CryptoJS.SHA256(user_pass + ":" + user_id).toString(CryptoJS.enc.Hex);
+      const saltBytes = Uint8Array.from(saltHex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+      const passBytes = new TextEncoder().encode(user_pass);
+
+      return await scrypt.scrypt(passBytes, saltBytes, 262144, 8, 1, 32);
+    }
+
+
+
+
+    
+    function getItem(key) {
+      console.log("-Retrieving item:", key);
+      return openDatabase().then((db) => {
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction('keys', 'readonly');
+          const getReq = tx.objectStore('keys').get(key);
+          getReq.onsuccess = () => resolve(getReq.result);
+          getReq.onerror = () => reject(getReq.error);
+        });
+      });
+    }
+    function storeItem(value, key) {
+      return openDatabase().then((db) => {
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction('keys', 'readwrite');
+          tx.objectStore('keys').put(value, key);
+          tx.oncomplete = resolve;
+          tx.onerror = () => reject(tx.error);
+        });
+      });
+    }
+    function openDatabase() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open('KeyDB', 1);
+
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains('keys')) {
+            db.createObjectStore('keys');
+          }
+        };
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    // make available globally if needed outside this module scope
+    // window.getKeyPair = getKeyPair;
+    // window.simpleSign = simpleSign;
+    // window.simpleVerify = simpleVerify;
+    
+    const keypair = await getKeyPair('user_id', 'user_pass', 65)
+
+
+    const privkey = keypair[0]
+    const pubkey = keypair[1]
+
+
+    console.log('privkey', privkey);
+    console.log('pubkey', pubkey);
+    const sig = await simpleSign(privkey, 'data', 65);
+    console.log("Signature: " + sig);
+
+
+
+
+    const ver = await simpleVerify(pubkey, 'data', sig, 65);
+    console.log("Verified: " + ver);
+    // console.log();
+    // console.log(await simpleVerify('alice', 'password123'));
+
+    // storeItem(keypair[0], 'privkey');
+    // storeItem(keypair[1], 'pubkey');
+
+  </script>
+
+  <!-- CryptoJS still loaded the old way for the SHA256 salt step -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+
+  <!-- Load libsodium-wrappers from CDN -->
+  <!-- <script>
+    import { ml_dsa65 } from '@noble/post-quantum/ml-dsa';
+    import CryptoJS from 'crypto-js';
+    import scrypt from 'scrypt-js'; // npm install scrypt-js
+
+    async function deriveKey(user_id, user_pass) {
+      const saltHex = CryptoJS.SHA256(user_pass + ":" + user_id).toString(CryptoJS.enc.Hex);
+      const saltBytes = Uint8Array.from(saltHex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+      const passBytes = new TextEncoder().encode(user_pass);
+
+      // scrypt-js returns a Uint8Array
+      const seed = await scrypt.scrypt(passBytes, saltBytes, 262144, 8, 1, 32);
+      return seed; // 32-byte Uint8Array — feeds directly into ML-DSA keygen
+    }
+
+    async function getKeyPair(user_id, user_pass) {
+      const seed = await deriveKey(user_id, user_pass);
+      console.log("Derived Seed (Hex):", Buffer.from(seed).toString('hex'));
+
+      // ml_dsa65.keygen(seed) is fully deterministic — same seed → same keypair, always
+      const { secretKey, publicKey } = ml_dsa65.keygen(seed);
+
+      const privKeyHex = Buffer.from(secretKey).toString('hex');
+      const pubKeyHex = Buffer.from(publicKey).toString('hex');
+
+      console.log("Secret Key:", privKeyHex);
+      console.log("Public Key:", pubKeyHex);
+
+      return [privKeyHex, pubKeyHex];
+    }
+
+    function simpleSign(secretKeyHex, data) {
+      const sk = Uint8Array.from(Buffer.from(secretKeyHex, 'hex'));
+      const message = new TextEncoder().encode(data + '5uHPEF0DPaI4egus4sa6AX');
+
+      const signature = ml_dsa65.sign(sk, message);
+      return Buffer.from(signature).toString('hex');
+    }
+
+    function simpleVerify(publicKeyHex, data, signatureHex) {
+      const pk = Uint8Array.from(Buffer.from(publicKeyHex, 'hex'));
+      const sig = Uint8Array.from(Buffer.from(signatureHex, 'hex'));
+      const message = new TextEncoder().encode(data + '5uHPEF0DPaI4egus4sa6AX');
+
+      return ml_dsa65.verify(pk, message, sig);
+    } -->
+  </script>
+</body>
+</html>
+
+{% comment %}
+
+
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/elliptic/6.5.4/elliptic.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/dchest/scrypt-async-js@1.3.0/scrypt-async.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script> -->
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: black;
+        color: white;
+    };
+    </style>
+</head>
+<body>
+
+  <h2>scrypt Performance Test</h2>
+  
+    <script type="module">
+        import { scrypt } from 'scrypt-js'; 
+        import sodium from 'libsodium-wrappers';
+        async function main() {
+        // npm: scrypt-js
+            // in browser use <script type=module> and import or use bundler
+            
+
+            async function deriveSeedJS(userId, password, {
+            N = 32768, r = 8, p = 1, outLen = 32
+            } = {}) {
+            const salt = new TextEncoder().encode(userId);
+            const pwd = new TextEncoder().encode(password);
+
+            const scryptOut = await new Promise((res, rej) => {
+                scrypt(pwd, salt, N, r, p, 64, (error, progress, key) => {
+                if (error) return rej(error);
+                if (key) res(new Uint8Array(key));
+                });
+            });
+
+            // HKDF-SHA256 using WebCrypto
+            const key = await crypto.subtle.importKey(
+                'raw', scryptOut, { name: 'HKDF' }, false, ['deriveBits']
+            );
+            const info = new TextEncoder().encode('pq-seed-v1');
+            const bits = await crypto.subtle.deriveBits(
+                { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array([]), info }, key, outLen * 8
+            );
+            return new Uint8Array(bits); // seed of outLen bytes
+            }
+
+            // npm install libsodium-wrappers
+
+            await sodium.ready;
+            const seed = await deriveSeedJS('alice','password123', { outLen: 32 });
+            const sk = sodium.crypto_sign_seed_keypair(seed); // returns {publicKey, privateKey}
+            const signature = sodium.crypto_sign_detached(new TextEncoder().encode('hello'), sk.privateKey);
+            const ok = sodium.crypto_sign_verify_detached(signature, new TextEncoder().encode('hello'), sk.publicKey);
+
+        
+        }
+
+        main();
+    </script>
+</body>
+</html>
+{% endcomment %}
+
+
+
+
+<!-- <!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/elliptic/6.5.4/elliptic.min.js"></script>
+  <script>"https://cdnjs.cloudflare.com/ajax/libs/scrypt-js/3.0.1/scrypt.js"</script>
+</head>
+<body>
+  <script>
+    async function deriveKey(user_id, user_pass) {
+      const password = user_pass;
+      const salt = user_id;
+      const N = 16384, r = 8, p = 1, dkLen = 32;
+
+      return new Promise((resolve, reject) => {
+        scrypt(password, salt, {
+          N: N,
+          r: r,
+          p: p,
+          dkLen: dkLen,
+          encoding: 'hex'
+        }, function(derivedKeyHex) {
+          resolve(derivedKeyHex);
+        });
+      });
+    }
+
+    async function main() {
+      const user_id = 'fj8D3h75Hnbe8u';
+      const user_pass = 'jtVE5u8bT&s#';
+
+      const seedHex = await deriveKey(user_id, user_pass);
+      console.log("Derived Seed (Hex):", seedHex);
+
+      const ec = new elliptic.ec('secp256k1');
+      const keyPair = ec.keyFromPrivate(seedHex);
+
+      const privKeyHex = keyPair.getPrivate("hex");
+      const pubKeyHex = keyPair.getPublic().encode("hex"); // uncompressed
+
+      console.log("Private Key:", privKeyHex);
+      console.log("Public Key:", pubKeyHex);
+
+      const msg = "hello world";
+      const msgHash = elliptic.utils.sha256(msg);
+      const signature = keyPair.sign(msgHash, { canonical: true });
+      const sigHex = signature.toDER("hex");
+      console.log("Signature:", sigHex);
+    }
+
+    main();
+  </script>
+</body>
+</html> -->
+
+<!-- 
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/elliptic/6.5.4/elliptic.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/scrypt-js/3.0.1/scrypt.min.js" integrity="sha512-w1rNNktltLsq7XsNzytxJ9aCl7I0kpDkNfwRaJjfotZKCXZ5b3a8jnbSUA6YN0QvS/UXQmVKXjITrHbsQcvBXw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+<body>
+  <script>
+    async function deriveKey(user_id, user_pass) {
+      const password = new TextEncoder().encode(user_pass);
+      const salt = new TextEncoder().encode(user_id);
+      const N = 16384, r = 8, p = 1, dkLen = 32;
+
+      return new Promise((resolve, reject) => {
+        scrypt(password, salt, N, r, p, dkLen, (error, progress, key) => {
+          if (error) reject(error);
+          else if (key) resolve(key);
+        });
+      });
+    }
+
+    async function main() {
+      const user_id = 'fj8D3h75Hnbe8u';
+      const user_pass = 'jtVE5u8bT&s#';
+
+      const keyBytes = await deriveKey(user_id, user_pass);
+      const seedHex = Array.from(keyBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+      console.log("Private Key Seed:", seedHex);
+
+      const ec = new elliptic.ec('secp256k1');
+      const keyPair = ec.keyFromPrivate(seedHex);
+
+      const privKeyHex = keyPair.getPrivate("hex");
+      const pubKeyHex = keyPair.getPublic().encode("hex"); // uncompressed
+
+      console.log("Private Key:", privKeyHex);
+      console.log("Public Key:", pubKeyHex);
+
+      const msg = "hello world";
+      const msgHash = elliptic.utils.sha256(msg);
+      const signature = keyPair.sign(msgHash, { canonical: true });
+      const sigHex = signature.toDER("hex");
+      console.log("Signature:", sigHex);
+    }
+
+    main();
+  </script>
+</body>
+</html> -->

@@ -1,0 +1,39 @@
+
+
+{% load static %}
+
+<div class='card candidate'>
+
+<div class='sponsor'>
+    {% if c.logo %}
+    <a href={{ c.person.get_absolute_url }}><img class='sponsorPic' src={{ c.logo }}></a>
+    {% elif c.small_img %}
+    <a href={{ c.person.get_absolute_url }}><img class='sponsorPic' src={{ c.small_img }}></a>
+    {% else %}
+    <a href={{ c.person.get_absolute_url }}><img class='sponsorPic' src={% static 'img/user-coloured.png' %}></a>
+    {% endif %}
+</div>
+<div class='cardContent'>
+    <div class='Details'>
+    <h4>{{ c.person.first_name }} {{ c.person.last_name }}</h4>
+    <ul>
+        
+        <li>{{ c.party_name }}</li>
+        <li>{{ c.occupation }}</li>
+        {% if c.vote.count %}
+        <li>{{ c.vote_count }}</li>
+        {% endif %}
+        <li>{{ c.result }}</li>
+        <br>
+        {% if c.gov_link %}
+            <li><a href={{ c.parlinfo_link }}>government page</a></li>
+        {% endif %}
+        {% if c.website %}
+            <li><a href={{ c.website }}>website</a></li>
+        {% endif %}
+
+    </ul>
+    </div>
+</div>
+</div>
+<div class='bottomDivider'></div>

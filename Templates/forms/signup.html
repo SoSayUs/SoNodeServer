@@ -1,0 +1,62 @@
+
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Create User</title>
+</head>
+
+<body>
+
+<div class='form'>
+    <div>
+        
+        <form id="modalForm" onsubmit="return onFormSubmit(event);">
+
+            <span id="field0" style="display: block;"></span>
+
+            <span id="field1">
+            <label for="username" style="display: block; margin-bottom: 0.15rem;">Username:</label>
+            <input type="text" id="username" name="username" autocomplete="username" required style="text-align: center; width: 100%; padding: 0.2rem; margin-bottom: 0.1rem;">
+            <span id="username-status" style="font-size: 0.9rem; display: block; height: 0.2rem;"></span>
+            </span>
+            <br>
+            <span id="field2">
+
+            <label for="password" style="display: block; margin-bottom: 0.15rem;">24 Word Passphrase:</label>
+            <input  type="password" id="password" name="password" autocomplete="new-password" required style="text-align: center; width: 100%; padding: 0.2rem; margin-bottom: 0.1rem;">
+
+            </span>
+
+            <br>
+            <br>
+
+            <span id="field3"><button style='color: black; margin-right: 5px;' onclick="displayPassword()" id="showPassword">Show</button><button style='color: black; margin-left: 5px;' onclick="generatePassword()">New</button> </span>
+
+            <br>
+            <br>
+            <span id="field4">Passphrase never leaves device.<br>It can be viewed in settings.<br>It cannot be reset if lost.<br>Save all 24 words.</span>
+            <br>
+            <br>
+
+
+            <span id="field5">
+            <button style='color: black;' type="submit" onclick="loginRequest('/accounts/create_user')">Continue</button>
+            
+                <span style="display: block; margin-top: 10px; margin-bottom: 12px;">or</span>
+                <button style='color: black;' type="submit" onclick="modalPopUp('Login', '/accounts/login-signup')">Restore User</button>
+            </span>
+
+
+            </form>
+        
+            </div>
+</div>
+<br>
+<br>
+<br>
+
+<div id="instruction" value="get_stored_user_login_data"></div>
+
+</body>
+</html>

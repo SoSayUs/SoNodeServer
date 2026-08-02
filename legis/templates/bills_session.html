@@ -1,0 +1,37 @@
+{% load static %}
+<!--DOCTYPE html-->
+<html>
+<head>
+</head>
+
+<body>
+<div id='container'>
+    {% include 'index.html' %}
+
+<div id='feed'>
+<h1>Bills this session</h1>
+<br>
+
+{% for b in bills %}
+
+<h2>({{ b.GovNumber }}-{{ b.SessionNumber }}) {{ b.NumberCode }}</h2>
+
+{% if b.ShortTitle %}
+    <h2>{{ b.ShortTitle }}</h2>
+{% else %}
+    <h2>{{ b.LongTitleEn }}</h2>
+{% endif %}
+
+<p>Latest Activity: {{ b.LatestBillEventTypeName }} - {{ b.LatestBillEventDateTime }}</p>
+<a href='/bill/{{ b.GovNumber }}/{{ b.SessionNumber }}/{{ b.NumberCode }}'>More Info</a>
+<br>
+
+{% endfor %}
+
+
+
+</div>
+{% include 'happening.html' %}
+</div>
+</body>
+</html>
