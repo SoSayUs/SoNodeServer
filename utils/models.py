@@ -2177,7 +2177,7 @@ def get_model_fields(obj=None):
 
 def hash_upk_id(pubKey):
     from utils.locked import generate_id
-    return 'upkSo' + generate_id(pubKey, length=20)    
+    return 'upkSo' + generate_id(pubKey, length=14)    
 
 
 _appInfo = None
