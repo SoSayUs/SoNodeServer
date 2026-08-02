@@ -2266,9 +2266,9 @@ def get_model(obj_type):
         return None
     if is_id(obj_type):
         obj_type = get_pointer_type(obj_type)
-    prnt('obj_type',obj_type)
+    # prnt('obj_type',obj_type)
     app_name = get_app_name(obj_type)
-    prnt('app_name',app_name)
+    # prnt('app_name',app_name)
     if app_name and obj_type:
         from django.apps import apps
         return apps.get_model(app_name, obj_type)
@@ -2495,7 +2495,7 @@ def get_dynamic_model(model_name, list=False, order_by=None, exclude={}, values=
         model = get_model(model_name)
     elif isinstance(model_name, models.Model) or issubclass(model_name, models.Model):
         model = model_name
-    prnt('model',model)
+    # prnt('model',model)
     if not model:
         return [] if list else None
     creation_fields = ['created','created_dt']
@@ -3477,7 +3477,7 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                     if n == obj['networkChain']:
                         chainId = n
                         break
-            network_chain = Blockchain.objects.filter(genesisId=chainId).defer('queuedData').first()
+            network_chain = Blockchain.objects.filter(Q(id=chainId)|Q(genesisId=chainId)).defer('queuedData').first()
             if not network_chain:
                 sonet = Sonet.objects.only('id').first()
                 if sonet:
@@ -4456,7 +4456,6 @@ def register_new_user(userData, upkData_accnt, upkData_sign, walletData=None, no
     wallet = None
     node = None
     node_upk = None
-    prnt('begin try')
     try:
         # if walletData['Name'] == 'Main':
         #     prnt('wallet is main')
@@ -5675,22 +5674,22 @@ def tasker(dt, test=False):
     # runs every 10 minutes
     from network.models import DataPacket, Block, Blockchain, Node, NodeRecord, Validator, _OperationsChain_genesisId, _block_creation_times, mandatoryChains, selectableChains, block_time_delay
     from utils.locked import check_validation_consensus
-    prnt('blcSomuAHD5878nUb8xYUlmV')
-    for v in Validator.objects.all():
-        prnt('val::',v.id)
-        prnt('jobId',v.jobId)
-        prnt('is_valid',v.is_valid)
-        prnt('data',v.data)
-        prnt('created',v.created)
-        prnt()
-    for n in NodeRecord.objects.filter(is_valid=True):
-        prnt('rec::',n.id)
-        prnt('pointerId',n.pointerId)
-        prnt('pointerType',n.pointerType)
-        prnt('is_valid',n.is_valid)
-        prnt('networkChain',n.networkChain)
-        prnt('data',n.data)
-        prnt()
+    # prnt('blcSomuAHD5878nUb8xYUlmV')
+    # for v in Validator.objects.all():
+    #     prnt('val::',v.id)
+    #     prnt('jobId',v.jobId)
+    #     prnt('is_valid',v.is_valid)
+    #     prnt('data',v.data)
+    #     prnt('created',v.created)
+    #     prnt()
+    # for n in NodeRecord.objects.filter(is_valid=True):
+    #     prnt('rec::',n.id)
+    #     prnt('pointerId',n.pointerId)
+    #     prnt('pointerType',n.pointerType)
+    #     prnt('is_valid',n.is_valid)
+    #     prnt('networkChain',n.networkChain)
+    #     prnt('data',n.data)
+    #     prnt()
 
     for b in Block.objects.all():
         prnt('blocks::',b)
@@ -5813,6 +5812,9 @@ def tasker(dt, test=False):
 
         # return
         # every 60 mins create block if data
+        prnt("self_node['chain_array']",self_node['chain_array'])
+        prnt("self_node['region_array']",self_node['region_array'])
+        prnt("self_node['plugin_array']",self_node['plugin_array'])
         if dt.minute in _block_creation_times or test==True:
             block_assigned = False
             from network.models import universalChains
