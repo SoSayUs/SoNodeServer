@@ -2095,7 +2095,7 @@ def is_id(obj):
     # prnt('-is_id')
     # prefix = plugin num + 2 to 3 class chars followed by "So"
     max_length = 35 # includes ID_LENGTH of 25 - does not include prefix
-    min_length = 13 # includes ID_LENGTH of 10 - does not include prefix
+    min_length = 12 # includes ID_LENGTH of 10 - does not include prefix
     
     if isinstance(obj, str) and 'So' in obj[:10] and any(obj[i:i+2] == 'So' and obj[i+2:].isalnum() and min_length <= len(obj[i+2:]) <= max_length for i in range(10)):
         return True
