@@ -25,14 +25,14 @@
     <link rel="manifest" href="{% static 'manifest.json' %}?v=0.1">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons"
       rel="stylesheet">
-    <link rel="stylesheet" href='{% static "css/defaults.css" %}?v=0.1.0.1'/>
+    <link rel="stylesheet" href='{% static "css/defaults.css" %}?v=0.1'/>
     {% if theme == 'night' %}
-    <link id='themesheet' rel="stylesheet" href='{% static "css/night.css" %}?v=0.1.0.1'/>
+    <link id='themesheet' rel="stylesheet" href='{% static "css/night.css" %}?v=0.1'/>
     {% else %}
     <link id='themesheet' rel="stylesheet" href='{% static "" %}'/>
     {% endif %}
     {% if isMobile %} 
-      <link rel="stylesheet" href='{% static "css/mobile.css" %}?v=0.1.0.1'/>
+      <link rel="stylesheet" href='{% static "css/mobile.css" %}?v=0.1'/>
       <meta id='isMobile' name='True'>
       {% if theme == 'night' and xRequest or theme == 'night' and iphone %}
       <link id='mobileThemesheet' rel="stylesheet" href='{% static "css/night_mobile.css" %}?v=0.1'/>
@@ -168,7 +168,7 @@
     src="https://code.jquery.com/jquery-3.2.1.min.js"
     integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
     crossorigin="anonymous"></script>
-<script nonce="abc123" src="{% static 'js/default.js' %}?v=0.1.0.4.8"></script>
+<script nonce="abc123" src="{% static 'js/default.js' %}?v=0.1"></script>
 {% include 'utils/infinite.html' %}
 
 
