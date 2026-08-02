@@ -4521,7 +4521,7 @@ def register_new_user(userData, upkData_accnt, upkData_sign, walletData=None, no
                             prnt('save user first time')
                             err_code = 'C'
                             user.save(is_new=True)
-                            u = get_dynamic_model(User, id=u.id)
+                            u = get_dynamic_model(User, id=user.id)
                             prnt('u',u)
 
                             prnt('create 111')
