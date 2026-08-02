@@ -1530,11 +1530,11 @@ def get_chain_data_view(request):
     from network.models import mandatoryChains, specialChains, _EarthChain_genesisId, _SonetChain_genesisName
     mainChain_data = {i:i for i in mandatoryChains}
     mainChain_data[_SonetChain_genesisName] = Sonet.objects.values('id').first()['id']
-    earth = Region.objects.filter(id=_EarthChain_genesisId, Validator_obj__is_valid=True).first()
+    earth = Region.objects.filter(id=_EarthChain_genesisId).first()
     prnt('earth',earth)
     prnt('_EarthChain_genesisId',_EarthChain_genesisId)
     for r in Region.objects.all():
-        prnt('regions:',r.id,r.Name)
+        prnt('regions:',r.id,r.Name, r.Validator_obj)
     from accounts.models import User, UserPubKey
     from network.models import Node
     prnt('users:',User.objects.all())
