@@ -3491,7 +3491,7 @@ class Blockchain(models.Model):
         prnt('latest_opBlock',latest_opBlock)
         if latest_opBlock:
             last_dt = latest_opBlock['DateTime'] - datetime.timedelta(minutes=20)
-            nodes = Node.objects.filter(Q(lastUpdate__gte=last_dt)|Q(suspended_dt__gte=last_dt)|Q(expelled_dt__gte=last_dt)|(Q(activated_dt__isnull=False)&Q(activeNode=False)&Q(expelled_dt=None)&Q(suspended_dt=None))).order_by('-pos')
+            nodes = Node.objects.exclude(Block_obj=None).filter(Q(lastUpdate__gte=last_dt)|Q(suspended_dt__gte=last_dt)|Q(expelled_dt__gte=last_dt)|(Q(activated_dt__isnull=False)&Q(activeNode=False)&Q(expelled_dt=None)&Q(suspended_dt=None))).order_by('-pos')
             latest_data = latest_opBlock['data']
         elif not Block.objects.filter(Blockchain_obj__genesisType='Sonet', validated=True).exists():
             nodes = Node.objects.exclude(activated_dt=None).filter(suspended_dt=None).order_by('-pos')[:1]
