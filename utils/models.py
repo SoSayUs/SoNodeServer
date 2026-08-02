@@ -5771,7 +5771,7 @@ def tasker(dt, test=False):
                 result['unvalidated_txs'].append(tx.id)
                 django_rq.get_queue('main').enqueue(tx.send_for_block_creation, id=tx.id, downstream_worker=False, job_timeout=60, result_ttl=7200)
 
-        self_node = Node.objects.filter(id=self_node_id).values('chain_array').first()
+        self_node = Node.objects.filter(id=self_node_id).values('chain_array','region_array','plugin_array').first()
         prnt('self_node',self_node)
 
         dataPackets = DataPacket.objects.filter(Node_obj__id=self_node_id, func='share').filter(Q(networkChain__in=self_node['chain_array']+['All'])|Q(Region_obj__id__in=self_node['chain_array'])).exclude(networkChain=_OperationsChain_genesisId).exclude(data={}).defer('data','notes')
@@ -5819,8 +5819,10 @@ def tasker(dt, test=False):
             block_assigned = False
             from network.models import universalChains
             universalChains.remove(_OperationsChain_genesisId)
+            prnt('universalChains',universalChains)
             chains = Blockchain.objects.filter(genesisId__in=universalChains, last_block_datetime__lte=dt - datetime.timedelta(minutes=block_time_delay()-10)).exclude(queuedData={}).defer('queuedData')
             for chain in chains:
+                prnt('chain1',chain)
                 block_assigned = chain.new_block_candidate(self_node=self_node_id, dt=dt)
                 prntDebug('block_assigned0',block_assigned)
                 if block_assigned:
@@ -5846,6 +5848,7 @@ def tasker(dt, test=False):
                 chains = Blockchain.objects.filter(genesisId__in=self_node['chain_array'], genesisType__in=selectableChains, last_block_datetime__lte=dt - datetime.timedelta(minutes=block_time_delay()-10)).exclude(queuedData={}).defer('queuedData').order_by('?')
                 # prnt('selectableChains_chains222',chains)
                 for c in chains:
+                    prnt('chain2',c)
                     block_assigned = c.new_block_candidate(self_node=self_node_id, dt=dt)
                     prntDebug('block_assigned::',block_assigned)
                     if block_assigned:
