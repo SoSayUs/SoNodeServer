@@ -1141,10 +1141,10 @@ def get_assignment_view(request, iden):
         return render(request, "utils/dummy.html", {"result": str(obj)})
     
 def get_model_fields_view(request):
-    # if request.user and request.user.assess_super_status():
-    from utils.models import get_model_fields
-    get_model_fields()
-    return render(request, "utils/dummy.html", {"result": 'done'})
+    if request.user and request.user.assess_super_status():
+        from utils.models import get_model_fields
+        get_model_fields()
+        return render(request, "utils/dummy.html", {"result": 'done'})
 
 def supersign_view(request, iden):
     if request.user.assess_super_status():
