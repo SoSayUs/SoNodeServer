@@ -2266,7 +2266,9 @@ def get_model(obj_type):
         return None
     if is_id(obj_type):
         obj_type = get_pointer_type(obj_type)
+    prnt('obj_type',obj_type)
     app_name = get_app_name(obj_type)
+    prnt('app_name',app_name)
     if app_name and obj_type:
         from django.apps import apps
         return apps.get_model(app_name, obj_type)
@@ -2493,7 +2495,7 @@ def get_dynamic_model(model_name, list=False, order_by=None, exclude={}, values=
         model = get_model(model_name)
     elif isinstance(model_name, models.Model) or issubclass(model_name, models.Model):
         model = model_name
-    # prnt('model',model)
+    prnt('model',model)
     if not model:
         return [] if list else None
     creation_fields = ['created','created_dt']
@@ -4523,6 +4525,8 @@ def register_new_user(userData, upkData_accnt, upkData_sign, walletData=None, no
                             user.save(is_new=True)
                             u = get_dynamic_model(User, id=user.id)
                             prnt('u',u)
+                            u = get_dynamic_model(user.id, id=user.id)
+                            prnt('u2',u)
 
                             prnt('create 111')
                             err_code = 'D'
@@ -4598,8 +4602,12 @@ def register_new_user(userData, upkData_accnt, upkData_sign, walletData=None, no
                                             setattr(sign_upk, key, value)
                                 prnt('save upk')
                                 sign_upk.save(is_new=True)
+                                u = get_dynamic_model(user.id, id=user.id)
+                                prnt('u3',u)
                                 prnt('save sig1111')
+                                from utils.locked import convert_to_dict
                                 for sig_obj in sig_objs:
+                                    prnt('cd',convert_to_dict(sig_obj))
                                     sig_obj.save()
                             
                             prnt('create 333')
