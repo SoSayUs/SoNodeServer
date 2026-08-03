@@ -5818,8 +5818,11 @@ def tasker(dt, test=False):
         prnt("self_node['plugin_array']",self_node['plugin_array'])
         if dt.minute in _block_creation_times or test==True:
             block_assigned = False
-            from network.models import universalChains
+            from network.models import Sonet, universalChains, _SonetChain_genesisName
             universalChains.remove(_OperationsChain_genesisId)
+            universalChains.remove(_SonetChain_genesisName)
+            s = Sonet.objects.values('id').first()
+            universalChains.append(s['id'])
             prnt('universalChains',universalChains)
             chains = Blockchain.objects.filter(genesisId__in=universalChains, last_block_datetime__lte=dt - datetime.timedelta(minutes=block_time_delay()-10)).exclude(queuedData={}).defer('queuedData')
             for chain in chains:
