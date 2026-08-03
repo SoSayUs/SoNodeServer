@@ -2734,11 +2734,11 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
             if not has_field(genesis_obj, 'Block_obj'):
                 prnt('stoppage 1 for gen obj',genesis_obj)
                 proceed = False
-            elif not genesis_obj.Block_obj or not genesis_obj.Block_obj.validated:
-                prnt('stoppage 2 for gen obj',genesis_obj, genesis_obj.Block_obj)
-                proceed = False
             elif genesis_obj.Block_obj.Blockchain_obj == block.Blockchain_obj and not genesis_obj._meta.object_name in ['Sonet']:
                 # Sonet is only genesis obj that starts a new tree
+                prnt('stoppage 2 for gen obj',genesis_obj, genesis_obj.Block_obj)
+                proceed = False
+            elif not genesis_obj._meta.object_name in ['Sonet'] and (not genesis_obj.Block_obj or not genesis_obj.Block_obj.validated):
                 prnt('stoppage 3 for gen obj',genesis_obj, genesis_obj.Block_obj)
                 proceed = False
         if not proceed:
