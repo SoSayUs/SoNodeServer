@@ -3510,6 +3510,7 @@ class Blockchain(models.Model):
                 'expelled_dt': dt_to_string(node.expelled_dt),
                 'chain_array': node.chain_array,
                 'plugin_array': node.plugin_array,
+                'region_array': node.region_array,
                 'abilities': node.abilities,
                 'node_type': node.node_type,
                 'node_level': node.node_level,
