@@ -3558,7 +3558,7 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                             commit_chain = Blockchain(genesisId=obj['commitChain'])
                         commit_chain.save()
                 else:
-                    from network.models import mainChains:
+                    from network.models import mainChains
                     if obj_is_model and obj.commitChain in mainChains:
                         commit_chain = Blockchain.objects.filter(genesisName=obj.commitChain).only('id','genesisName','genesisId').first()
                     if not commit_chain:
