@@ -4264,6 +4264,7 @@ class Blockchain(models.Model):
                 elif has_field(post, 'networkChain') or has_field(post, 'blockchainId'):
                     err = err + '11a'
                     if add_data(post):
+                        err = err + 'b'
                         added_items.append(post)
                         added = True
                 if added_items:

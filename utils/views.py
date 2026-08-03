@@ -1336,17 +1336,8 @@ def tester_queue_view(request):
             queue = django_rq.get_queue('low')
             # queue.enqueue(tester_queue, job_timeout=1200)
             # queue.enqueue(tester_queue, job_timeout=3600)
-            from network.models import Block, _AccountChain_genesisId, _OperationsChain_genesisId
+            from network.models import Blockchain, _AccountChain_genesisId, _OperationsChain_genesisId
 
-            latest_opBlock = Block.objects.filter(Blockchain_obj__genesisId=_OperationsChain_genesisId, validated=True).values('DateTime','data').order_by('-index', 'created').first()
-            prnt('latest_opBlock',latest_opBlock)
-            if latest_opBlock:
-                last_dt = latest_opBlock['DateTime'] - datetime.timedelta(minutes=20)
-                prnt('last_dt',last_dt)
-                from django.db.models import Q
-                nodes = Node.objects.exclude(Block_obj=None).filter(Q(lastUpdate__gte=last_dt)|Q(suspended_dt__gte=last_dt)|Q(expelled_dt__gte=last_dt)).order_by('-pos')
-                prnt('nodes',nodes)
-                
 
             end_time = now_utc()
             prnt(end_time - start_time)
