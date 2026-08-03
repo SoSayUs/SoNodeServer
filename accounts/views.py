@@ -183,7 +183,7 @@ def user_create_request_view(request):
             user = User(id=user_id, username=username)
             upk_obj = UserPubKey(id=upk_id, User_obj_id=user_id)
             upk_obj.initialize()
-            from transactions.models import Wallet
+            from transactions.models import Wallet # wallet no longer created at account creation
             wallet_obj = Wallet(User_obj_id=user_id, Name='Main')
             iden = hash_obj_id('Wallet')
             prnt("hash_obj_id('Wallet')'",iden)

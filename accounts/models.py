@@ -357,6 +357,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         if self.id is None:
             from utils.locked import hash_obj_id
             self.id = hash_obj_id(self)
+            self.networkChain = self.id
         if not self.created:
             self.created = now_utc()
         try:

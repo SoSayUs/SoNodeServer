@@ -1677,7 +1677,7 @@ async function loginRequest(url = '/accounts/get_user_login', csrf = null, walle
     const data = {};
     data['username'] = username;
     data['csrfmiddlewaretoken'] = csrf;
-    makeAjaxRequest(data, url, password)
+    makeAjaxRequest(data, url, {'password':password,'username':username})
       .then(loginResponse)
       .catch(error => {
         console.error('There was a problem with the AJAX request:', error);
@@ -1686,7 +1686,8 @@ async function loginRequest(url = '/accounts/get_user_login', csrf = null, walle
 };
 async function loginResponse({ response, item }) {
   console.log('-loginResponse',response);
-  var password = item;
+  var password = item['password'];
+  var username = item['username'];
   var field0 = document.getElementById('field0');
   var field3 = document.getElementById('field3');
   var field4 = document.getElementById('field4');
@@ -1741,6 +1742,7 @@ async function loginResponse({ response, item }) {
     upkData['id'] = await generateId(pubKey, upk=true);
     upkData['created'] = now;
     upkData['User_obj'] = receivedUserData['id'];
+    upkData['commitChain'] = 'Keys';
     upkData['publicKey'] = pubKey;
     upkData['algorithm'] = 'ML_DSA_44';
     upkData['keyType'] = 'account';
@@ -1752,6 +1754,7 @@ async function loginResponse({ response, item }) {
     upkData['id'] = await generateId(signing_keyPair[1], upk=true);
     upkData['created'] = now;
     upkData['User_obj'] = receivedUserData['id'];
+    upkData['commitChain'] = 'Keys';
     upkData['publicKey'] = signing_keyPair[1];
     upkData['algorithm'] = 'secp256k1';
     upkData['keyType'] = 'signing';
@@ -1760,7 +1763,11 @@ async function loginResponse({ response, item }) {
     postData['upkData_sign'] = JSON.stringify(upkData);
 
     userData = receivedUserData;
+    userData['username'] = username;
     userData['created'] = now;
+    userData['networkChain'] = receivedUserData['id'];
+    userData['commitChain'] = 'Accounts';
+    userData['UserData_obj'] = 'Val:N';
     userData['signkey_dt'] = now;
     userData = await sign_userData(userData, privKey=privKey, pubKey=pubKey, key_type='ML_DSA_44');
   } else if ((message == 'User found')) {
