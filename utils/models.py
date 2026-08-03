@@ -5682,14 +5682,14 @@ def tasker(dt, test=False):
     #     prnt('data',v.data)
     #     prnt('created',v.created)
     #     prnt()
-    # for n in NodeRecord.objects.filter(is_valid=True):
-    #     prnt('rec::',n.id)
-    #     prnt('pointerId',n.pointerId)
-    #     prnt('pointerType',n.pointerType)
-    #     prnt('is_valid',n.is_valid)
-    #     prnt('networkChain',n.networkChain)
-    #     prnt('data',n.data)
-    #     prnt()
+    for n in NodeRecord.objects.filter(is_valid=True):
+        prnt('rec::',n.id)
+        prnt('pointerId',n.pointerId)
+        prnt('pointerType',n.pointerType)
+        prnt('is_valid',n.is_valid)
+        prnt('networkChain',n.networkChain)
+        prnt('data',n.data)
+        prnt()
 
     for b in Block.objects.all():
         prnt('blocks::',b)

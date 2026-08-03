@@ -510,7 +510,7 @@ class NodeAdmin(AutoForeignKeyAdmin):
         model = Node
 
 class NodeRecordAdmin(AutoForeignKeyAdmin):
-    list_display = ['id','networkChain',full_utc('DateTime'),'is_valid']
+    list_display = ['id','pointerId','pointerType','networkChain',full_utc('DateTime'),'is_valid']
     list_display_links = []
     list_editable = []
     list_filter = []
