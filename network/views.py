@@ -1543,7 +1543,7 @@ def get_chain_data_view(request):
     if earth:
         regions = {'Earth':{'type':earth.nameType,'id':earth.id,'children':[]}}
         def get_children(parent, children_list, support_found=False):
-            children = Region.objects.filter(ParentRegion_obj=parent).exclude(Block_obj=None).order_by('Name')
+            children = Region.objects.filter(ParentRegion_obj=parent, Validator_obj__is_valid=True).order_by('Name')
             for child in children:
                 has_support = support_found
                 gov = Government.objects.filter(Region_obj=child).exclude(Block_obj=None).first()
