@@ -1929,6 +1929,7 @@ def seperate_by_type(obj_list, include_only=None, exclude=None):
         return obj_types
     
     obj_list = sorted(obj_list, key=data_sort_priority)
+    prntDebug('obj_list',obj_list)
     for i in obj_list:
         skip = False
         obj_type = None
@@ -1945,6 +1946,7 @@ def seperate_by_type(obj_list, include_only=None, exclude=None):
             obj_type = i._meta.object_name
             value = i.id
             model = i
+        prntDebug('value',value,'obj_type',obj_type,'obj_types',obj_types,'skipping_models',skipping_models)
         if value and obj_type not in skipping_models:
             if obj_type in obj_types:
                 obj_types[obj_type].append(value)
@@ -1971,6 +1973,7 @@ def seperate_by_type(obj_list, include_only=None, exclude=None):
                             if not has_method(model, method):
                                 skip = True
                                 break
+                prntDebug('skip',skip,'exclude',exclude)
                 if not skip and exclude:
                     if 'fields' in exclude:
                         if isinstance(exclude['fields'], dict):
@@ -2004,12 +2007,13 @@ def seperate_by_type(obj_list, include_only=None, exclude=None):
                                     break
                 if skip:
                     skipping_models.append(obj_type)
+                prntDebug('obj_type',obj_type,'value',value,'skip',skip)
                 if obj_type and value and not skip:
                     if obj_type in obj_types:
                         obj_types[obj_type].append(value)
                     else:
                         obj_types[obj_type] = [value]
-    prnt('obj_types',obj_types)
+    prntDebug('obj_types',obj_types)
     return obj_types
 
 def is_locked(obj, skip=[]):
