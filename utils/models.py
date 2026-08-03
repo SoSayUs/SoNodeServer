@@ -3495,7 +3495,6 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                 obj_type = obj['objType']
                 networkChain = obj['networkChain']
             if networkChain in [obj_type, obj_id, 'self']:
-
                 network_chain = Blockchain.objects.filter(Q(id=obj_id)|Q(genesisId=obj_id)).only('id','genesisName','genesisId').first()
                 if not network_chain:
                     created_time = get_timeData(obj)
@@ -3512,6 +3511,8 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                             name = obj['id']
                     network_chain = Blockchain(genesisId=obj_id, genesisType=obj_type, genesisName=name, created=created_time)
                     network_chain.save()
+            elif networkChain in universalChains:
+                network_chain = Blockchain.objects.filter(genesisName=networkChain).only('id','genesisName','genesisId').first()
             elif networkChain == 'Plugin':
                 if obj_is_model:
                     plugin = get_plugin(obj)
@@ -3538,9 +3539,7 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                 except Exception as e:
                     prnt('find chain err 1',str(e))
 
-
             if obj_is_model and has_field(obj, 'commitChain') and obj.commitChain or not obj_is_model and 'commitChain' in obj and obj['commitChain']:
-
                 if obj_is_model and is_id(obj.commitChain):
                     commit_chain = Blockchain.objects.filter(Q(id=obj.commitChain)|Q(genesisId=obj.commitChain)).only('id','genesisName','genesisId').first()
                     if not commit_chain:
@@ -3558,8 +3557,7 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                             commit_chain = Blockchain(genesisId=obj['commitChain'])
                         commit_chain.save()
                 else:
-                    from network.models import mainChains
-                    if obj_is_model and obj.commitChain in mainChains:
+                    if obj_is_model and obj.commitChain in universalChains:
                         commit_chain = Blockchain.objects.filter(genesisName=obj.commitChain).only('id','genesisName','genesisId').first()
                     if not commit_chain:
                         try:
@@ -3571,7 +3569,6 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                             if not commit_chain:
                                 commit_chain = Blockchain(genesisId=chainGenObj.id)
                                 commit_chain.save()
-
                         except Exception as e:
                             prnt('find chain err 2',str(e))
                     
