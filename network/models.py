@@ -3285,7 +3285,7 @@ class Blockchain(models.Model):
     def create_dummy_block(self, now=None):
         if not now:
             now = now_utc()
-        prnt('create_dummy_block', now)
+        prnt('-create_dummy_block', now)
         if self.genesisId == _OperationsChain_genesisId:
             dt = round_time(dt=(now+datetime.timedelta(minutes=20)), dir='down', amount='10mins') # opblock created 20 ahead of time to ensure the node list is already created when called upon
             prnt('dt1',dt)
@@ -3705,15 +3705,16 @@ class Blockchain(models.Model):
                                 if not has_field(i, 'Validator_obj') or i.Validator_obj and i.Validator_obj.is_valid and i.id in i.Validator_obj.data and i.Validator_obj.data[i.id] == sigData_to_hash(i) and i.Validator_obj.dt_appropriate(i):
                                     cq = cq + 'B'
                                     chainType = None
-                                    if has_field(i, 'commitChain') and self.genesisType == i.commitChain:
+                                    if has_field(i, 'commitChain') and i.commitChain in [self.genesisId, self.genesisType]:
                                         cq = cq + 'a'
                                         chainType = i.commitChain
-                                    elif has_field(i, 'networkChain') and self.genesisType == i.networkChain:
+                                    elif has_field(i, 'networkChain') and i.networkChain in [self.genesisId, self.genesisType]:
                                         cq = cq + 'b'
                                         chainType = i.networkChain
                                     else:
                                         del self.queuedData[i.id]
                                         cq = cq + 'f1'
+                                        prnt(cq,now_utc())
                                         continue
                                     if has_field(i, 'Block_obj') and not i.Block_obj:
                                         cq = cq + 'C'
