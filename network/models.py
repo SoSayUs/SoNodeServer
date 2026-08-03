@@ -3635,11 +3635,11 @@ class Blockchain(models.Model):
                         if not has_field(genesis_obj, 'Block_obj'):
                             prnt('stoppage 1 for gen obj',genesis_obj)
                             return None
-                        elif not genesis_obj.Block_obj or not genesis_obj.Block_obj.validated:
+                        elif genesis_obj.Block_obj and genesis_obj.Block_obj.Blockchain_obj == self and not genesis_obj._meta.object_name in ['Sonet']:
+                            # Sonet is only genesis obj that starts a new tree
                             prnt('stoppage 2 for gen obj',genesis_obj, genesis_obj.Block_obj)
                             return None
-                        elif genesis_obj.Block_obj.Blockchain_obj == self and not genesis_obj._meta.object_name in ['Sonet']:
-                            # Sonet is only genesis obj that starts a new tree
+                        elif not genesis_obj.Block_obj or not genesis_obj.Block_obj.validated:
                             prnt('stoppage 3 for gen obj',genesis_obj, genesis_obj.Block_obj)
                             return None
                     plugin_name = get_plugin(genesis_obj, True)
