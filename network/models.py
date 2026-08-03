@@ -2316,7 +2316,7 @@ class Block(models.Model):
         mainChains = [_OperationsChain_genesisId,_KeyChain_genesisId,_AccountChain_genesisId,_EarthChain_genesisId]
         chains = mainChains + specialChains
         s = Sonet.objects.values('id').first()
-        chains.append(get_chain_id(s['id']))
+        chains.append(s['id'])
         if 'New' in chains:
             chains.remove('New')
         prnt('chains',chains)
