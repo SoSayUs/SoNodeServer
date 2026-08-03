@@ -84,7 +84,6 @@ def get_required_validator_count(dt=None, obj=None, func=None, genesisId=None, n
                 return obj.ReceiverBlock_obj.get_required_validator_count(node_ids=node_ids, opBlock_data=opBlock_data)
             elif obj._meta.object_name == 'Transaction' and obj.senderBlockId:
                 prnt('sender by senderBlockId')
-                from utils.models import get_chain_id
                 temp_block = Block(id='obj.senderBlockId', DateTime=obj.created, Blockchain_obj_id=get_chain_id(obj.senderChainGenId))
                 return temp_block.get_required_validator_count(node_ids=node_ids, opBlock_data=opBlock_data)
         # else account for userTransaction initialization, before block is created
@@ -1803,7 +1802,6 @@ class Block(models.Model):
     def get_assigned_nodes(self, fetch_broadcast_list=True, loop=True, opBlock_data={}):
         prnt('-get_assigned_nodes',self.id)
         from utils.locked import get_broadcast_list
-        from utils.models import get_chain_id
         broadcast_list = {}
         if self.Transaction_obj:
             if not self.Transaction_obj.SenderWallet_obj: # reward transactions
@@ -1863,7 +1861,7 @@ class Block(models.Model):
         
     def get_required_validator_count(self, node_ids=None, return_node_data=False, strings_only=True, opBlock_data=None):
         prnt('-block.get_required_validator_countxxo', self.id, self.Blockchain_obj.genesisName, self.networkChain)
-        from utils.models import declare_var, get_chain_id
+        from utils.models import declare_var
         node_data = declare_var(opBlock_data, {})
         if not node_data:
             first_block_override = False
@@ -2315,8 +2313,10 @@ class Block(models.Model):
 
                                 finishScript(log, None, None, send_off=False)
 
-        mainChains = [_OperationsChain_genesisId,_KeyChain_genesisId,_AccountChain_genesisId,_SonetChain_genesisName,_EarthChain_genesisId]
+        mainChains = [_OperationsChain_genesisId,_KeyChain_genesisId,_AccountChain_genesisId,_EarthChain_genesisId]
         chains = mainChains + specialChains
+        s = Sonet.objects.values('id').first()
+        chains.append(get_chain_id(s['id']))
         if 'New' in chains:
             chains.remove('New')
         prnt('chains',chains)
