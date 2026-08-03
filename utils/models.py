@@ -1918,8 +1918,10 @@ def get_chainName(obj):
             return chain.genesisName
     return None
 
-def seperate_by_type(obj_list, include_only={}, exclude={}):
-    prntDebug('-seperate_by_type')
+def seperate_by_type(obj_list, include_only=None, exclude=None):
+    include_only = declare_var(include_only, {})
+    exclude = declare_var(exclude, {})
+    prntDebug('-seperate_by_type',str(obj_list)[:100])
     obj_types = {}
     models = {}
     skipping_models = []
@@ -5833,7 +5835,9 @@ def tasker(dt, test=False):
                     result['new_block_candidate'].append(chain.genesisName)
                     result['new_block_candidate'].append(block_assigned.id)
             try:
-                supported = list(self_node['plugin_array']) + list(self_node['region_array'])
+                p_array = self_node['plugin_array'] if self_node['plugin_array'] else []
+                r_array = self_node['region_array'] if self_node['region_array'] else []
+                supported = list(p_array) + list(r_array)
                 prnt('supported',supported)
                 chains = Blockchain.objects.filter(genesisId__in=supported, genesisType__in=selectableChains, last_block_datetime__lte=dt - datetime.timedelta(minutes=block_time_delay()-10)).exclude(queuedData={}).defer('queuedData').order_by('?')
                 for c in chains:
