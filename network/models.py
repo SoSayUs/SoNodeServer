@@ -3639,7 +3639,7 @@ class Blockchain(models.Model):
                             # Sonet is only genesis obj that starts a new tree
                             prnt('stoppage 2 for gen obj',genesis_obj, genesis_obj.Block_obj)
                             return None
-                        elif not genesis_obj.Block_obj or not genesis_obj.Block_obj.validated:
+                        elif not genesis_obj._meta.object_name in ['Sonet'] and (not genesis_obj.Block_obj or not genesis_obj.Block_obj.validated):
                             prnt('stoppage 3 for gen obj',genesis_obj, genesis_obj.Block_obj)
                             return None
                     plugin_name = get_plugin(genesis_obj, True)
