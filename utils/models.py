@@ -3019,7 +3019,7 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                                 
 
                 if proceed:
-                    if str(data[f.name]) == 'None':
+                    if str(data[f.name]) in ['Val:N','None']:
                         if getattr(obj, f.name) != None:
                             updatedDB = True
                             updated_fields.append(f.name)
@@ -5832,25 +5832,10 @@ def tasker(dt, test=False):
                 if block_assigned:
                     result['new_block_candidate'].append(chain.genesisName)
                     result['new_block_candidate'].append(block_assigned.id)
-            # shuffle chain list here, not at blockchain query below
-            # for chain in mandatoryChains:
-            #     if chain != _OperationsChain_genesisId and chain != 'Sonet' and chain != 'Wallet':
-            #         mChains = None
-            #         if is_id(chain):
-            #             mChains = Blockchain.objects.filter(genesisId=chain, last_block_datetime__lte=dt - datetime.timedelta(minutes=block_time_delay()-10)).exclude(queuedData={}).defer('queuedData').order_by('?')
-            #         else:
-            #             mChains = Blockchain.objects.filter(genesisType=chain, last_block_datetime__lte=dt - datetime.timedelta(minutes=block_time_delay()-10)).exclude(queuedData={}).defer('queuedData').order_by('?')
-            #         prnt('mandaroryChain',chain,'mChains',mChains)
-            #         if mChains:
-            #             for mChain in mChains:
-            #                 block_assigned = mChain.new_block_candidate(self_node=self_node_id, dt=dt)
-            #                 prntDebug('block_assigned1',block_assigned)
-            #                 if block_assigned:
-            #                     result['new_block_candidate'].append(mChain.genesisName)
-            #                     result['new_block_candidate'].append(block_assigned.id)
             try:
-                chains = Blockchain.objects.filter(genesisId__in=self_node['chain_array'], genesisType__in=selectableChains, last_block_datetime__lte=dt - datetime.timedelta(minutes=block_time_delay()-10)).exclude(queuedData={}).defer('queuedData').order_by('?')
-                # prnt('selectableChains_chains222',chains)
+                supported = list(self_node['plugin_array']) + list(self_node['region_array'])
+                prnt('supported',supported)
+                chains = Blockchain.objects.filter(genesisId__in=supported, genesisType__in=selectableChains, last_block_datetime__lte=dt - datetime.timedelta(minutes=block_time_delay()-10)).exclude(queuedData={}).defer('queuedData').order_by('?')
                 for c in chains:
                     prnt('chain2',c)
                     block_assigned = c.new_block_candidate(self_node=self_node_id, dt=dt)
