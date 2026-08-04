@@ -71,7 +71,7 @@ def clear_jold_obs():
     import django_rq
     from rq.registry import FailedJobRegistry
 
-    failed_registry = FailedJobRegistry('main', connection=django_rq.get_connection())
+    failed_registry = FailedJobRegistry('main', connection=django_rq.get_connection('main'))
     n = 0
     for job_id in reversed(failed_registry.get_job_ids()):
         n += 1
@@ -79,7 +79,5 @@ def clear_jold_obs():
             try:
                 failed_registry.remove(job_id, delete_job=True)
             except:
-                # failed jobs expire in the queue. There's a
-                # chance this will raise NoSuchJobError
                 pass
 
