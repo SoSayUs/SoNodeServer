@@ -3342,21 +3342,21 @@ def verify_obj_to_data(obj, target_data, user=None, return_user=False, requireSu
                 elif block_dt:
                     x += 'b'
                     dt = block_dt
-                    if target_dt and target_dt >= dt:
-                        x += 'bb'
-                        failed = True
-                        prnt('failed1')
-                        prnt('target_dt',target_dt)
-                        prnt('dt',dt)
+                    # if target_dt and target_dt >= dt:
+                    #     x += 'bb'
+                    #     failed = True
+                    #     prnt('failed1')
+                    #     prnt('target_dt',target_dt)
+                    #     prnt('dt',dt)
                 elif block and block.validated:
                     x += 'c'
                     dt = block.DateTime
-                    if target_dt and target_dt >= dt:
-                        x += 'cb'
-                        failed = True
-                        prnt('failed2')
-                        prnt('target_dt',target_dt)
-                        prnt('dt',dt)
+                    # if target_dt and target_dt >= dt:
+                    #     x += 'cb'
+                    #     failed = True
+                    #     prnt('failed2')
+                    #     prnt('target_dt',target_dt)
+                    #     prnt('dt',dt)
                 else:
                     dt = target_dt
                 if isinstance(target_data, Model):
