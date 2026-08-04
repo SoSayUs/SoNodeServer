@@ -1343,7 +1343,7 @@ def tester_queue_view(request):
         obj_idens = ['usrSo84N1gTbHrMBKTQB7mZ', 'usrSo3axaDYOu8v1AsM']
         block = Block.objects.filter(id='blcSowaghLQjoP6LHtZGUJx').first()
 
-        for model_name, iden_list in seperate_by_type(obj_idens, include_only={'has_field':['Block_obj']}, exclude={'fields':[{'commitChain':f'!{block.Blockchain_obj.genesisType}'}]}).items():
+        for model_name, iden_list in seperate_by_type(obj_idens, include_only={'has_field':['Block_obj']}, exclude={'fields':[{'commitChain':f'!{block.Blockchain_obj.genesisType}'},{'commitChain':f'!{block.Blockchain_obj.genesisId}'}]}).items():
             prnt('model_name',model_name,'iden_list',iden_list)
 
                 
