@@ -558,6 +558,9 @@ class Region(BaseModel):
 
     def initialize(self):
         self.created = now_utc()
+        if self.commitChain == 'ParentRegion' and self.ParentRegion_obj:
+            self.commitChain = self.ParentRegion_obj.id
+        
         return self
 
     def save(self, share=False, *args, **kwargs):
