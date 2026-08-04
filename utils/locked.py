@@ -1868,6 +1868,7 @@ def calculate_reward(dt, previous_dt):
     All times are in years since network genesis.
     """
 
+    from decimal import Decimal
     import math
     from datetime import datetime, timezone
 
@@ -2039,7 +2040,7 @@ def calculate_reward(dt, previous_dt):
         previous_block_dt=previous_dt,
     )
     print(f"{reward:,.0f} tokens")
-    return reward
+    return Decimal(str(reward))
 
 def validate_obj(obj=None, pointer=None, validators=None, save_obj=True, update_pointer=True, verify_validator=True, add_to_queue=True, opBlock_data={}):
     # obj should be post
