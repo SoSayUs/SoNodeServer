@@ -1194,10 +1194,8 @@ class Node(models.Model):
     def no_sign_fields(self, version=None):
         if not version:
             version = self.modlVer
-        if int(version) >= 2:
+        if int(version) >= 1:
             return ['trust_score','influence_score','score_dt','suspended_dt','expelled_dt','not_responding_dt','pos','activeNode','rec_change']
-        elif int(version) >= 1:
-            return ['trust_score','influence_score','score_dt','suspended_dt','expelled_dt','not_responding_dt','pos','activeNode']
 
     def get_position(self, mod=0, check_data=None):
         prnt('-get_position',self.id, mod, check_data)
@@ -3383,6 +3381,7 @@ class Blockchain(models.Model):
                 'expelled_dt': dt_to_string(node.expelled_dt),
                 'chain_array': node.chain_array,
                 'plugin_array': node.plugin_array,
+                'region_array': node.region_array,
                 'abilities': node.abilities,
                 'node_type': node.node_type,
                 'node_level': node.node_level,
