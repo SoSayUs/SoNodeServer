@@ -395,9 +395,9 @@ class Transaction(models.Model):
             if not self.regarding or 'BlockReward' not in self.regarding:
                 prnt('do not save transaction1')
                 return None
-        if contains_invalid_characters(self.token_value):
-            prnt('do not save transaction2')
-            return None
+        # if contains_invalid_characters(self.token_value):
+        #     prnt('do not save transaction2')
+        #     return None
 
         # create block obj
         if self.id is None and not self.regarding or self.id is None and 'BlockReward' in self.regarding and self.regarding['BlockReward'] == 'coming' and Decimal(self.token_value) == 0:
