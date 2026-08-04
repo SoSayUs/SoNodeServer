@@ -1337,18 +1337,13 @@ def tester_queue_view(request):
             # queue.enqueue(tester_queue, job_timeout=1200)
             # queue.enqueue(tester_queue, job_timeout=3600)
             from network.models import Block, _AccountChain_genesisId, _OperationsChain_genesisId
+            from posts.models import Region
+            from utils.locked import check_commit_data
 
-            
-            from utils.models import seperate_by_type
-            obj_idens = ['regSoshCP31gSfl6p3mLw8dZ']
-            block = Block.objects.filter(id='blcSocl3mXiHcRG9DJPElj5F').first()
+            e = Region.objects.filter(Name='Earth').first()
+            x = check_commit_data(e, e.Block_obj.data[e.id])
+            prnt('x',x)
 
-            for model_name, iden_list in seperate_by_type(obj_idens, include_only={'has_field':['Block_obj','commitChain']}).items():
-                prnt('model_name',model_name,'iden_list',iden_list)
-
-                    
-            for model_name, iden_list in seperate_by_type(obj_idens, include_only={'has_field':['Block_obj']}).items():
-                prnt('model_name2',model_name,'iden_list2',iden_list)
 
             end_time = now_utc()
             prnt(end_time - start_time)

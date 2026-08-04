@@ -3688,7 +3688,7 @@ def position_sort_old(starting_id, pattern, nodes_dict, number_of_matches, max_p
 def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_receiverTransaction=False, full_validator_list=False, full_creator_list=False, strings_only=False, include_relays=False, opBlock_data=None, nodeType=''):
     import random
     from network.models import get_required_validator_count
-    from utils.models import round_time, dt_to_string, prnt, string_to_dt, declare_var, get_chain_id
+    from utils.models import round_time, dt_to_string, prnt, string_to_dt, declare_var, get_chain_id, has_method
     opBlock_data = declare_var(opBlock_data, {})
     prnt('----get_node_assignment obj:', obj, 'dt',dt, 'func',func, 'strings:', strings_only,'chainId',chainId,'opBlock_data',opBlock_data,'return_receiverTransaction',return_receiverTransaction)
 
@@ -3727,12 +3727,11 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
             node_ids = [i for i in node_dict['relevant_nodes']]
             valid_node_ids_received = True
         except Exception as e:
-            # prnt('fail4782674',str(e))
             try:
                 node_ids = [n for n in opBlock_data]
                 valid_node_ids_received = True
             except Exception as e:
-                prnt('fail454923784',str(e))
+                prnt('node_assignment_error',str(e))
 
     if obj and obj._meta.object_name == 'Block' or obj and obj._meta.object_name == 'Transaction':
 
@@ -3773,22 +3772,28 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
             return creator_nodes, validator_nodes
 
         else:
-            # prnt('else12334')
             block = None
             if obj._meta.object_name == 'Block' and obj.Transaction_obj:
                 block = obj
                 obj = obj.Transaction_obj
             if obj._meta.object_name == 'Transaction' and 'BlockReward' in obj.regarding and obj.regarding['BlockReward']:
-                # user = obj.ReceiverWallet_obj.User_obj
-
+                
                 if return_receiverTransaction:
                     shuffle_seed = obj.id # shuffle seed for ReceiverBlock_obj is tx.id for determining ReceieverBlock creator
-                    chain = obj.ReceiverWallet_obj.networkChain
-                    # if using return_receiverTransaction, best to input ReceverBlock as obj or input dt - transaction_obj may not have ReceiverBlock_obj set or may be incorrect block
                     if not dt and block:
                         dt = block.DateTime
                     elif not dt and obj.ReceiverBlock_obj:
                         dt = obj.ReceiverBlock_obj.DateTime
+
+                    from network.models import Plugin
+                    plugin = Plugin.objects.filter(app_name='transactions').exclude(Block=None).values('id').first()
+                    from accounts.models import User
+                    user = User.objects.filter(id=obj.ReceiverWallet_obj.networkChain).values('nodeCreatorId','pattern').first()
+                    opBlock_data = get_relevant_nodes_from_block(dt=dt, genesisId=plugin['id'], strings_only=strings_only, include_relays=False)
+
+                    node_ids = position_sort(user['nodeCreatorId'], user['pattern'], opBlock_data['relevant_nodes'], opBlock_data['opData']['number_of_peers'])
+                    valid_node_ids_received = True
+
                 elif block: # block is RecevierBlock - same as inputting obj=tx and return_receiverTransaction=True
                     shuffle_seed = obj.id
                     chain = block.networkChain
@@ -3815,30 +3820,11 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
                     required_validators = get_required_validator_count(obj=obj, node_ids=node_ids, opBlock_data=opBlock_data)
                     # prnt('required_validators1',required_validators)
 
-
-                # ~:shuffled_nodes,['nodSo59yZshqZDaC', 'nodSo3A5szjhIBGE']
-                # ~:default get_required_validator_count
-                # ~:obj,Transaction:re:{'GenesisId': 'regSo4wPb9vXmk0mgY2', 'BlockReward': 'blcSo3cQXfqgjNKQccm'},to:WALLET:USER:Sozed-Rewards-nodSo3A5szjhIBGE-100.0/tokens.traSo2w5d0OOMaA2cwEs6Egkm
-                # ~:required_validators1,None
-                
                 creator_nodes = shuffled_nodes[:opBlock_data['opData']['block_creator_count']]
-                # if len(shuffled_nodes) >= required_validators + available_creators:
                 validator_nodes = list(reversed(shuffled_nodes[-required_validators:]))
-                # else:
-                #     validator_nodes = list(reversed(shuffled_nodes[-required_validators:]))
                 prnt('assignment path 1b',obj,creator_nodes, validator_nodes)
                 return creator_nodes, validator_nodes
 
-
-                # if len(user_assigned_nodes) >= block_creators + required_validators:
-                #     validator_nodes = user_assigned_nodes[block_creators:]
-                # else:
-                #     validator_nodes = user_assigned_nodes
-                # prnt('user_assigned_nodes',user_assigned_nodes)
-                # return user_assigned_nodes, validator_nodes
-            
-            
-            
             else: # user to user transaction - to be completed later
                 
                 user = obj.ReceiverWallet_obj.User_obj
@@ -3872,6 +3858,9 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
             validator_nodes = list(reversed(shuffled_nodes[-required_validators:]))
             prnt('assignment path 2',obj,creator_nodes, validator_nodes)
             return creator_nodes, validator_nodes
+
+    elif has_method(obj, 'get_assignment'):
+        return obj.get_assignment()
 
     elif obj and obj._meta.object_name == 'DataPacket':
         chain_list = [obj.chainId]

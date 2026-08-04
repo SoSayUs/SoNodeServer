@@ -3611,11 +3611,11 @@ class Blockchain(models.Model):
                 if self.genesisId not in self.queuedData:
                     genesis_obj = get_dynamic_model(self.genesisType, id=self.genesisId)
                     self.add_item_to_queue(genesis_obj)
-                    if self.genesisType == 'User':
-                        from accounts.models import UserPubKey
-                        upk = UserPubKey.objects.filter(User_obj__id=self.genesisId)
-                        for i in upk:
-                            self.add_item_to_queue(i)
+                    # if self.genesisType == 'User':
+                    #     from accounts.models import UserPubKey
+                    #     upk = UserPubKey.objects.filter(User_obj__id=self.genesisId)
+                    #     for i in upk:
+                    #         self.add_item_to_queue(i)
                     self.refresh_from_db() 
                     
             starting_data_len = len(self.queuedData)
@@ -3648,6 +3648,7 @@ class Blockchain(models.Model):
                         elif not genesis_obj._meta.object_name in ['Sonet'] and (not genesis_obj.Block_obj or not genesis_obj.Block_obj.validated):
                             prnt('stoppage 3 for gen obj',genesis_obj, genesis_obj.Block_obj)
                             proceed = False
+                        elif genesis_obj.Block_obj and genesis_obj.Block_obj.validated and 
                         if not proceed:
                             if genesis_obj:
                                 from utils.models import find_or_create_chain_from_object
