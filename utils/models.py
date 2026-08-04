@@ -1835,6 +1835,7 @@ def any_field_contains(obj, name):
     return False
 
 def has_field(model, field_name, exclude_method=False):
+    prnt('-has_field',field_name,model)
     if isinstance(model, models.Model):
         prnt('-has_field',[f.name for f in model._meta.get_fields()])
         if exclude_method:
@@ -1852,7 +1853,7 @@ def has_field(model, field_name, exclude_method=False):
         if model.get(field_name, None):
             return True
         else:
-            return True
+            return False
 
 def has_method(model, method_name):
     return callable(getattr(model, method_name, None))
@@ -1947,7 +1948,7 @@ def seperate_by_type(obj_list, include_only=None, exclude=None):
             obj_type = i._meta.object_name
             value = i.id
             model = i
-        prntDebug('value',value,'obj_type',obj_type,'obj_types',obj_types,'skipping_models',skipping_models)
+        prntDebug('value',value,'model',model,'obj_type',obj_type,'obj_types',obj_types,'skipping_models',skipping_models)
         if value and obj_type not in skipping_models:
             if obj_type in obj_types:
                 obj_types[obj_type].append(value)
