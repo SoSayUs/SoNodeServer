@@ -418,6 +418,12 @@ class Plugin(models.Model):
         else:
             return {'plugin_prefix':'1'}
 
+    def block_conditions(self):
+        if self.commitChain == Blockchain.objects.filter(genesisType='Sonet').first().genesisId:
+            if self.networkChain == self.id:
+                return True
+        return False
+    
     def on_confirmation(self, block):
         self.plugin_prefix = block.data[self.id]['plugin_prefix']
         return self
@@ -428,7 +434,7 @@ class Plugin(models.Model):
         if self.id is None:
             self.id = hash_obj_id(self)
             self.created = now_utc()
-            self.commitChain = Blockchain.objects.filter(genesisType='Sonet').first().id
+            self.commitChain = Blockchain.objects.filter(genesisType='Sonet').first().genesisId
             self.networkChain = self.id
 
             if not self.model_prefixes:
@@ -2332,7 +2338,7 @@ class Block(models.Model):
         for plugin in plugins:
             build_record(plugin['id'], 'plugin')
         from posts.models import Region
-        for region in Region.objects.filter(is_supported=True, Validator_obj__is_valid=True).exclude(id=_EarthChain_genesisId):
+        for region in Region.objects.filter(Validator_obj__is_valid=True).exclude(id=_EarthChain_genesisId):
             prnt('region',region)
             build_record(region.id, 'region')
 
@@ -2365,7 +2371,7 @@ class Block(models.Model):
                     if node.id not in chains[chain]:
                         chains[chain].append(node.id)
         prnt('regions2')
-        for region in Region.objects.filter(is_supported=True).exclude(Block_obj=None).exclude(id=_EarthChain_genesisId).only('id'):
+        for region in Region.objects.exclude(Block_obj=None).exclude(id=_EarthChain_genesisId).only('id'):
             if region.id in chains:
                 all_nodes[region.id] = chains[region.id]
 
@@ -2380,7 +2386,7 @@ class Block(models.Model):
                         if isinstance(ValueError, list):
                             all_nodes[k] =  shuffle_order(v)
         prnt('save')
-        new_record = NodeRecord(pointerId='master', pointerType='ops', DateTime=self.DateTime, Block_obj_id=self.id, is_valid=True)
+        new_record = NodeRecord(pointerId='Master', pointerType='ops', DateTime=self.DateTime, Block_obj_id=self.id, is_valid=True)
         new_record.data = all_nodes
         new_record.save()
 
@@ -4891,7 +4897,7 @@ class Tidy:
         #     queue.enqueue(run_database_maintenance)
 
         import inspect
-        if dt.hour == 9 or all_jobs:
+        if dt.hour == 20 or all_jobs:
             from utils.cronjobs import clear_old_jobs
             queue = django_rq.get_queue('low')
             queue.enqueue(clear_old_jobs, job_timeout=20)

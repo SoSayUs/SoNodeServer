@@ -3246,7 +3246,7 @@ $(document).ready(
     function(){
       initialize_page(document);
     console.log('document ready done');
-    key_test();
+    // key_test();
   }
 );
 
