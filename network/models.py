@@ -4887,9 +4887,9 @@ class Tidy:
 
         import inspect
         if dt.hour == 9 or all_jobs:
-            from utils.cronjobs import clear_jold_obs
+            from utils.cronjobs import clear_old_jobs
             queue = django_rq.get_queue('low')
-            queue.enqueue(clear_jold_obs, job_timeout=20)
+            queue.enqueue(clear_old_jobs, job_timeout=20)
             jobs = {name:method for name, method in inspect.getmembers(self, predicate=inspect.ismethod) if not name.startswith('_')}
         else:
             skip_jobs = ['random_block_check','prune_old','check_storage_space']
