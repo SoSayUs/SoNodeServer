@@ -1327,32 +1327,32 @@ def tester_queue_view(request):
         user = request.GET.get('user', None)
         if user:
             user = User.objects.filter(id=user).first()
-        # if user and user.assess_super_status():
-        prnt('---tester_queue_view')
+        if user and user.assess_super_status():
+            prnt('---tester_queue_view')
 
-        start_time = now_utc()
-        prnt('HELLLOO!!')
-        import django_rq
-        queue = django_rq.get_queue('low')
-        # queue.enqueue(tester_queue, job_timeout=1200)
-        # queue.enqueue(tester_queue, job_timeout=3600)
-        from network.models import Block, _AccountChain_genesisId, _OperationsChain_genesisId
+            start_time = now_utc()
+            prnt('HELLLOO!!')
+            import django_rq
+            queue = django_rq.get_queue('low')
+            # queue.enqueue(tester_queue, job_timeout=1200)
+            # queue.enqueue(tester_queue, job_timeout=3600)
+            from network.models import Block, _AccountChain_genesisId, _OperationsChain_genesisId
 
-        
-        from utils.models import seperate_by_type
-        obj_idens = ['usrSo84N1gTbHrMBKTQB7mZ', 'usrSo3axaDYOu8v1AsM']
-        block = Block.objects.filter(id='blcSowaghLQjoP6LHtZGUJx').first()
+            
+            from utils.models import seperate_by_type
+            obj_idens = ['regSoshCP31gSfl6p3mLw8dZ']
+            block = Block.objects.filter(id='blcSowaghLQjoP6LHtZGUJx').first()
 
-        for model_name, iden_list in seperate_by_type(obj_idens, include_only={'has_field':['Block_obj']}, exclude={'fields':[{'commitChain':f'!{block.Blockchain_obj.genesisType}'},{'commitChain':f'!{block.Blockchain_obj.genesisId}'}]}).items():
-            prnt('model_name',model_name,'iden_list',iden_list)
+            for model_name, iden_list in seperate_by_type(obj_idens, include_only={'has_field':['Block_obj']}, exclude={'fields':[{'commitChain':f'!{block.Blockchain_obj.genesisType}'},{'commitChain':f'!{block.Blockchain_obj.genesisId}'}]}).items():
+                prnt('model_name',model_name,'iden_list',iden_list)
 
-                
-        for model_name, iden_list in seperate_by_type(obj_idens, include_only={'has_field':['Block_obj']}).items():
-            prnt('model_name2',model_name,'iden_list2',iden_list)
+                    
+            for model_name, iden_list in seperate_by_type(obj_idens, include_only={'has_field':['Block_obj']}).items():
+                prnt('model_name2',model_name,'iden_list2',iden_list)
 
-        end_time = now_utc()
-        prnt(end_time - start_time)
-        return render(request, "utils/dummy.html", {"result": 'Success'})
+            end_time = now_utc()
+            prnt(end_time - start_time)
+            return render(request, "utils/dummy.html", {"result": 'Success'})
 
 def daily_summarizer_view(request):
     if request.user.is_superuser:
