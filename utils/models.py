@@ -1836,8 +1836,8 @@ def any_field_contains(obj, name):
 
 def has_field(model, field_name, exclude_method=False):
     prnt('-has_field',field_name,model,type(model))
-    if is_model_or_instance(model):
-        prnt('-has_field',[f.name for f in model._meta.get_fields()])
+    if isinstance(model, models.Model):
+        prnt('is model',[f.name for f in model._meta.get_fields()])
         if exclude_method:
             try:
                 return any([f.name for f in model._meta.get_fields() if f.name == field_name])
@@ -1954,6 +1954,7 @@ def seperate_by_type(obj_list, include_only=None, exclude=None):
                 models[obj_type] = model
             else:
                 model = models[obj_type]
+            model = model()
         elif isinstance(i, models.Model):
             obj_type = i._meta.object_name
             value = i.id
@@ -2015,8 +2016,10 @@ def seperate_by_type(obj_list, include_only=None, exclude=None):
                             for field in exclude['fields']:
                                 if isinstance(field, dict):
                                     for field_name, field_value in field.items():
+                                        prnt('field_name',field_name,'field_value',field_value)
                                         if field_value.startswith('!'):
                                             field_value = field_value.replace('!','')
+                                            prnt('getattr(model, field_name)',getattr(model, field_name))
                                             if has_field(model, field_name) and getattr(model, field_name) != field_value:
                                                 err += 'C'
                                                 skip = True
@@ -2034,7 +2037,7 @@ def seperate_by_type(obj_list, include_only=None, exclude=None):
                                     break
                 if skip:
                     skipping_models.append(obj_type)
-                prntDebug('err',err,'obj_type',obj_type,'value',value,'skip',skip)
+                prntDebug('\nerr',err,'obj_type',obj_type,'value',value,'skip',skip)
                 if obj_type and value and not skip:
                     if obj_type in obj_types:
                         obj_types[obj_type].append(value)
