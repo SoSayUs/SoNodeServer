@@ -1835,7 +1835,7 @@ def any_field_contains(obj, name):
     return False
 
 def has_field(model, field_name, exclude_method=False):
-    prnt('-has_field',field_name,model)
+    prnt('-has_field',field_name,model,type(model))
     if isinstance(model, models.Model):
         prnt('-has_field',[f.name for f in model._meta.get_fields()])
         if exclude_method:
@@ -1845,6 +1845,7 @@ def has_field(model, field_name, exclude_method=False):
                 prnt('has_field err 6892',str(e))
         return hasattr(model, field_name)
     elif isinstance(model, dict):
+        prnt('is dict')
         if exclude_method:
             try:
                 return any([f for f in model if f == field_name])
@@ -1854,6 +1855,8 @@ def has_field(model, field_name, exclude_method=False):
             return True
         else:
             return False
+    else:
+        prnt('else',type(model))
 
 def has_method(model, method_name):
     return callable(getattr(model, method_name, None))
