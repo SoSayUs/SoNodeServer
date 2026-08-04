@@ -4569,7 +4569,7 @@ class Tidy:
         # from utils.models import get_model
         def run_me(model_name):
             prnt('run_me',model_name)
-            model = get_model(model_name)()
+            model = get_model(model_name)
             if model_name == 'Post':
                 uncommitted_posts = list(model.objects.filter(blockId=None, created__lte=dt - datetime.timedelta(hours=hours)).iterator(chunk_size=500))
             elif model_name == 'Update':

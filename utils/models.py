@@ -1836,7 +1836,7 @@ def any_field_contains(obj, name):
 
 def has_field(model, field_name, exclude_method=False):
     prnt('-has_field',field_name,model,type(model))
-    if isinstance(model, models.Model):
+    if is_model_or_instance(model):
         prnt('is model',[f.name for f in model._meta.get_fields()])
         if exclude_method:
             try:
