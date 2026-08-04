@@ -2332,7 +2332,7 @@ class Block(models.Model):
         for plugin in plugins:
             build_record(plugin['id'], 'plugin')
         from posts.models import Region
-        for region in Region.objects.filter(is_supported=True).exclude(Block_obj=None).exclude(id=_EarthChain_genesisId):
+        for region in Region.objects.filter(is_supported=True, Validator_obj__is_valid=True).exclude(id=_EarthChain_genesisId):
             prnt('region',region)
             build_record(region.id, 'region')
 
