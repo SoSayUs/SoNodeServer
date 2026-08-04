@@ -4090,10 +4090,12 @@ class Blockchain(models.Model):
             new_block.CreatorNode_obj = self_node
             reward = None
             if self.genesisType == 'Region':
-                from transactions.models import Transaction
-                reward = Transaction(ReceiverWallet_obj=self_node.User_obj.get_wallet(f'Rewards-{self_node.id}'), regarding={'BlockReward':'coming'}, created=new_block.DateTime)
-                reward.save()
-                new_block.Transaction_obj = reward
+                from posts.models import Region
+                if Region.objects.filter(id=self.genesisId, Block_obj__validated=True, is_supported=True).exists():
+                    from transactions.models import Transaction
+                    reward = Transaction(ReceiverWallet_obj=self_node.User_obj.get_wallet(f'Rewards-{self_node.id}'), regarding={'BlockReward':'coming'}, created=new_block.DateTime)
+                    reward.save()
+                    new_block.Transaction_obj = reward
             if 'meta' in self.queuedData:
                 del self.queuedData['meta']
             if self.genesisId == _OperationsChain_genesisId:

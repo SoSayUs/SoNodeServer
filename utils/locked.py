@@ -1633,37 +1633,43 @@ def validate_block(block, creator_nodes=None, opBlock_data={}, create_validator=
                 if 'BlockReward' in block.Transaction_obj.regarding:
                     
 
-                    if block.Transaction_obj.regarding['BlockReward'] == block.id and 'Rewards' in block.Transaction_obj.ReceiverWallet_obj.Name and block.Transaction_obj.token_value == calculate_reward(block.DateTime, prev_block):
-                        hard_pass = False
-                        transaction_type = 'sender'
+                    if block.Transaction_obj.regarding['BlockReward'] == block.id and 'Rewards' in block.Transaction_obj.ReceiverWallet_obj.Name:
+                        if block.Transaction_obj.token_value == calculate_reward(block.DateTime, prev_block):
+                            from posts.models import Region
+                            if not Region.objects.filter(id=block.Blockchain_obj.genesisId, Block_obj__validated=True, is_supported=True).exists():
+                                hard_pass = True
+                                fail_reason = 760
+                                prnt('fail_reason',fail_reason)
+                            else:
+                                hard_pass = False
+                                transaction_type = 'sender'
 
-                        
-                        if any(prefix for prefix in reward_models if block.Blockchain_obj.genesisId.startswith(prefix)):
-                            from legis.models import Government
-                            gov = Government.objects.filter(id=block.Blockchain_obj.genesisId, Validator_obj__is_valid=True, Region_obj__is_supported=True, Region_obj__Validator_obj__is_valid=True).first()
-                            if not gov or not gov.StartDate:
-                                hard_pass = True
-                                fail_reason = 761
-                                prnt('fail_reason',fail_reason)
-                            
-                            from network.models import Blockchain
-                            future_govs = Government.objects.filter(Region_obj=gov.Region_obj, StartDate__gte=gov.StartDate, Validator_obj__is_valid=True).values('id')
-                            if future_govs and Blockchain.objects.filter(genesisId__in=[g['id'] for g in future_govs], chain_length__gt=0).exists():
-                                hard_pass = True
-                                prnt('fail_reason',fail_reason)
-                                fail_reason = 762
-                            
-                            if not future_govs and block.Blockchain_obj.chain_length == 0:
-                                prev_gov = Government.objects.filter(Region_obj=gov.Region_obj, StartDate__lt=gov.StartDate, Validator_obj__is_valid=True).order_by('-StartDate').first()
-                                if prev_gov and not prev_gov.EndDate:
-                                    hard_pass = True
-                                    fail_reason = 763
-                                    prnt('fail_reason',fail_reason)
-                                elif prev_gov and prev_gov.EndDate:
-                                    if not prev_gov.Block_obj or not (prev_gov.id in prev_gov.Block_obj.data and check_commit_data(prev_gov, prev_gov.Block_obj.data[prev_gov.id])):
+                                if any(prefix for prefix in reward_models if block.Blockchain_obj.genesisId.startswith(prefix)):
+                                    from legis.models import Government
+                                    gov = Government.objects.filter(id=block.Blockchain_obj.genesisId, Validator_obj__is_valid=True, Region_obj__is_supported=True, Region_obj__Validator_obj__is_valid=True).first()
+                                    if not gov or not gov.StartDate:
                                         hard_pass = True
-                                        fail_reason = 764
+                                        fail_reason = 761
                                         prnt('fail_reason',fail_reason)
+                                    
+                                    from network.models import Blockchain
+                                    future_govs = Government.objects.filter(Region_obj=gov.Region_obj, StartDate__gte=gov.StartDate, Validator_obj__is_valid=True).values('id')
+                                    if future_govs and Blockchain.objects.filter(genesisId__in=[g['id'] for g in future_govs], chain_length__gt=0).exists():
+                                        hard_pass = True
+                                        prnt('fail_reason',fail_reason)
+                                        fail_reason = 762
+                                    
+                                    if not future_govs and block.Blockchain_obj.chain_length == 0:
+                                        prev_gov = Government.objects.filter(Region_obj=gov.Region_obj, StartDate__lt=gov.StartDate, Validator_obj__is_valid=True).order_by('-StartDate').first()
+                                        if prev_gov and not prev_gov.EndDate:
+                                            hard_pass = True
+                                            fail_reason = 763
+                                            prnt('fail_reason',fail_reason)
+                                        elif prev_gov and prev_gov.EndDate:
+                                            if not prev_gov.Block_obj or not (prev_gov.id in prev_gov.Block_obj.data and check_commit_data(prev_gov, prev_gov.Block_obj.data[prev_gov.id])):
+                                                hard_pass = True
+                                                fail_reason = 764
+                                                prnt('fail_reason',fail_reason)
 
                     elif block.Transaction_obj.ReceiverWallet_obj and block.Transaction_obj.ReceiverWallet_obj.id == block.Blockchain_obj.genesisId and 'Rewards' in block.Transaction_obj.ReceiverWallet_obj.Name:
                         hard_pass = False
