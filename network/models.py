@@ -3631,16 +3631,24 @@ class Blockchain(models.Model):
                 prnt('els1')
                 try:
                     if is_id(self.genesisId):
+                        proceed = True
                         genesis_obj = get_dynamic_model(self.genesisId, id=self.genesisId)
                         if not has_field(genesis_obj, 'Block_obj'):
                             prnt('stoppage 1 for gen obj',genesis_obj)
-                            return None
+                            proceed = False
                         elif genesis_obj.Block_obj and genesis_obj.Block_obj.Blockchain_obj == self and not genesis_obj._meta.object_name in ['Sonet']:
                             # Sonet is only genesis obj that starts a new tree
                             prnt('stoppage 2 for gen obj',genesis_obj, genesis_obj.Block_obj)
-                            return None
+                            proceed = False
                         elif not genesis_obj._meta.object_name in ['Sonet'] and (not genesis_obj.Block_obj or not genesis_obj.Block_obj.validated):
                             prnt('stoppage 3 for gen obj',genesis_obj, genesis_obj.Block_obj)
+                            proceed = False
+                        if not proceed:
+                            if genesis_obj:
+                                from utils.models import find_or_create_chain_from_object
+                                network_chain, obj, commit_chain = find_or_create_chain_from_object(genesis_obj)
+                                if network_chain:
+                                    network_chain.add_item_to_queue(genesis_obj)
                             return None
                     plugin_name = get_plugin(genesis_obj, True)
                     plugin_file = Path(f"{plugin_name}/utils.py")

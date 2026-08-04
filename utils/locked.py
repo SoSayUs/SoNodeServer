@@ -2742,6 +2742,11 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
                 prnt('stoppage 3 for gen obj',genesis_obj, genesis_obj.Block_obj)
                 proceed = False
         if not proceed:
+            if genesis_obj:
+                from utils.models import find_or_create_chain_from_object
+                network_chain, obj, commit_chain = find_or_create_chain_from_object(genesis_obj)
+                if network_chain:
+                    network_chain.add_item_to_queue(genesis_obj)
             if return_missing:
                 return [], []
             return []
@@ -2980,7 +2985,7 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
         block.save(update_fields=['notes'])
     if update_items and block.validated:
         from utils.models import seperate_by_type, dynamic_bulk_update, get_model, chunk_list
-        for model_name, iden_list in seperate_by_type(obj_idens, include_only={'has_field':['Block_obj']}, exclude={'fields':[{'commitChain':f'!{block.Blockchain_obj.genesisType}'}]}).items():
+        for model_name, iden_list in seperate_by_type(obj_idens, include_only={'has_field':['Block_obj']}, exclude={'fields':[{'commitChain':f'!{block.Blockchain_obj.genesisType}'},{'commitChain':f'!{block.Blockchain_obj.genesisId}'}]}).items():
             prnt('model_name',model_name,'iden_list',iden_list)
             if model_name == 'Validator':
                 if block.Blockchain_obj.genesisType == 'Sonet':

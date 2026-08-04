@@ -1940,7 +1940,7 @@ def seperate_by_type(obj_list, include_only=None, exclude=None):
         return obj_types
     
     obj_list = sorted(obj_list, key=data_sort_priority)
-    prntDebug('obj_list',obj_list)
+    # prntDebug('obj_list',obj_list)
     for i in obj_list:
         err = '_'
         skip = False
@@ -1959,7 +1959,7 @@ def seperate_by_type(obj_list, include_only=None, exclude=None):
             obj_type = i._meta.object_name
             value = i.id
             model = i
-        prntDebug('value',value,'model',model,'obj_type',obj_type,'obj_types',obj_types,'skipping_models',skipping_models)
+        # prntDebug('value',value,'model',model,'obj_type',obj_type,'obj_types',obj_types,'skipping_models',skipping_models)
         if value and obj_type not in skipping_models:
             if obj_type in obj_types:
                 obj_types[obj_type].append(value)
@@ -1982,7 +1982,6 @@ def seperate_by_type(obj_list, include_only=None, exclude=None):
                                     break
                     if not skip and 'has_field' in include_only:
                         for field in include_only['has_field']:
-                            prnt('field',field)
                             if not has_field(model, field):
                                 err += 'C'
                                 skip = True
@@ -1993,14 +1992,13 @@ def seperate_by_type(obj_list, include_only=None, exclude=None):
                                 err += 'D'
                                 skip = True
                                 break
-                prntDebug('skip',skip,'exclude',exclude)
+                # prntDebug('skip',skip,'exclude',exclude)
                 err += '2'
                 if not skip and exclude:
                     err += '3'
                     if 'fields' in exclude:
                         if isinstance(exclude['fields'], dict):
                             for field_name, field_value in exclude['fields'].items():
-                                prnt('field_name',field_name,'field_value',field_value)
                                 if field_value.startswith('!'):
                                     field_value = field_value.replace('!','')
                                     if has_field(model, field_name) and getattr(model, field_name) != field_value:
@@ -2016,10 +2014,8 @@ def seperate_by_type(obj_list, include_only=None, exclude=None):
                             for field in exclude['fields']:
                                 if isinstance(field, dict):
                                     for field_name, field_value in field.items():
-                                        prnt('field_name',field_name,'field_value',field_value)
                                         if field_value.startswith('!'):
                                             field_value = field_value.replace('!','')
-                                            prnt('getattr(model, field_name)',getattr(model, field_name))
                                             if has_field(model, field_name) and getattr(model, field_name) != field_value:
                                                 err += 'C'
                                                 skip = True
@@ -2037,7 +2033,7 @@ def seperate_by_type(obj_list, include_only=None, exclude=None):
                                     break
                 if skip:
                     skipping_models.append(obj_type)
-                prntDebug('\nerr',err,'obj_type',obj_type,'value',value,'skip',skip)
+                # prntDebug('\nerr',err,'obj_type',obj_type,'value',value,'skip',skip)
                 if obj_type and value and not skip:
                     if obj_type in obj_types:
                         obj_types[obj_type].append(value)
