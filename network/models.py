@@ -3648,7 +3648,7 @@ class Blockchain(models.Model):
                         elif not genesis_obj._meta.object_name in ['Sonet'] and (not genesis_obj.Block_obj or not genesis_obj.Block_obj.validated):
                             prnt('stoppage 3 for gen obj',genesis_obj, genesis_obj.Block_obj)
                             proceed = False
-                        elif genesis_obj.Block_obj and genesis_obj.Block_obj.validated and 
+                        # elif genesis_obj.Block_obj and genesis_obj.Block_obj.validated and 
                         if not proceed:
                             if genesis_obj:
                                 from utils.models import find_or_create_chain_from_object
