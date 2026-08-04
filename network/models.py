@@ -4753,6 +4753,7 @@ class Tidy:
         run_me('User')
         run_me('Plugin')
         run_me('Region')
+        run_me('Node')
         run_me('Post')
         run_me('Update')
         run_me('UserVote')
