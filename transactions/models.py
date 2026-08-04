@@ -281,7 +281,7 @@ class Transaction(models.Model):
             senderBlock = Block.objects.filter(id=self.senderBlockId).first()
         if not senderBlock or senderBlock.validated == False:
             self.validated = False
-            self.save()
+            self.save(update_fields=['validated'])
             prnt('no senderBlock')
             return None
         if senderBlock and senderBlock.validated and not self.validated:
@@ -409,7 +409,7 @@ class Transaction(models.Model):
         else:
             update_fields = kwargs.get('update_fields', None)
             if update_fields and len(update_fields) == 1:
-                if all(i for i in update_fields if i in ['validations','ReceiverBlock_obj','SenderBlock_obj']):
+                if all(i for i in update_fields if i in ['validated','validations','ReceiverBlock_obj','SenderBlock_obj']):
                     update_fields.append('updated_on_node')
                     kwargs['update_fields'] = update_fields
                     self.updated_on_node = now_utc()
@@ -423,6 +423,7 @@ class Transaction(models.Model):
                     super(Transaction, self).save(*args, **kwargs)
                     prnt('transaction saved2')
                     return
+
         prnt('transaction not saved')
     
     def delete(self, superDel=False, skip_block=None):
