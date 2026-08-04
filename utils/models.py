@@ -1836,6 +1836,7 @@ def any_field_contains(obj, name):
 
 def has_field(model, field_name, exclude_method=False):
     if isinstance(model, models.Model):
+        prnt('-has_field',[f.name for f in model._meta.get_fields()])
         if exclude_method:
             try:
                 return any([f.name for f in model._meta.get_fields() if f.name == field_name])
@@ -1843,7 +1844,6 @@ def has_field(model, field_name, exclude_method=False):
                 prnt('has_field err 6892',str(e))
         return hasattr(model, field_name)
     elif isinstance(model, dict):
-
         if exclude_method:
             try:
                 return any([f for f in model if f == field_name])
