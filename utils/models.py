@@ -1836,7 +1836,7 @@ def any_field_contains(obj, name):
 
 def has_field(model, field_name, exclude_method=False):
     prnt('-has_field',field_name,model,type(model))
-    if isinstance(model, models.Model):
+    if is_model_or_instance(model):
         prnt('-has_field',[f.name for f in model._meta.get_fields()])
         if exclude_method:
             try:
@@ -1857,6 +1857,13 @@ def has_field(model, field_name, exclude_method=False):
             return False
     else:
         prnt('else',type(model))
+
+def is_model_or_instance(model):
+    if isinstance(model, models.Model):
+        return True
+    if isinstance(model, type) and issubclass(model, models.Model):
+        return True
+    return False
 
 def has_method(model, method_name):
     return callable(getattr(model, method_name, None))
