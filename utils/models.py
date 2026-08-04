@@ -2033,7 +2033,7 @@ def seperate_by_type(obj_list, include_only=None, exclude=None):
                                     break
                 if skip:
                     skipping_models.append(obj_type)
-                # prntDebug('\nerr',err,'obj_type',obj_type,'value',value,'skip',skip)
+                prntDebug('\nerr',err,'obj_type',obj_type,'value',value,'skip',skip)
                 if obj_type and value and not skip:
                     if obj_type in obj_types:
                         obj_types[obj_type].append(value)
