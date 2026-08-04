@@ -4586,23 +4586,19 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
             # prnt('VERIFY FOR:',upk_id)
             
             if not key_data.get('signature'):
-                prnt('missing signature for', upk_id)
+                prnt('1 missing signature for', upk_id)
                 return False
             s = 'ycF3atcq61TMBvVmGwrQWZJ69fu'
             try:
-                prnt('data type1',type(data),data)
                 if not isinstance(data, dict):
                     try:
                         data = json.loads(data)
                     except Exception as e:
-                        prnt('err a', str(e))
                         import ast
                         data = ast.literal_eval(data)
-                prnt('data type2',type(data),data)
                 key_payload = dict(data)  # shallow copy - don't mutate base_payload
-                prnt('data type3',type(data),data)
                 if 'signed_snapshot' not in key_data:
-                    prnt('missing snapshot for', upk_id)
+                    prnt('2 missing snapshot for', upk_id)
                     return False
                 key_payload['signed'] = key_data['signed_snapshot']
                 prnt('signed_snapshot',print_dict_truncated(key_data['signed_snapshot']))
@@ -4614,10 +4610,6 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
 
             key_type = detect_security(key_data['pubKey'], key_type='pubkey')
             is_valid = simpleVerify(key_data_str, key_data['signature'], key_data['pubKey'], key_type=key_type)
-            # if key_type == 'secp256k1':
-            #     is_valid = simpleVerify_secp256k1(key_data_str, key_data['signature'], key_data['pubKey'])
-            # else:
-            #     is_valid = simpleVerify_ml_dsa(key_data_str, key_data['signature'], key_data['pubKey'], key_type)
 
             if not is_valid:
                 return False
@@ -4889,6 +4881,7 @@ def sign_obj(item, operatorData=None, keys=None, do_save=True, req_sigs=None, ke
 def get_commit_data(target, extra_data=None):
     from .models import get_dynamic_model, get_model, has_method, has_field, sigData_to_hash, dt_to_string, prnt, prntDebug
     from django.db import models
+    from decimal import Decimal
     # prntDebug('-get_commit_data',target)
     if isinstance(target, str):
         obj_id = target
@@ -4927,6 +4920,8 @@ def get_commit_data(target, extra_data=None):
                                     attr[k] = {'pk':v['pk']}
                         if isinstance(attr, datetime.datetime):
                             to_commit[i] = dt_to_string(attr)
+                        elif isinstance(attr, Decimal):
+                            to_commit[i] = str(attr)
                         elif i.endswith('_obj') and attr and isinstance(attr, models.Model):
                             to_commit[i] = attr.id
                         else:
@@ -4960,6 +4955,7 @@ def get_commit_data(target, extra_data=None):
     # return json.dumps(to_commit)
 
 def check_commit_data(target, data, return_err=False, return_obj=False):
+    from decimal import Decimal
     from utils.models import get_dynamic_model, value_is_none, has_method, sigData_to_hash, prnt, has_field, string_to_dt, get_or_create_model, logEvent
     prnt('-check_commit_data',type(target),target,data)
     # from blockchain.models import 
@@ -5046,6 +5042,8 @@ def check_commit_data(target, data, return_err=False, return_obj=False):
                         attr = getattr(obj, i)
                         if isinstance(attr, datetime.datetime):
                             attr = dt_to_string(attr)
+                        elif isinstance(attr, Decimal):
+                            attr = str(attr)
                         elif i.endswith('_obj') and attr:
                             attr = attr.id
                     else:
@@ -5150,6 +5148,7 @@ def convert_to_dict(obj, broadcast=False, withold_fields=True, exclude=None, ful
         d1 = {'objType':obj._meta.object_name}
         if has_field(obj, 'latestVer'):
             d1['latestVer'] = obj.latestVer
+        from decimal import Decimal
         from django.forms.models import model_to_dict
         d2 = {**d1, **model_to_dict(obj)}
         # prnt('d2',d2)
@@ -5170,12 +5169,11 @@ def convert_to_dict(obj, broadcast=False, withold_fields=True, exclude=None, ful
                     data[key] = b64
                 except Exception as e:
                     prnt('convert_to_dict imageField error', e)
+
             else:
                 if key in d2:
-                    # prnt('key in d2',d2[key])
                     data[key] = d2[key]
                 else:
-                    # prnt('key not in d2',value)
                     data[key] = value
                 if isinstance(data[key], bytes):
                     # prnt('size',len(data[key]))
@@ -5211,7 +5209,6 @@ def convert_to_dict(obj, broadcast=False, withold_fields=True, exclude=None, ful
             # prnt('new_sig_data',new_sig_data)
             data['signed'] = new_sig_data
         # prnt('next stage 2')
-        from decimal import Decimal
         for key, value in data.items():
             if isinstance(value, datetime.datetime):
                 data[key] = dt_to_string(value)
