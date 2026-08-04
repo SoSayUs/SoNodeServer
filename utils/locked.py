@@ -2984,9 +2984,11 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
     if update_block:
         block.save(update_fields=['notes'])
     if update_items and block.validated:
+        checked_idens = []
         from utils.models import seperate_by_type, dynamic_bulk_update, get_model, chunk_list
-        for model_name, iden_list in seperate_by_type(obj_idens, include_only={'has_field':['Block_obj']}, exclude={'fields':[{'commitChain':f'!{block.Blockchain_obj.genesisType}'},{'commitChain':f'!{block.Blockchain_obj.genesisId}'}]}).items():
+        for model_name, iden_list in seperate_by_type(obj_idens, include_only={'has_field':['Block_obj']}, exclude={'fields':[{'commitChain':f'!{block.Blockchain_obj.genesisType}'}]}).items():
             prnt('model_name',model_name,'iden_list',iden_list)
+            checked_idens += iden_list
             if model_name == 'Validator':
                 if block.Blockchain_obj.genesisType == 'Sonet':
                     dynamic_bulk_update(model_name, update_data={'Block_obj':block}, id__in=iden_list) # sonet chain includes opChain validators
@@ -3003,7 +3005,6 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
                             bulk_update.append(i)
                     if bulk_update:
                         dynamic_bulk_update(model=get_model(model_name), update_data={}, items_field_update=[], items=bulk_update, compensate_save=True, return_items=False, retrieve_missing=False)
-
             elif has_field(get_model(model_name), 'validated'):
                 bulk_update = []
                 for chunk in chunk_list(iden_list, 500):
@@ -3017,6 +3018,15 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
             # if has_method(get_model(model_name), 'on_boot'):
             #     posts = Post.all_objects.filter(pointerId__in=iden_list).values('pointerId','validated')
             #     missing_posts = [iden for iden in iden_list if iden not in [p['pointerId'] for p in posts]]
+        for model_name, iden_list in seperate_by_type([i for i in obj_idens if i not in checked_idens], include_only={'has_field':['Block_obj','commitChain']}).items():
+            bulk_update = []
+            objs = get_dynamic_model(model_name, list=True, id__in=iden_list)
+            for obj in objs:
+                if obj.commitChain in [block.Blockchain_obj.genesisType, block.Blockchain_obj.genesisId]:
+                    obj.Block_obj = block
+                    bulk_update.append(obj)
+            if bulk_update:
+                dynamic_bulk_update(model_name, items_field_update=['Block_obj'], items=bulk_update)
                 
 
 

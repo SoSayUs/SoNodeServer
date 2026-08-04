@@ -2012,13 +2012,13 @@ def seperate_by_type(obj_list, include_only=None, exclude=None):
                                         break
                         elif isinstance(exclude['fields'], list):
                             for field in exclude['fields']:
-                                prnt('field',field)
+                                # prnt('field',field)
                                 if isinstance(field, dict):
                                     for field_name, field_value in field.items():
-                                        prnt('field_name',field_name,'field_value',field_value)
+                                        # prnt('field_name',field_name,'field_value',field_value)
                                         if field_value.startswith('!'):
                                             field_value = field_value.replace('!','')
-                                            prnt('getattr(model, field_name)',getattr(model, field_name))
+                                            # prnt('getattr(model, field_name)',getattr(model, field_name))
                                             if has_field(model, field_name) and getattr(model, field_name) != field_value:
                                                 err += 'C'
                                                 skip = True
