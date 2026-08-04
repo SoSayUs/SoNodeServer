@@ -4144,19 +4144,23 @@ class Blockchain(models.Model):
                     from legis.models import Government
                     gov = Government.objects.filter(id=new_block.Blockchain_obj.genesisId, Validator_obj__is_valid=True).first()
                     if not gov or not gov.StartDate:
+                        prnt('not gov stop',gov)
                         return None, None
                     
                     future_govs = Government.objects.filter(Region_obj=gov.Region_obj, StartDate__gte=gov.StartDate, Validator_obj__is_valid=True).values('id')
                     if future_govs and Blockchain.objects.filter(genesisId__in=[g['id'] for g in future_govs], chain_length__gt=0).exists():
+                        prnt('future_govs stop',future_govs)
                         return None, None
                     
                     if not future_govs and self.chain_length == 0:
                         prev_gov = Government.objects.filter(Region_obj=gov.Region_obj, StartDate__lt=gov.StartDate, Validator_obj__is_valid=True).order_by('-StartDate').first()
                         if prev_gov and not prev_gov.EndDate:
+                            prnt('prev_gov stop',prev_gov)
                             return None, None
                         elif prev_gov and prev_gov.EndDate:
                             from utils.locked import check_commit_data
                             if not prev_gov.Block_obj or not (prev_gov.id in prev_gov.Block_obj.data and check_commit_data(prev_gov, prev_gov.Block_obj.data[prev_gov.id])):
+                                prnt('prev_gov check_commit_data stop',prev_gov)
                                 return None, None
 
                 from utils.locked import calculate_reward

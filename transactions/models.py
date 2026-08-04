@@ -8,6 +8,7 @@ from utils.locked import hash_obj_id
 import re
 import datetime
 import django_rq
+from decimal import Decimal
 
 model_prefixes = {'Wallet':'wal','Transaction':'tra'}
 
@@ -67,9 +68,9 @@ class Wallet(models.Model):
                     if exclude and transaction == exclude:
                         pass
                     elif transaction.ReceiverWallet_obj == self:
-                        latest_value += float(transaction.token_value)
+                        latest_value += Decimal(transaction.token_value)
                     elif transaction.SenderWallet_obj == self:
-                        latest_value -= float(transaction.token_value)
+                        latest_value -= Decimal(transaction.token_value)
                 if self.value != str(latest_value):
                     self.value = str(latest_value)
                     self.save(update_fields=['value'])
@@ -85,10 +86,10 @@ class Wallet(models.Model):
                 pass
             elif utr.ReceiverWallet_obj == self and utr.ReceiverBlock_obj and utr.ReceiverBlock_obj.validated:
                 # prnt('a')
-                target_value = float(target_value) + float(utr.token_value)
+                target_value = Decimal(target_value) + Decimal(utr.token_value)
             elif utr.SenderWallet_obj == self and utr.SenderBlock_obj and utr.SenderBlock_obj.validated:
                 # prnt('b')
-                target_value = float(target_value) - float(utr.token_value)
+                target_value = Decimal(target_value) - Decimal(utr.token_value)
         
         prnt('target_value',target_value)
         self.value = str(target_value)
@@ -151,7 +152,7 @@ class Transaction(models.Model):
     ReceiverBlock_obj = models.ForeignKey('network.Block', related_name='sender_block', blank=True, null=True, on_delete=models.PROTECT)
     ReceiverWallet_obj = models.ForeignKey('transactions.Wallet', related_name='receiver', blank=True, null=True, on_delete=models.PROTECT)
     SenderWallet_obj = models.ForeignKey('transactions.Wallet', related_name='sender', blank=True, null=True, on_delete=models.PROTECT)
-    token_value = models.TextField(default="0")
+    token_value = models.DecimalField(max_digits=10, decimal_places=4)
     regarding = models.JSONField(default=None, blank=True, null=True)
     validated = models.BooleanField(default=None, blank=True, null=True)
     enact_dt = models.DateTimeField(auto_now=False, auto_now_add=False, blank=True, null=True)
@@ -220,9 +221,9 @@ class Transaction(models.Model):
             if dir == 'send' or dir == 'subtract' or dir == 'sub':
                 wallet_total = self.SenderWallet_obj.tally_tokens(exclude=exclude_from_tally)
         if dir == 'receive':
-            result = float(wallet_total) + float(value)
+            result = Decimal(wallet_total) + Decimal(value)
         elif dir == 'send':
-            result = float(wallet_total) - float(value)
+            result = Decimal(wallet_total) - Decimal(value)
         if return_float:
             return result
         else:
@@ -399,7 +400,7 @@ class Transaction(models.Model):
             return None
 
         # create block obj
-        if self.id is None and not self.regarding or self.id is None and 'BlockReward' in self.regarding and self.regarding['BlockReward'] == 'coming' and float(self.token_value) == 0:
+        if self.id is None and not self.regarding or self.id is None and 'BlockReward' in self.regarding and self.regarding['BlockReward'] == 'coming' and Decimal(self.token_value) == 0:
             self.initialize()
             super(Transaction, self).save(*args, **kwargs)
             prnt('transaction saved1')
