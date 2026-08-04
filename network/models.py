@@ -4569,13 +4569,15 @@ class Tidy:
         # from utils.models import get_model
         def run_me(model_name):
             prnt('run_me',model_name)
-            model = get_model(model_name)
+            model = get_model(model_name)()
             if model_name == 'Post':
                 uncommitted_posts = list(model.objects.filter(blockId=None, created__lte=dt - datetime.timedelta(hours=hours)).iterator(chunk_size=500))
             elif model_name == 'Update':
                 uncommitted_posts = list(model.objects.filter(Block_obj=None, validated=True, created__lte=dt - datetime.timedelta(hours=hours)).iterator(chunk_size=500))
             elif has_field(model, 'Block_obj'):
                 uncommitted_posts = list(model.objects.filter(Block_obj=None, created__lte=dt - datetime.timedelta(hours=hours)).iterator(chunk_size=500))
+            else:
+                uncommitted_posts = []
             runs = 0
             exclude_idens = set()
             request_types = ['UserPubKey','Plugin']
