@@ -1770,8 +1770,8 @@ class Block(models.Model):
             gov = Government.objects.filter(id=self.genesisId).only('Region_obj').first()
             chain = Blockchain.objects.filter(genesisId=gov.Region_obj.id).first()
             chain.add_item_to_queue(self)
-        if self.Blockchain_obj.genesisId in [_OperationsChain_genesisId, _KeyChain_genesisId]:
-            chain = Blockchain.objects.filter(genesisId=_SonetChain_genesisName).first()
+        if self.Blockchain_obj.genesisId in [_OperationsChain_genesisId, _KeyChain_genesisId, _AccountChain_genesisId]:
+            chain = Blockchain.objects.filter(genesisName=_SonetChain_genesisName).first()
             chain.add_item_to_queue(self)
         return self
     
