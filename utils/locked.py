@@ -2718,10 +2718,11 @@ def get_relevant_nodes_from_block(dt=None, genesisId=None, chains=None, blockcha
     from network.models import get_default_opData
     return {'relevant_nodes':{}, 'opData':get_default_opData()}
 
-def check_block_contents(block, retrieve_missing=True, update_items=False, log_missing=False, downstream_worker=True, return_missing=False, input_data=[], uncommitted_required=False):
-    from utils.models import chunk_dict, get_timeData, has_field, has_method, get_dynamic_model, sigData_to_hash, exists_in_worker, get_data, now_utc, prnt, string_to_dt, is_id, logEvent, request_items, logMissing, logError, get_plugin
+def check_block_contents(block, retrieve_missing=True, update_items=False, log_missing=False, downstream_worker=True, return_missing=False, input_data=None, uncommitted_required=False):
+    from utils.models import chunk_dict, get_timeData, has_field, has_method, get_dynamic_model, sigData_to_hash, exists_in_worker, get_data, now_utc, prnt, string_to_dt, is_id, declare_var, request_items, logMissing, logError, get_plugin
     prnt('-check_block_contents', block, block.index, now_utc(), retrieve_missing, downstream_worker)
     from network.models import Validator, max_commit_window
+    input_data = declare_var(input_data, {})
     obj_idens = []
     requested_idens = []
     requested_validators = []
@@ -2769,7 +2770,8 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
 
     if input_data:
         prnt('input_data',input_data)
-        block_data = {key:value for key, value in block.data.items() if key in input_data}
+        # block_data = {key:value for key, value in block.data.items() if key in input_data}
+        block_data = input_data
     else:
         block_data = {**block.data, **block.extraData}
     total_found = 0
