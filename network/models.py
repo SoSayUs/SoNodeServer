@@ -2783,22 +2783,17 @@ class Block(models.Model):
             nonlocal downstream_worker
             
             proceed = False
-            
+            self.validated = True
             self_node = get_self_node()
             if self.Blockchain_obj.genesisId == _OperationsChain_genesisId:
                 prnt('z1')
-                # if 'Active' in self.data:
-                #     prnt('z2')
-                #     for i in self.data['Active']:
-                #         prnt('i',i)
-                #         if i in self.Blockchain_obj.queuedData:
-                #             del self.Blockchain_obj.queuedData[i] # doesnt seem to be working
+                obj_idens, problem_idens = check_block_contents(self, input_data=self.block.extraData, retrieve_missing=True, update_items=True, return_missing=True, downstream_worker=False)
+
                 proceed = True
             elif self_node.id in self.validations and self.validations[self_node.id]['is_valid']: # self_node created validator, doesnt need to process contents again ?? how is Block_obj being set by nodes that validated or created?
                 proceed = True
             prnt('proceed',proceed)
 
-            self.validated = True
             if not proceed:
                 obj_idens, problem_idens = check_block_contents(self, retrieve_missing=True, update_items=True, return_missing=True, downstream_worker=False)
                 prnt('passed check_block_contents')
