@@ -3908,12 +3908,13 @@ class Blockchain(models.Model):
                 genesis_obj = get_dynamic_model(self.genesisId, id=self.genesisId)
                 if has_field(genesis_obj, 'Block_obj') and verify_obj_to_data(genesis_obj, genesis_obj):
                     dummy_block.data[genesis_obj.id] = get_commit_data(genesis_obj)
+            
+            if prev_block and not prev_block.Block_obj:
+                if prev_block.id in dummy_block.data:
+                    del dummy_block.data[prev_block.id]
+                dummy_block.extraData[prev_block.id] = get_commit_data(prev_block)
             if self.genesisId != _OperationsChain_genesisId:
 
-                if prev_block and not prev_block.Block_obj:
-                    if prev_block.id in dummy_block.data:
-                        del dummy_block.data[prev_block.id]
-                    dummy_block.extraData[prev_block.id] = get_commit_data(prev_block)
                 if prev_block and has_field(prev_block, 'Transaction_obj') and prev_block.Transaction_obj and prev_block.id != prev_block.Transaction_obj.senderBlockId: # prev_block is receiverBlock
                     prnt('prev_block.Transaction_obj',prev_block.Transaction_obj)
                     prnt('prev_block.Transaction_obj.senderBlockId',prev_block.Transaction_obj.senderBlockId)
