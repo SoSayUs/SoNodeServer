@@ -3904,14 +3904,16 @@ class Blockchain(models.Model):
                         del dummy_block.data[v.id]
                     if v.id not in dummy_block.extraData and verify_obj_to_data(v, v):
                         dummy_block.extraData[v.id] = get_commit_data(v)
-                if not prev_block.Block_obj:
-                    dummy_block.data[prev_block.id] = get_commit_data(prev_block)
             elif dummy_block.index == 1:
                 genesis_obj = get_dynamic_model(self.genesisId, id=self.genesisId)
                 if has_field(genesis_obj, 'Block_obj') and verify_obj_to_data(genesis_obj, genesis_obj):
                     dummy_block.data[genesis_obj.id] = get_commit_data(genesis_obj)
             if self.genesisId != _OperationsChain_genesisId:
 
+                if prev_block and not prev_block.Block_obj:
+                    if prev_block.id in dummy_block.data:
+                        del dummy_block.data[prev_block.id]
+                    dummy_block.extraData[prev_block.id] = get_commit_data(prev_block)
                 if prev_block and has_field(prev_block, 'Transaction_obj') and prev_block.Transaction_obj and prev_block.id != prev_block.Transaction_obj.senderBlockId: # prev_block is receiverBlock
                     prnt('prev_block.Transaction_obj',prev_block.Transaction_obj)
                     prnt('prev_block.Transaction_obj.senderBlockId',prev_block.Transaction_obj.senderBlockId)
@@ -3925,7 +3927,7 @@ class Blockchain(models.Model):
 
                 if self.genesisType == 'Sonet':
 
-                    recent_universal_blocks = Block.objects.filter(Blockchain_obj__genesisId__in=[_KeyChain_genesisId, _OperationsChain_genesisId], validated=True).values('id').order_by('Blockchain_obj__id', '-index', 'created').distinct('Blockchain_obj__id')
+                    recent_universal_blocks = Block.objects.filter(Blockchain_obj__genesisId__in=[_KeyChain_genesisId, _AccountChain_genesisId, _OperationsChain_genesisId], validated=True).values('id').order_by('Blockchain_obj__id', '-index', 'created').distinct('Blockchain_obj__id')
                     for prev_b in recent_universal_blocks:
                         for v in Validator.objects.filter(jobId=prev_b['id'], validatorType='Block').exclude(Block_obj=None):
                             prnt('v-extra',v.id)
@@ -3933,6 +3935,11 @@ class Blockchain(models.Model):
                                 del dummy_block.data[v.id]
                             if v.id not in dummy_block.extraData and verify_obj_to_data(v, v):
                                 dummy_block.extraData[v.id] = get_commit_data(v)
+                        
+                        if not prev_b.Block_obj:
+                            if prev_b.id in dummy_block.data:
+                                del dummy_block.data[prev_b.id]
+                            dummy_block.extraData[prev_b.id] = get_commit_data(prev_b)
                 elif self.genesisType == 'Wallet': 
                     ...
                     # add to user chain

@@ -2876,7 +2876,7 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
         except Exception as e:
             prnt('err 5607', str(e))
         if not chain_supported:
-            prnt('retrieve_missing p1')
+            prnt('retrieve_missing skip - !chain_supported')
             block.notes['unsupported_chain'] = True
             block.save(update_fields=['notes'])
         else:
