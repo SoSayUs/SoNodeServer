@@ -3508,9 +3508,9 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                     if n == obj['networkChain']:
                         chainId = n
                         break
-            network_chain = Blockchain.objects.filter(Q(id=chainId)|Q(genesisId=chainId)).defer('queuedData').first()
+            network_chain = Blockchain.objects.filter(Q(id=get_chain_id(chainId))|Q(genesisId=chainId)|Q(genesisName=chainId)).defer('queuedData').first()
             if not network_chain:
-                sonet = Sonet.objects.only('id').first()
+                sonet = Sonet.objects.only('id','created').first()
                 if sonet:
                     prnt('new chain branched from Sonet chain',chainId)
                     network_chain = Blockchain(genesisId=chainId, genesisType=chainId, genesisName=chainId, created=sonet.created)
@@ -4309,27 +4309,28 @@ def initial_save(item, share=False, length=None):
 
 def save_mutable_fields(obj, *args, **kwargs):
     prntDebug('--save_mutable_fields',obj)
-    if not has_field(obj, 'Validator_obj') or obj.Validator_obj != None:
+    # if not has_field(obj, 'Validator_obj') or obj.Validator_obj != None:
 
-        if has_field(obj, 'Block_obj') and obj.Block_obj:
-            from utils.locked import check_commit_data, get_commit_data
-            if not check_commit_data(obj, obj.Block_obj.data[obj.id]):
-                prnt('commit_data has CHANGED')
-                # logError('commit_data has CHANGED', code='7532', func='save_mutable_fields', extra={'commit_data':get_commit_data(obj)})
-                return False
-        if has_method(obj, 'get_hash_to_id') and obj._meta.object_name != 'Update':
-            from utils.locked import hash_obj_id
-            if obj.id != hash_obj_id(obj):
-                prnt('IMMUTABLE field has CHANGED')
-                # logError('IMMUTABLE field has CHANGED', code='6432', func='save_mutable_fields', extra={'get_hash_to_id':obj.get_hash_to_id()})
-                return False
-        if has_field(obj, 'signed') and obj.signed:
-            from utils.locked import verify_obj_to_data
-            if not verify_obj_to_data(obj, obj):
-                prnt('-Not Valid Save')
-                # logError('-Not Valid Save', code='3579', func='save_mutable_fields')
-                return False
-    prntDebug('-saving...',obj)
+    if has_field(obj, 'Validator_obj') and obj.Validator_obj:
+        if obj.Validator_obj.data[obj.id] != sigData_to_hash(obj):
+            prnt('validator_data has CHANGED')
+            return False
+    if has_field(obj, 'Block_obj') and obj.Block_obj:
+        from utils.locked import check_commit_data
+        if not check_commit_data(obj, obj.Block_obj.data[obj.id]):
+            prnt('commit_data has CHANGED')
+            return False
+    if has_method(obj, 'get_hash_to_id') and obj._meta.object_name != 'Update':
+        from utils.locked import hash_obj_id
+        if obj.id != hash_obj_id(obj):
+            prnt('IMMUTABLE field has CHANGED')
+            return False
+    if has_field(obj, 'signed') and obj.signed:
+        from utils.locked import verify_obj_to_data
+        if not verify_obj_to_data(obj, obj):
+            prnt('Not Valid Save')
+            return False
+    prntDebug('saving...',obj)
     model = get_model(obj._meta.object_name)
     return compensate_save(obj, model, *args, **kwargs)
 

@@ -3904,6 +3904,8 @@ class Blockchain(models.Model):
                         del dummy_block.data[v.id]
                     if v.id not in dummy_block.extraData and verify_obj_to_data(v, v):
                         dummy_block.extraData[v.id] = get_commit_data(v)
+                if not prev_block.Block_obj:
+                    dummy_block.data[prev_block.id] = get_commit_data(prev_block)
             elif dummy_block.index == 1:
                 genesis_obj = get_dynamic_model(self.genesisId, id=self.genesisId)
                 if has_field(genesis_obj, 'Block_obj') and verify_obj_to_data(genesis_obj, genesis_obj):
