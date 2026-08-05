@@ -563,11 +563,11 @@ class Region(BaseModel):
         
         return self
 
-    def save(self, share=False, *args, **kwargs):
+    def save(self, sig=None, share=False, *args, **kwargs):
         if self.id is None:
             self = initial_save(self)
-        else:
-            save_mutable_fields(self, *args, **kwargs)
+        elif not is_locked(self):
+            save_mutable_fields(self, sig=sig, *args, **kwargs)
 
     def boot(self):
         prnt('-boot',self)
@@ -809,7 +809,7 @@ class Spren(BaseModel):
             prnt('list_spren_items err',str(e))
             return None
 
-    def save(self, share=False, *args, **kwargs):
+    def save(self, sig=None, share=False, *args, **kwargs):
         prnt('-start save spren',self.id)
         
         if self.id is None:
@@ -830,7 +830,7 @@ class Spren(BaseModel):
                 pass
             self.networkChain = pointer.networkChain
             self = initial_save(self)
-        elif not is_locked(self) and save_mutable_fields(self, *args, **kwargs):
+        elif not is_locked(self) and save_mutable_fields(self, sig=sig, *args, **kwargs):
             prnt('done save spren',self.id)
 
     def delete(self):
@@ -968,7 +968,7 @@ class ImageFile(BaseModel):
             return urljoin(base, self.imageField.url)
         return None
         
-    def save(self, share=False, *args, **kwargs):
+    def save(self, sig=None, share=False, *args, **kwargs):
         # prnt('-saving img:')
         if self.id is None:
             if not self.Pointer_obj and self.pointerId:
@@ -977,7 +977,7 @@ class ImageFile(BaseModel):
                     self.pointerKey = ContentType.objects.get_for_model(pointer)
                     self.pointerType = pointer._meta.object_name
             self = initial_save(self)
-        elif not is_locked(self) and save_mutable_fields(self, *args, **kwargs):
+        elif not is_locked(self) and save_mutable_fields(self, sig=sig, *args, **kwargs):
             prnt('saved imageFile')
 
     def delete(self, force_delete=False):
@@ -1234,7 +1234,7 @@ class Update(BaseModel):
                 
         return False if do_save else post
 
-    def save(self, share=False, *args, **kwargs):
+    def save(self, sig=None, share=False, *args, **kwargs):
         prnt('-saveupdate',self.id)
         if self.id is None:
             if self.pointerId and not self.pointerKey:
@@ -1257,7 +1257,7 @@ class Update(BaseModel):
             if network_chain:
                 self.networkChain = network_chain.id
             self = initial_save(self)
-        elif not is_locked(self) and save_mutable_fields(self, *args, **kwargs):
+        elif not is_locked(self) and save_mutable_fields(self, sig=sig, *args, **kwargs):
             prnt('done save u')
     
     def log_deletion(self, data={}):

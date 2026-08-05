@@ -387,7 +387,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     def committed_data_matches(self):
         return is_obj_commit_valid(self)
     
-    def save(self, sig=None,share=False, is_new=False, bypass_verify=False, *args, **kwargs):
+    def save(self, sig=None, share=False, is_new=False, bypass_verify=False, *args, **kwargs):
         prnt('-save user(), is_new', is_new, self.id)
         if is_new:
             prnt('is_new, created:',self.created, 'now_utc()',now_utc())

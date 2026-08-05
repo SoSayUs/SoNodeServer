@@ -4307,7 +4307,7 @@ def initial_save(item, share=False, length=None):
     return item
 
 
-def save_mutable_fields(obj, *args, **kwargs):
+def save_mutable_fields(obj, sig=None, *args, **kwargs):
     prntDebug('--save_mutable_fields',obj)
     # if not has_field(obj, 'Validator_obj') or obj.Validator_obj != None:
 
@@ -4326,8 +4326,9 @@ def save_mutable_fields(obj, *args, **kwargs):
             prnt('IMMUTABLE field has CHANGED')
             return False
     if has_field(obj, 'signed') and obj.signed:
-        from utils.locked import verify_obj_to_data
-        if not verify_obj_to_data(obj, obj):
+        from utils.locked import verify_data, get_signing_data
+        if not verify_data(get_signing_data(obj), obj.signed, signature=sig):
+        # if not verify_obj_to_data(obj, obj):
             prnt('Not Valid Save')
             return False
     prntDebug('saving...',obj)
