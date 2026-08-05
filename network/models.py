@@ -2787,7 +2787,7 @@ class Block(models.Model):
             self_node = get_self_node()
             if self.Blockchain_obj.genesisId == _OperationsChain_genesisId:
                 prnt('z1')
-                obj_idens, problem_idens = check_block_contents(self, input_data=self.block.extraData, retrieve_missing=True, update_items=True, return_missing=True, downstream_worker=False)
+                obj_idens, problem_idens = check_block_contents(self, input_data=self.extraData, retrieve_missing=True, update_items=True, return_missing=True, downstream_worker=False)
 
                 proceed = True
             elif self_node.id in self.validations and self.validations[self_node.id]['is_valid']: # self_node created validator, doesnt need to process contents again ?? how is Block_obj being set by nodes that validated or created?
