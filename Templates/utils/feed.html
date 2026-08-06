@@ -633,6 +633,57 @@
             </div>
         {% endcomment %}
 
+
+
+    {% elif cards == 'chains_list' %}
+
+        {% for post in feed_list %}
+            <div class='card bill' id='{{ post.id }}'>
+                <div class='cardContent'>
+                    <div class='Info'>
+                        <div class='Details'>
+                            <div class='title shorten2'><a href='chain/{{post.id }}' >{{ post.genesisName }}</a></div>
+                            <div class='title'><a href='chain/{{ post.id }}' >{{ post.genesisId }}</a></div>
+                        </div>
+                    </div>
+
+                    <div class='TextContent'>
+                        <ul class='Text'>
+                            <li style='margin-top:15px;'>{{ post.id }}</li>
+                            <li style='margin-top:15px;'>Length: {{ post.chain_length }}</li>
+                            <li style='margin-top:15px;'>Data added: {{ post.data_added_datetime }}</li>
+                            <li style='margin-top:15px;'>Latest Block: {{ post.last_block_datetime }}</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+                
+        {% endfor %}
+
+    {% elif cards == 'chain_list' %}
+
+        {% for post in feed_list %}
+            <div class='card bill' id='{{ post.id }}'>
+                <div class='cardContent'>
+                    <div class='Info'>
+                        <div class='Details'>
+                            <div class='title shorten2'><a href='' >{{ post.index }}</a></div>
+                            <div class='title'><a href='' >{{ post.DateTime }}</a></div>
+                        </div>
+                    </div>
+
+                    <div class='TextContent'>
+                        <ul class='Text'>
+                            <li style='margin-top:15px;'>{{ post.id }}</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+                
+        {% endfor %}
+
+
+
     {% endif %}
 {% endif %}
 {% if style == 'preload' %}

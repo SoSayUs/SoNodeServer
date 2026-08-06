@@ -15,10 +15,7 @@ import django_rq
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-if testing():
-    run_as_worker = False
-else:
-    run_as_worker = True
+run_as_worker = False if testing() else True
 
 
 @csrf_exempt
@@ -1595,6 +1592,4 @@ def get_plugin_data_view(request):
         except:
             sonet = None
         return JsonResponse({'plugins' : json.dumps(plugin_data), 'sonet' : sonet})
-    
-
 

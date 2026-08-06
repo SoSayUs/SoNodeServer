@@ -10,6 +10,9 @@ urlpatterns = [
     path('privacy_policy', account_views.privacy_policy_view),
     path('values', account_views.values_view),
     path('hero', account_views.hero_view),
+    path('chains', posts_views.chains_view),
+    re_path('chain/(?P<chain_id>(.*))', posts_views.chain_view),
+
     path('get-the-app', account_views.get_app_view),
     path('test', posts_views.test_view),
     
