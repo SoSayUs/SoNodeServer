@@ -2594,9 +2594,11 @@ def get_relevant_nodes_from_block(dt=None, genesisId=None, chains=None, blockcha
     if not exclude_list:
         exclude_list = []
     if not dt and obj:
+        prnt('a1',obj)
         # only use obj if dt may not be available, always include genesisId or network/chains else will get all active nodes
         dt = get_timeData(obj, sort='updated')
     elif not dt:
+        prnt('a2')
         dt = now_utc()
     record = None
     node_ids = []
