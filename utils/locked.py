@@ -1614,7 +1614,7 @@ def validate_block(block, creator_nodes=None, opBlock_data={}, create_validator=
             fail_reason = 1
             hard_pass = False
             proceed_to_valid = False
-            prev_block = block.get_previous_block(is_validated=True, do_not_return_self=True)
+            prev_block = block.get_previous_block(is_validated=True, return_chain=False)
             if not block.networkChain and block.DateTime.minute not in _block_creation_times:
                 hard_pass = True
                 fail_reason = 751
