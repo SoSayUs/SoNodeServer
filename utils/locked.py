@@ -2641,7 +2641,9 @@ def get_relevant_nodes_from_block(dt=None, genesisId=None, chains=None, blockcha
             prnt('record',record)
             prnt('record.data',record.data)
             prnt('exclude_list',exclude_list)
-            node_ids = [n for n in record.data['active'] if n not in exclude_list]
+            if not sublist:
+                sublist = 'active'
+            node_ids = [n for n in record.data[sublist] if n not in exclude_list]
 
         elif genesisId or blockchain:
             prnt('op2')
@@ -3542,6 +3544,9 @@ def verify_merkle_proof(
 # assignment alogrithms
 
 def position_sort(starting_position, pattern, active_set, number_of_matches, max_pos=None):
+    from utils.models import prnt
+    prnt('-position_sort',starting_position,pattern,number_of_matches)
+    prnt('active_set',active_set)
     # equivalent to find_matches in default.js
     '''Deterministic Position Traversal
 
@@ -3600,8 +3605,8 @@ def position_sort(starting_position, pattern, active_set, number_of_matches, max
         node = Node.objects.filter(id=starting_position).values('pos').first()
         starting_position = node['pos']
 
-
     if max_pos <= 0:
+        prnt('max_pos',max_pos)
         return []
 
     matches = []
@@ -3626,13 +3631,12 @@ def position_sort(starting_position, pattern, active_set, number_of_matches, max
     for _ in range(max_pos):
         if len(matches) >= number_of_matches:
             break
-
         if current_pos in active_set and current_pos not in visited:
             matches.append(active_set[current_pos])
             visited.add(current_pos)
-
         current_pos = ((current_pos + step - 1) % max_pos) + 1
 
+    prnt('matches',matches)
     return matches
 
 def position_sort_old(starting_id, pattern, nodes_dict, number_of_matches, max_pos=None):
@@ -3703,10 +3707,10 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
     prnt('----get_node_assignment obj:', obj, 'dt',dt, 'func',func, 'strings:', strings_only,'chainId',chainId,'opBlock_data',opBlock_data,'return_receiverTransaction',return_receiverTransaction)
 
     def shuffle_nodes(text_input, dt, node_ids):
-        # prnt('shuffle_nodes node_ids',node_ids)
+        prnt('shuffle_nodes node_ids',node_ids)
         dt_str = dt_to_string(dt)
         seed_input = f"{text_input}_{dt_str}"
-        # prnt('seed_input',seed_input)
+        prnt('seed_input',seed_input)
         seed_hash = hashlib.sha256(seed_input.encode('utf-8')).hexdigest()
         seed_int = int(seed_hash, 16)
         rng = random.Random(seed_int)
@@ -3714,7 +3718,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
         # shuffled_nodes = node_ids.copy()
         shuffled_nodes = node_ids.copy()
         rng.shuffle(shuffled_nodes)
-        # prnt('shuffled_nodes',shuffled_nodes)
+        prnt('shuffled_nodes',shuffled_nodes)
         return shuffled_nodes
 
     is_transaction = False
@@ -3799,8 +3803,8 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
                     plugin = Plugin.objects.filter(app_name='transactions').exclude(Block_obj=None).values('id').first()
                     from accounts.models import User
                     user = User.objects.filter(id=obj.ReceiverWallet_obj.networkChain).values('nodeCreatorId','pattern').first()
-                    opBlock_data = get_relevant_nodes_from_block(dt=dt, genesisId=plugin['id'], strings_only=strings_only, include_relays=False)
-
+                    opBlock_data = get_relevant_nodes_from_block(dt=dt, genesisId=plugin['id'], sublist='maintainer', strings_only=strings_only, include_relays=False)
+                    prnt('opBlock_data',opBlock_data)
                     node_ids = position_sort(user['nodeCreatorId'], user['pattern'], opBlock_data['relevant_nodes'], opBlock_data['opData']['number_of_peers'])
                     valid_node_ids_received = True
 
@@ -3828,7 +3832,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
                     # prnt('required_validators2',required_validators)
                 else:
                     required_validators = get_required_validator_count(obj=obj, node_ids=node_ids, opBlock_data=opBlock_data)
-                    # prnt('required_validators1',required_validators)
+                prnt('required_validators1',required_validators)
 
                 creator_nodes = shuffled_nodes[:opBlock_data['opData']['block_creator_count']]
                 validator_nodes = list(reversed(shuffled_nodes[-required_validators:]))

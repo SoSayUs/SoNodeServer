@@ -230,7 +230,7 @@ class Transaction(models.Model):
             return str(result)
 
     def enact_transaction(self, id=None):
-        prnt('-enact_transaction')
+        prnt('-enact_transaction',self.validated, self.enact_dt)
         if not self.validated:
             return False
         if self.enacted:

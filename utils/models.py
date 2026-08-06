@@ -3057,6 +3057,15 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                             if debug:
                                 prnt('--UDP:',str(getattr(obj, f.name)), str(data[f.name]))
                         setattr(obj, f.name, None)
+                    elif f.name in ['created','lastUpdate']:
+                        if getattr(obj, f.name) != data[f.name]:
+                            dt = string_to_dt(data[f.name])
+                            if dt < now_utc():
+                                updatedDB = True
+                                updated_fields.append(f.name)
+                                if debug:
+                                    prnt('--UDP:',str(getattr(obj, f.name)), str(data[f.name]))
+                                setattr(obj, f.name, dt)
                     elif f.__class__.__name__ == 'BooleanField' and (str(data[f.name]).lower() == 'true' or str(data[f.name]).lower() == 'false'):
                         value = data[f.name]
                         if f.__class__.__name__ == 'BooleanField':
@@ -3108,6 +3117,9 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
 
                     elif 'name' in str(f.name).lower() and isinstance(data[f.name], str):
                         if not is_id(data[f.name]) and not has_profanity(data[f.name], level=3):
+                            if str(getattr(obj, f.name)) != data[f.name]:
+                                updatedDB = True
+                                updated_fields.append(f.name)
                             setattr(obj, f.name, data[f.name])
                     elif str(f.name) in ['Block_obj','SenderBlock_obj','ReceiverBlock_obj']:
                         
@@ -3151,24 +3163,35 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                         if debug:
                             prnt('is activated_dt',data[f.name])
                         if f.name in data and data[f.name]:
+                            value = string_to_dt(data[f.name])
                             if obj.suspended_dt and getattr(obj, f.name):
-                                if obj.suspended_dt < string_to_dt(data[f.name]):
+                                if obj.suspended_dt < value:
                                     obj.suspended_dt = None
-                            setattr(obj, f.name, string_to_dt(data[f.name]))
+                            if str(getattr(obj, f.name)) != value:
+                                updatedDB = True
+                                updated_fields.append(f.name)
+                            setattr(obj, f.name, value)
                     elif str(f.name) in ['end_life_dt']:
                         if debug:
                             prnt('is end_life_dt',data[f.name])
                         if not obj.end_life_dt:
+                            updatedDB = True
+                            updated_fields.append(f.name)
                             setattr(obj, f.name, string_to_dt(data[f.name]))
                     elif str(f.name) in ['networkChain','commitChain']:
-                        if data[f.name] == 'Nodes':
-                            pass
-                        elif data[f.name] == 'Sonet':
-                            from network.models import _EarthChain_genesisId
-                            if get_plugin(obj, name=True) == 'network' or data['id'] == _EarthChain_genesisId:
+                        if str(getattr(obj, f.name)) != data[f.name]:
+                            if data[f.name] == 'Nodes':
+                                pass
+                            elif data[f.name] == 'Sonet':
+                                from network.models import _EarthChain_genesisId
+                                if get_plugin(obj, name=True) == 'network' or data['id'] == _EarthChain_genesisId:
+                                    updatedDB = True
+                                    updated_fields.append(f.name)
+                                    setattr(obj, f.name, data[f.name])
+                            else:
+                                updatedDB = True
+                                updated_fields.append(f.name)
                                 setattr(obj, f.name, data[f.name])
-                        else:
-                            setattr(obj, f.name, data[f.name])
                     elif 'prevVersion' == str(f.name):
                         if debug:
                             prnt('sync prevVersion',data[f.name])
@@ -3176,20 +3199,21 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                             value = None
                         else:
                             value = str(data[f.name])
-                        setattr(obj, f.name, value)
-                        prnt('prevVersion',value)
-                        if not value_is_none(value):
-                            prnt('is not none')
-                            prev_ver = get_model(obj._meta.object_name).objects.filter(id=value).first()
-                            if not prev_ver:
+                        if str(getattr(obj, f.name)) != value:
+                            updatedDB = True
+                            updated_fields.append(f.name)
+                            setattr(obj, f.name, value)
+                            prnt('prevVersion',value)
+                            if not value_is_none(value):
+                                prnt('is not none')
+                                prev_ver = get_model(obj._meta.object_name).objects.filter(id=value).first()
+                                if not prev_ver:
 
-                                returned_objs = request_items(requested_items=[value], return_updated_objs=True, return_updated_ids=False, return_missing=False, check_consensus=True, downstream_worker=False, get_missing_blocks=False, override_completed=True)
-                                prnt('returned_objs',returned_objs)
-                            elif prev_ver and has_field(prev_ver, 'validated') and not prev_ver.validated:
-                                from utils.locked import validate_obj
-                                validate_obj(obj=prev_ver, pointer=None, validators=[], save_obj=True, update_pointer=True, verify_validator=True, add_to_queue=True, opBlock_data={})
-
-                    
+                                    returned_objs = request_items(requested_items=[value], return_updated_objs=True, return_updated_ids=False, return_missing=False, check_consensus=True, downstream_worker=False, get_missing_blocks=False, override_completed=True)
+                                    prnt('returned_objs',returned_objs)
+                                elif prev_ver and has_field(prev_ver, 'validated') and not prev_ver.validated:
+                                    from utils.locked import validate_obj
+                                    validate_obj(obj=prev_ver, pointer=None, validators=[], save_obj=True, update_pointer=True, verify_validator=True, add_to_queue=True, opBlock_data={})
                     elif '_obj' in str(f.name):
                         # prnt('y21')
                         id_field = str(f.name) + '_id'
@@ -3223,8 +3247,7 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                                 setattr(obj, id_field, value)
                         else:
                             setattr(obj, id_field, value)
-                    
-
+                
                     elif f.__class__.__name__ == 'ArrayField' or isinstance(data[f.name], list) or '_array' in f.name:
                         if debug:
                             prnt('is array or list',data[f.name])
@@ -3246,14 +3269,9 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                             updated_fields.append(f.name)
                             # if debug:
                             #     prnt('--UDP:',str(sort_for_sign(getattr(obj, f.name))), str(data[f.name]))
-                        # setattr(obj, f.name, data[f.name])
                         from django.core.files.base import ContentFile
-                        # prnt('data[f.name]',data[f.name])       
-                        # prnt('data["file_path"]',data["file_path"].replace('images/',''))               
                         image_bytes = base64.b64decode(data[f.name])
-                        # prnt('x1')
                         obj.imageField.save(data["file_path"].replace('images/',''), ContentFile(image_bytes), save=False)
-                        # prnt('x2')
 
                     elif f.name == 'pointerKey':
                         # pointer = get_dynamic_model(data['pointerId'], id=data['pointerId'])
@@ -3275,7 +3293,7 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                             updated_fields.append(f.name)
                             if debug:
                                 prnt('--UDP:',str(getattr(obj, f.name)), str(data[f.name]))
-                        setattr(obj, f.name, decimal.Decimal(data[f.name]))
+                            setattr(obj, f.name, decimal.Decimal(data[f.name]))
                     elif str(data[f.name]) == "[]":
                         if debug:
                             prnt('== []',data[f.name])
@@ -3284,7 +3302,7 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                             updated_fields.append(f.name)
                             if debug:
                                 prnt('--UDP:',str(getattr(obj, f.name)), str(data[f.name]))
-                        setattr(obj, f.name, "[]")
+                            setattr(obj, f.name, "[]")
                     elif str(data[f.name]).startswith('[') and str(data[f.name]).endswith(']'):
                         if debug:
                             prnt('starts with []', json.dumps(data[f.name]))
@@ -3293,7 +3311,7 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                             updated_fields.append(f.name)
                             if debug:
                                 prnt('--UDP:',str(getattr(obj, f.name)), str(data[f.name]))
-                        setattr(obj, f.name, json.dumps(data[f.name]))
+                            setattr(obj, f.name, json.dumps(data[f.name]))
                     elif f.__class__.__name__ == 'DateTimeField':
                         if debug:
                             prnt('is DateTimeField', data[f.name])
@@ -3302,10 +3320,11 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                             if not getattr(obj, f.name) and data[f.name] or str(dt_to_string(getattr(obj, f.name))) != str(data[f.name]):
                                 updatedDB = True
                                 updated_fields.append(f.name)
+                                setattr(obj, f.name, string_to_dt(data[f.name]))
                         except:
                             updatedDB = True
                             updated_fields.append(f.name)
-                        setattr(obj, f.name, string_to_dt(data[f.name]))
+                            setattr(obj, f.name, string_to_dt(data[f.name]))
                     elif f.__class__.__name__ == 'CharField' or f.__class__.__name__ == 'TextField':
                         if debug:
                             prnt('is string',data[f.name])
@@ -3319,7 +3338,7 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                                 updated_fields.append(f.name)
                                 if debug:
                                     prnt('--UDP:',str(getattr(obj, f.name)), str(data[f.name]))
-                            setattr(obj, f.name, value)
+                                setattr(obj, f.name, value)
                     else:
                         if debug:
                             prnt('sync esle',data[f.name])
@@ -3334,11 +3353,11 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                                 updated_fields.append(f.name)
                                 if debug:
                                     prnt('--UDP:',str(sort_for_sign((getattr(obj, f.name)))), str(data[f.name]), fieldData)
-                            setattr(obj, f.name, fieldData)
+                                setattr(obj, f.name, fieldData)
                     
 
         except Exception as e:
-            prnt('fsyncattr4937',f.name,str(e),str(data[f.name])[:100])
+            prnt('fsyncattr err',f.name,str(e),str(data[f.name])[:100])
             pass
 
     if has_field(obj , 'Block_obj') and obj.Block_obj and obj.id in obj.Block_obj.data:
