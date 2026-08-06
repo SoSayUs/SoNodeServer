@@ -7514,20 +7514,20 @@ def process_received_blocks(received_json, get_missing_blocks=True, resend_missi
                     else:
                         prntDebug('process reward')
                         proceed_to_check_consensus = False
-                        if block_transaction['token_value'] == calculate_reward(block_transaction['created']):
-                            sig_data = get_sigData(block_transaction, first_key=True)
-                            pkey = sig_data['pk']
-                            if is_id(pkey):
-                                iden = pkey
-                            else:
-                                iden = hash_upk_id(pkey)
-                            upk = UserPubKey.objects.filter(id=iden, keyType='node').only('publicKey','end_life_dt').first()
-                            if upk:
-                                transaction_signature_verified = upk.verify(get_signing_data(block_transaction), sig_data['sig'], publicKey=block_transaction['signed'])
-                            prntDebug('transaction_signature_verified',transaction_signature_verified)
-                            if transaction_signature_verified:
-                                transaction = get_or_create_model('Transaction', id=block_transaction['id'])
-                                transaction, sigs, proceed_to_check_consensus, transaction_updatedDB = sync_model(transaction, block_transaction, get_missing_blocks=get_missing_blocks)
+                        # if block_transaction['token_value'] == calculate_reward(block_transaction['created']):
+                        sig_data = get_sigData(block_transaction, first_key=True)
+                        pkey = sig_data['pk']
+                        if is_id(pkey):
+                            iden = pkey
+                        else:
+                            iden = hash_upk_id(pkey)
+                        upk = UserPubKey.objects.filter(id=iden, keyType='node').only('publicKey','end_life_dt').first()
+                        if upk:
+                            transaction_signature_verified = upk.verify(get_signing_data(block_transaction), sig_data['sig'], publicKey=block_transaction['signed'])
+                        prntDebug('transaction_signature_verified',transaction_signature_verified)
+                        if transaction_signature_verified:
+                            transaction = get_or_create_model('Transaction', id=block_transaction['id'])
+                            transaction, sigs, proceed_to_check_consensus, transaction_updatedDB = sync_model(transaction, block_transaction, get_missing_blocks=get_missing_blocks)
                                 
                     prnt('proceed_to_check_consensus',proceed_to_check_consensus)
                     if proceed_to_check_consensus:
