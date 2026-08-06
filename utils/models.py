@@ -1039,8 +1039,7 @@ def remove_accents(input_str):
     return unicodedata.normalize('NFC', filtered_str)
 
 def get_timeData(obj, sort='created', querying=False, descending=True, first_string=False):
-    # prntDebug('-get_timeData', obj)
-
+    prntDebug('-get_timeData', obj)
     if sort == 'created':
         x = ['created', 'DateTime']
     elif sort == 'updated':
@@ -1054,22 +1053,26 @@ def get_timeData(obj, sort='created', querying=False, descending=True, first_str
                 x.remove(i)
             z += 1
         if first_string:
+            prnt('r5')
             return x[0]
         if descending:
             x = ['-' + item for item in x]
+            prnt('r4')
         return x
     else:
         for i in x:
             if has_field(obj, i):
                 if isinstance(obj, models.Model):
+                    prnt('r1',i)
                     return getattr(obj, i)
                 elif isinstance(obj, dict):
                     try:
+                        prnt('r2',i)
                         return string_to_dt(obj[i])
                     except Exception as e:
                         prnt('get_timeData err', str(e))
                         return None
-
+    prnt('r3')
     return None
 
 def chunk_list(data, chunk_size=500):

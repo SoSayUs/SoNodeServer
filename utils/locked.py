@@ -2604,7 +2604,9 @@ def get_relevant_nodes_from_block(dt=None, genesisId=None, chains=None, blockcha
     from network.models import Block, Node, NodeRecord, Blockchain, Sonet, _EarthChain_genesisId, universalChains, _OperationsChain_genesisId, mandatoryChains
     from utils.models import get_pointer_type, get_chain_type, is_id
     from django.db import models
+    prnt('dt',dt)
     if not opBlock and not testing():
+        prnt('get opBlock',_OperationsChain_genesisId,dt)
         opBlock = Block.objects.filter(Blockchain_obj__genesisId=_OperationsChain_genesisId, DateTime__lte=dt, validated=True).only('opData').order_by('-index', 'created').first()
 
     if blockchain and isinstance(blockchain, models.Model) and blockchain.genesisType in universalChains:
@@ -2637,6 +2639,7 @@ def get_relevant_nodes_from_block(dt=None, genesisId=None, chains=None, blockcha
             # # return relevant_nodes
             # return {'relevant_nodes':dict(relevant_nodes.items()),'opData':opBlock.opData}
         elif genesisId and NodeRecord.objects.filter(pointerId=genesisId, DateTime__lte=dt, is_valid=True).exists():
+            prnt('op1')
             record = NodeRecord.objects.filter(pointerId=genesisId, DateTime__lte=dt, is_valid=True).first()
             prnt('record',record)
             prnt('record.data',record.data)
@@ -2684,7 +2687,7 @@ def get_relevant_nodes_from_block(dt=None, genesisId=None, chains=None, blockcha
                 node_ids = [n for n in record.data['abilities'][sublist] if n not in exclude_list]
 
         else:
-            # prnt('else',dt)
+            prnt('else',dt)
             record = NodeRecord.objects.filter(pointerId=_OperationsChain_genesisId, DateTime__lte=dt, is_valid=True).first()
             if record:
                 node_ids = [n for n in record.data['active'] if n not in exclude_list]
