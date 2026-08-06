@@ -4055,9 +4055,9 @@ class Blockchain(models.Model):
                 new_block.prv_hash = '0000000'
 
             if self.genesisId == transaction.ReceiverWallet_obj.id:
-                new_block.data['value'] = {'before':transaction.ReceiverWallet_obj.value,'value':transaction.token_value}
+                new_block.data['value'] = {'before':transaction.ReceiverWallet_obj.value,'value':str(transaction.token_value.normalize())}
             elif transaction.SenderWallet_obj and self.genesisId == transaction.SenderWallet_obj.id:
-                new_block.data['value'] = {'before':transaction.SenderWallet_obj.value,'value':f'-{transaction.token_value}'}
+                new_block.data['value'] = {'before':transaction.SenderWallet_obj.value,'value':f'-{str(transaction.token_value.token_value.normalize())}'}
             else:
                 prnt('r2','self.genesisId',self.genesisId, 'transaction.ReceiverWallet_obj.id',transaction.ReceiverWallet_obj.id)
                 return None
