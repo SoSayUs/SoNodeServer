@@ -4920,7 +4920,7 @@ def get_commit_data(target, extra_data=None):
                         if isinstance(attr, datetime.datetime):
                             to_commit[i] = dt_to_string(attr)
                         elif isinstance(attr, Decimal):
-                            to_commit[i] = str(attr)
+                            to_commit[i] = str(attr.normalize())
                         elif i.endswith('_obj') and attr and isinstance(attr, models.Model):
                             to_commit[i] = attr.id
                         else:
@@ -5042,7 +5042,7 @@ def check_commit_data(target, data, return_err=False, return_obj=False):
                         if isinstance(attr, datetime.datetime):
                             attr = dt_to_string(attr)
                         elif isinstance(attr, Decimal):
-                            attr = str(attr)
+                            attr = str(attr.normalize())
                         elif i.endswith('_obj') and attr:
                             attr = attr.id
                     else:
@@ -5212,7 +5212,7 @@ def convert_to_dict(obj, broadcast=False, withold_fields=True, exclude=None, ful
             if isinstance(value, datetime.datetime):
                 data[key] = dt_to_string(value)
             elif isinstance(value, Decimal):
-                data[key] = str(value)
+                data[key] = str(value.normalize())
 
         if withold_fields:
             for f in do_not_share_fields:
