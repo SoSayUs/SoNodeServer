@@ -1823,7 +1823,10 @@ def calculate_reward(dt, previous_dt):
     if previous_dt:
         from django.db import models
         if isinstance(previous_dt, models.Model):
-            previous_dt = previous_dt.DateTime
+            if previous_dt._meta.object_name == 'Block':
+                previous_dt = previous_dt.DateTime
+            else:
+                previous_dt = None
         previous_dt = string_to_dt(previous_dt)
     # from blockchain.models import Sonet, _golden_ratio
     # import math
