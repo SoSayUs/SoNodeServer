@@ -2692,11 +2692,12 @@ def get_relevant_nodes_from_block(dt=None, genesisId=None, chains=None, blockcha
         if record:
             if node_ids_only:
                 return node_ids
+            # can adjust Node query here, needed data should be in nodeRecord
             sonet = Sonet.objects.values('Domain').first()
             if strings_only:
-                relevant_nodes = {n['id']:{'address':n['address'],'onion':n['onion']} for n in Node.objects.filter(id__in=node_ids).values('address','onion','id')}
+                relevant_nodes = {n['id']:{'address':n['address'],'onion':n['onion'],'pos':n['pos']} for n in Node.objects.filter(id__in=node_ids).values('address','onion','id','pos')}
             else:
-                relevant_nodes = {n.id: n for n in Node.objects.filter(id__in=node_ids).defer('chain_array','plugin_array','Block_obj','User_obj','abilities','region_data')}
+                relevant_nodes = {n.id: n for n in Node.objects.filter(id__in=node_ids).defer('chain_array','plugin_array','region_array','Block_obj','User_obj','abilities','region_data')}
             relevant_nodes = {i:relevant_nodes[i] for i in node_ids}
             prnt('nrec',record,'1 node_ids',node_ids, 'relevant_nodes',relevant_nodes)
             return {'relevant_nodes':dict(relevant_nodes.items()),'opData': opBlock.opData if opBlock else {}}
@@ -3806,9 +3807,10 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
                     plugin = Plugin.objects.filter(app_name='transactions').exclude(Block_obj=None).values('id').first()
                     from accounts.models import User
                     user = User.objects.filter(id=obj.ReceiverWallet_obj.networkChain).values('nodeCreatorId','pattern').first()
-                    opBlock_data = get_relevant_nodes_from_block(dt=dt, genesisId=plugin['id'], sublist='maintainer', strings_only=strings_only, include_relays=False)
+                    # position_sort requires strings_only=True to receive "pos"
+                    opBlock_data = get_relevant_nodes_from_block(dt=dt, genesisId=plugin['id'], sublist='maintainer', strings_only=True, include_relays=False)
                     prnt('opBlock_data',opBlock_data)
-                    node_ids = position_sort(user['nodeCreatorId'], user['pattern'], opBlock_data['relevant_nodes'], opBlock_data['opData']['number_of_peers'])
+                    node_ids = position_sort(user['nodeCreatorId'], user['pattern'], {n['pos']:n for n in opBlock_data['relevant_nodes']}, opBlock_data['opData']['number_of_peers'])
                     valid_node_ids_received = True
 
                 elif block: # block is RecevierBlock - same as inputting obj=tx and return_receiverTransaction=True
