@@ -3810,7 +3810,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
                     # position_sort requires strings_only=True to receive "pos"
                     opBlock_data = get_relevant_nodes_from_block(dt=dt, genesisId=plugin['id'], sublist='maintainer', strings_only=True, include_relays=False)
                     prnt('opBlock_data',opBlock_data)
-                    node_ids = position_sort(user['nodeCreatorId'], user['pattern'], {n['pos']:n for n in opBlock_data['relevant_nodes']}, opBlock_data['opData']['number_of_peers'])
+                    node_ids = position_sort(user['nodeCreatorId'], user['pattern'], {d['pos']:n for n, d in opBlock_data['relevant_nodes'].items()}, opBlock_data['opData']['number_of_peers'])
                     valid_node_ids_received = True
 
                 elif block: # block is RecevierBlock - same as inputting obj=tx and return_receiverTransaction=True
