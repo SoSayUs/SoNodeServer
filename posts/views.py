@@ -886,10 +886,11 @@ def chains_view(request):
     view = request.GET.get('view', 'Current')
     date = request.POST.get('date')
     # form = AgendaForm()
+    title = 'Blockchains'
     if style == 'preload':
         prnt('preload')
         context = {
-            'title': 'Debates',
+            'title': title,
             'style':style,
         }
         return render(request, "home.html", get_cookies(request,context))
@@ -912,7 +913,7 @@ def chains_view(request):
             context = get_user_sending_data(user_id, context)
             return render(request, "utils/fetch_index.html", context)
         else:
-            title = 'Blockchains'
+            
             nav_options = []
             if include_nav == 'True':
                 nav_options = [
@@ -982,10 +983,11 @@ def chain_view(request, chain_id):
     view = request.GET.get('view', 'Current')
     date = request.POST.get('date')
     # form = AgendaForm()
+    title = Blockchain.objects.filter(id=chain_id).only('genesisName').first().genesisName
     if style == 'preload':
         prnt('preload')
         context = {
-            'title': 'Debates',
+            'title': title,
             'style':style,
         }
         return render(request, "home.html", get_cookies(request,context))
@@ -1008,7 +1010,7 @@ def chain_view(request, chain_id):
             context = get_user_sending_data(user_id, context)
             return render(request, "utils/fetch_index.html", context)
         else:
-            title = Blockchain.objects.filter(id=chain_id).only('genesisName').first().genesisName
+            
             nav_options = []
             if include_nav == 'True':
                 nav_options = [

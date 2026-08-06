@@ -656,7 +656,9 @@
                         </ul>
                     </div>
                 </div>
+            <div class="miniMore", title='More' onclick="react('more','{{post.id}}')"><span class="material-icons">more_horiz</span></div>
             </div>
+            <div class='bottomDivider'></div>
                 
         {% endfor %}
 
@@ -667,8 +669,8 @@
                 <div class='cardContent'>
                     <div class='Info'>
                         <div class='Details'>
-                            <div class='title shorten2'><a href='' >{{ post.index }}</a></div>
-                            <div class='title'><a href='' >{{ post.DateTime }}</a></div>
+                            <div class='title shorten2'><a href='' >index: {{ post.index }} - {{ post.DateTime }}</a></div>
+                            <div class='title'><a href='' >validated: {{ post.validated }}</a></div>
                         </div>
                     </div>
 
@@ -678,7 +680,10 @@
                         </ul>
                     </div>
                 </div>
+            
+            <div class="miniMore", title='More' onclick="react('more','{{post.id}}')"><span class="material-icons">more_horiz</span></div>
             </div>
+            <div class='bottomDivider'></div>
                 
         {% endfor %}
 
