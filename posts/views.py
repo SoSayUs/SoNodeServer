@@ -1039,7 +1039,7 @@ def chain_view(request, chain_id):
                 #     include_list = ['Meeting']
                 #     posts, view = algorithim(user, include_list, current_chamber_list, country_dict, view, page)
                 #     # posts, view = algorithim(request, include_list, Chamber, region, view, page)
-            posts = Block.objects.filter(Blockchain_obj__id=chain_id).order_by('-index')
+            posts = Block.objects.filter(Blockchain_obj__id=chain_id).order_by('-DateTime')
             
             # if view != 'Trending' and user and user.UserData_obj:
             #     userKeys = [k for k, value in Counter(user.UserData_obj.get_interests()).most_common()]

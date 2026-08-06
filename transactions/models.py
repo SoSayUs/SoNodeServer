@@ -53,7 +53,7 @@ class Wallet(models.Model):
             return ['created', 'User_obj', 'Name']
 
     def get_chain(self):
-        return Blockchain.objects.filter(genesisId=self.networkChain).defer('queuedData').first()
+        return Blockchain.objects.filter(genesisId=self.id).defer('queuedData').first()
     
     def tally_tokens(self, full_recount=False, exclude=None):
         prnt('-tally_tokens wallet')
