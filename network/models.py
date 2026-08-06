@@ -4048,6 +4048,7 @@ class Blockchain(models.Model):
             prev_block = self.get_last_block(do_not_return_self=True)
             if prev_block:
                 if not prev_block.validated: # wait for previous transactions to complete
+                    prnt('r1 prev_block',prev_block.validated)
                     return None
                 new_block.prv_hash = prev_block.hash
             else:
@@ -4058,6 +4059,7 @@ class Blockchain(models.Model):
             elif transaction.SenderWallet_obj and self.genesisId == transaction.SenderWallet_obj.id:
                 new_block.data['value'] = {'before':transaction.SenderWallet_obj.value,'value':f'-{transaction.token_value}'}
             else:
+                prnt('r2','self.genesisId',self.genesisId, 'transaction.ReceiverWallet_obj.id',transaction.ReceiverWallet_obj.id)
                 return None
             
             new_block.opBlockId = Block.objects.filter(Blockchain_obj__genesisId=_OperationsChain_genesisId, DateTime__lte=new_block.created, validated=True).order_by('-index', 'created').values('id').first()['id']
