@@ -400,6 +400,7 @@ class Transaction(models.Model):
         #     return None
 
         # create block obj
+        self.token_value = Decimal(str(self.token_value)).normalize()
         if self.id is None and not self.regarding or self.id is None and 'BlockReward' in self.regarding and self.regarding['BlockReward'] == 'coming' and Decimal(str(self.token_value)) == 0:
             self.initialize()
             super(Transaction, self).save(*args, **kwargs)
