@@ -3788,7 +3788,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
                         dt = obj.ReceiverBlock_obj.DateTime
 
                     from network.models import Plugin
-                    plugin = Plugin.objects.filter(app_name='transactions').exclude(Block=None).values('id').first()
+                    plugin = Plugin.objects.filter(app_name='transactions').exclude(Block_obj=None).values('id').first()
                     from accounts.models import User
                     user = User.objects.filter(id=obj.ReceiverWallet_obj.networkChain).values('nodeCreatorId','pattern').first()
                     opBlock_data = get_relevant_nodes_from_block(dt=dt, genesisId=plugin['id'], strings_only=strings_only, include_relays=False)
