@@ -3614,6 +3614,9 @@ def position_sort(starting_position, pattern, active_set, number_of_matches, max
 
     #  Initial position (1-based safe wrap)
     start = ((starting_position + pattern - 1) % max_pos) + 1
+    prnt('start',start)
+    if not start:
+        start = 1
 
     #  Deterministic step derived from pattern
     step = abs(pattern) % max_pos
