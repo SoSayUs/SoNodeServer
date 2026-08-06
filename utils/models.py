@@ -45,7 +45,7 @@ def check_super_commands():
 check_super_commands() # dont run this here, should run at system startup, find the right way - gunicorn startup?
 
 _e_brake_end_dt = None
-_e_brake = 1
+_e_brake = 0
 # 0 = run all
 # 1 = run nothing
 # 2 = resolve blocks

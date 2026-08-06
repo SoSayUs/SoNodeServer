@@ -3588,10 +3588,15 @@ def position_sort(starting_position, pattern, active_set, number_of_matches, max
     '''
 
     from math import gcd
+    from utils.models import is_id
+    from network.models import Node
     if not max_pos:
-        from network.models import Node
         highest_node = Node.objects.exclude(Block_obj=None).order_by('-pos').values('pos').first()
         max_pos = highest_node['pos']
+    if is_id(starting_position):
+        node = Node.objects.filter(id=starting_position).values('pos').first()
+        starting_position = node['pos']
+
 
     if max_pos <= 0:
         return []
