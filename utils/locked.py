@@ -1337,7 +1337,7 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
             block_created_dt = string_to_dt(val_obj.created)
             block_dt = block_created_dt
             obj_commit_data = get_commit_data(val_obj)
-            temp_block = Block(id=block_id, Transaction_obj=val_obj, DateTime=val_obj.created, Blockchain_obj=Blockchain.objects.filter(genesisId=val_obj.regarding['GenesisId']).first())
+            temp_block = Block(id=block_id, Transaction_obj=val_obj, created=val_obj.created, DateTime=val_obj.created, Blockchain_obj=Blockchain.objects.filter(genesisId=val_obj.regarding['GenesisId']).first())
             
             next_block = inputted_data['next_block']
             block_delay = inputted_data['block_delay']
