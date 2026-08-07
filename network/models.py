@@ -2334,7 +2334,7 @@ class Block(models.Model):
             build_record(i, 'ops')
 
         prnt('regions')
-        plugins = Plugin.objects.exclude(Block_obj=None).exclude(Title__in=mainChains + ['Posts', 'Network']).values('id')
+        plugins = Plugin.objects.exclude(Block_obj=None).values('id')
         # if not plugins:
         #     plugins = Plugin.objects.exclude(Title__in=mainChains + ['Posts', 'Network']).values('id')
         for plugin in plugins:
