@@ -4943,6 +4943,7 @@ def register_new_user(userData, upkData_accnt, upkData_sign, walletData=None, no
                                                     if good:
                                                         err_code = 119
                                                         proceed = True
+                                                        proceed_to_login = True
                                             if reward_walletData:
                                                 sig_data = get_sigData(reward_walletData, first_key=True)
                                                 reward_wallet_PublicKey = sig_data['publicKey']
