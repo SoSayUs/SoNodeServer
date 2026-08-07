@@ -5738,23 +5738,23 @@ def tasker(dt, test=False):
     #     prnt('data',v.data)
     #     prnt('created',v.created)
     #     prnt()
-    for n in NodeRecord.objects.filter(is_valid=True):
-        prnt('rec::',n.id)
-        prnt('pointerId',n.pointerId)
-        prnt('pointerType',n.pointerType)
-        prnt('is_valid',n.is_valid)
-        prnt('networkChain',n.networkChain)
-        prnt('data',n.data)
-        prnt()
+    # for n in NodeRecord.objects.filter(is_valid=True):
+    #     prnt('rec::',n.id)
+    #     prnt('pointerId',n.pointerId)
+    #     prnt('pointerType',n.pointerType)
+    #     prnt('is_valid',n.is_valid)
+    #     prnt('networkChain',n.networkChain)
+    #     prnt('data',n.data)
+    #     prnt()
 
-    for b in Block.objects.all():
-        prnt('blocks::',b)
-        prnt('networkChain',b.networkChain)
-        prnt('index',b.index)
-        prnt('Blockchain_obj.genesisName',b.Blockchain_obj.genesisName)
-        prnt('DateTime',b.DateTime)
-        prnt('validated',b.validated)
-        prnt()
+    # for b in Block.objects.all():
+    #     prnt('blocks::',b)
+    #     prnt('networkChain',b.networkChain)
+    #     prnt('index',b.index)
+    #     prnt('Blockchain_obj.genesisName',b.Blockchain_obj.genesisName)
+    #     prnt('DateTime',b.DateTime)
+    #     prnt('validated',b.validated)
+    #     prnt()
     chains = Blockchain.objects.all()
     prnt('Blockchain::',chains)
     for c in chains:
@@ -5892,6 +5892,8 @@ def tasker(dt, test=False):
                 r_array = self_node['region_array'] if self_node['region_array'] else []
                 supported = list(p_array) + list(r_array)
                 prnt('supported',supported)
+                prnt('selectableChains',selectableChains)
+                prnt('dt',dt)
                 chains = Blockchain.objects.filter(genesisId__in=supported, genesisType__in=selectableChains, last_block_datetime__lte=dt - datetime.timedelta(minutes=block_time_delay()-10)).exclude(queuedData={}).defer('queuedData').order_by('?')
                 for c in chains:
                     prnt('chain2',c)
