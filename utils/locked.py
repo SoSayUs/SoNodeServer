@@ -1730,7 +1730,7 @@ def validate_block(block, creator_nodes=None, opBlock_data={}, create_validator=
                             prnt('rewardData',convert_to_dict(block.Transaction_obj))
                     
                     if proceed_to_valid:
-
+                        fail_reason = 705
                         # check that prev_block validators are all acccounted for on block
                         opChainId = get_chain_id(_OperationsChain_genesisId)
                         if prev_block:
