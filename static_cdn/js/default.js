@@ -3091,7 +3091,7 @@ async function load_queue() {
               for (let f = 0; f < new_cards.length; f++) {
                   var el = new_cards[f];
                   var elId = el.id;
-                  el = sanitizeWithException(el, ["react", "modalPopUp"]);
+                  el = sanitizeWithException(el, ["react", "modalPopUp", "direct_to"]);
                   if ($(el).closest("#feedTitle").length || $(el).closest("#navBar").length) continue;
                   if (elId === 'bottomCard') {
                       const $bottom = $(el).hide();

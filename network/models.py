@@ -3758,7 +3758,7 @@ class Blockchain(models.Model):
                                             i.Block_obj = None
 
                                     cq = cq + 'D'
-                                    if not has_field(i, 'Block_obj') or not i.Block_obj or i.Block_obj.Blockchain_obj.genesisId == i.id:
+                                    if not has_field(i, 'Block_obj') or not i.Block_obj or i.Block_obj.Blockchain_obj.genesisId == i.id or self.genesisId == i.id:
                                         prev_fails = Validator.objects.filter(validatorType='Block', is_valid=False, created__gt=i_dt, data__fail_reason__contains=[i.id]).exclude(signed={}).distinct('jobId','CreatorNode_obj__id').order_by('jobId','CreatorNode_obj__id').count()
                                         cq = cq + f'pf:{prev_fails}:'
                                         # prnt('--prev_fails--',prev_fails)

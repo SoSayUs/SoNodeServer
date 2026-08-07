@@ -16,9 +16,11 @@
     {% comment %}
     <li style="font-style: italic;"><a href='/someta'>SoMeta</a></li>
     <li style="font-style: italic;"><a href='/hero'>Be a Hero</a></li>
+    {% if user.is_superuser %}
+    <li><a onclick="direct_to('/utils/super')">SuperUser</a></li>
+    {% endif %}
     {% endcomment %}
     <li style="font-style: italic;"><a href='/values'>For All Things</a></li>
-    <li style="font-style: italic;"><a href='/chains'>Backend</a></li>
     <br>
     {% if theme == 'night' %}
     <li id='theme' onclick='themer()'>Night Theme</a></li>
@@ -26,14 +28,12 @@
     <li  id='theme' onclick='themer()'>Day Theme</a></li>
     {% endif %}
     {% if user.id %}
+    <li id="settingsLink"><a href='/backend'>Backend</a></li>
     <li id="settingsLink"><a href='/user/settings'>Settings</a></li>
     <li id="logoutLink"><a onclick='logout("/accounts/logout")'>Log Out</a></li>
     {% else %}
     <li id="settingsLink"></li>
     <li id="logoutLink"></li>
-    {% endif %}
-    {% if user.is_superuser %}
-    <li><a onclick="direct_to('/utils/super')">SuperUser</a></li>
     {% endif %}
     <br>
     <a onclick='select_node()' style="cursor: pointer;">

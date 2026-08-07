@@ -6,10 +6,12 @@ from django.urls import path, re_path
 urlpatterns = [
     path('', posts_views.splash_view),
     path('splash', posts_views.splash_view),
+    path('home', posts_views.home_view),
     path('following', posts_views.following_view),
     path('privacy_policy', account_views.privacy_policy_view),
     path('values', account_views.values_view),
     path('hero', account_views.hero_view),
+    path('backend', posts_views.backend_view),
     path('chains', posts_views.chains_view),
     re_path('chain/(?P<chain_id>(.*))', posts_views.chain_view),
 

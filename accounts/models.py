@@ -304,11 +304,14 @@ class User(AbstractBaseUser, PermissionsMixin):
             except:
                 pass
     
-    def get_keys(self, dt=None, data=None):
+    def get_keys(self, dt=None, data=None, keyType=None):
         if dt:
             if not isinstance(dt, datetime.datetime):
                 dt = string_to_dt(dt)
-            return UserPubKey.objects.filter(User_obj=self, created__lte=dt, Block_obj__validated=True).filter(Q(end_life_dt__gte=dt)|Q(end_life_dt=None))
+            if keyType:
+                return UserPubKey.objects.filter(User_obj=self, keyType=keyType, created__lte=dt, Block_obj__validated=True).filter(Q(end_life_dt__gte=dt)|Q(end_life_dt=None))
+            else:
+                return UserPubKey.objects.filter(User_obj=self, created__lte=dt, Block_obj__validated=True).filter(Q(end_life_dt__gte=dt)|Q(end_life_dt=None))
         elif data:
             if 'lastUpdate' in data:
                 dt = data['lastUpdate']
@@ -319,11 +322,17 @@ class User(AbstractBaseUser, PermissionsMixin):
             dt = string_to_dt(dt)
             from network.models import Block
             if Block.objects.filter(Blockchain_obj__genesisId=self.id, validated=True, DateTime__gte=dt).exists():
-                return UserPubKey.objects.filter(User_obj=self, created__lte=dt, Block_obj__validated=True).filter(Q(end_life_dt__gte=dt)|Q(end_life_dt=None))
+                if keyType:
+                    return UserPubKey.objects.filter(User_obj=self, keyType=keyType, created__lte=dt, Block_obj__validated=True).filter(Q(end_life_dt__gte=dt)|Q(end_life_dt=None))
+                else:
+                    return UserPubKey.objects.filter(User_obj=self, created__lte=dt, Block_obj__validated=True).filter(Q(end_life_dt__gte=dt)|Q(end_life_dt=None))
             else:
                 return UserPubKey.objects.filter(User_obj=self, created__lte=dt).filter(Q(end_life_dt__gte=dt)|Q(end_life_dt=None))
         else:
-            return UserPubKey.objects.filter(User_obj=self, end_life_dt=None, Block_obj__validated=True)
+            if keyType:
+                return UserPubKey.objects.filter(User_obj=self, keyType=keyType, end_life_dt=None, Block_obj__validated=True)
+            else:
+                return UserPubKey.objects.filter(User_obj=self, end_life_dt=None, Block_obj__validated=True)
     
     def get_wallet(self, name=None):
         # prnt('-get_wallet',self, 'name:',name)

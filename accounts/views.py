@@ -229,7 +229,7 @@ def get_user_login_request_view(request):
             except:
                 sonet = None
             prnt('return sign data', userData)
-            return JsonResponse({'message' : 'User found', 'userData' : userData, 'upks' : [get_signing_data(upk_obj, sort_data=False) for upk_obj in user.get_keys(dt=now_utc())], 'sonet' : sonet})
+            return JsonResponse({'message' : 'User found', 'userData' : userData, 'upks' : [get_signing_data(upk_obj, sort_data=False) for upk_obj in user.get_keys(dt=now_utc(), keyType='account')], 'sonet' : sonet})
         else:
             
             prnt('return 2')

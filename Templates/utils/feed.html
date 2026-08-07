@@ -635,10 +635,64 @@
 
 
 
+
+    {% elif cards == 'backend' %}
+
+            <div class='card'>
+                <div class='cardContent'>
+                    <div class='Info'>
+                        <div class='Details'>
+                            <div class='title'><a href='chains'>Chains</a></div>
+                        </div>
+                    </div>
+
+                    <div class='TextContent'>
+                        <ul class='Text'>
+                            <li style='margin-top:15px;'>count: {{ chain_count }}</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class='bottomDivider'></div>
+                
+            <div class='card'>
+                <div class='cardContent'>
+                    <div class='Info'>
+                        <div class='Details'>
+                            <div class='title'><a href='tasks'>Tasks</a></div>
+                        </div>
+                    </div>
+
+                    <div class='TextContent'>
+                        <ul class='Text'>
+                            <li style='margin-top:15px;'>count: {{ task_count }}</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class='bottomDivider'></div>
+            {% if user.is_superuser %}
+                <div class='card'>
+                    <div class='cardContent'>
+                        <div class='Info'>
+                            <div class='Details'>
+                                <div class='title'><a onclick="direct_to('/utils/super')">SuperUser</a></div>
+                            </div>
+                        </div>
+
+                        <div class='TextContent'>
+                            <ul class='Text'>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class='bottomDivider'></div>
+            {% endif %}
+
     {% elif cards == 'chains_list' %}
 
         {% for post in feed_list %}
-            <div class='card bill' id='{{ post.id }}'>
+            <div class='card' id='{{ post.id }}'>
                 <div class='cardContent'>
                     <div class='Info'>
                         <div class='Details'>
@@ -664,7 +718,7 @@
     {% elif cards == 'chain_list' %}
 
         {% for post in feed_list %}
-            <div class='card bill' id='{{ post.id }}'>
+            <div class='card' id='{{ post.id }}'>
                 <div class='cardContent'>
                     <div class='Info'>
                         <div class='Details'>

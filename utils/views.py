@@ -1336,13 +1336,11 @@ def tester_queue_view(request):
             queue = django_rq.get_queue('low')
             # queue.enqueue(tester_queue, job_timeout=1200)
             # queue.enqueue(tester_queue, job_timeout=3600)
-            from network.models import Block, _AccountChain_genesisId, _OperationsChain_genesisId
-            from posts.models import Region
-            from utils.locked import check_commit_data
-
-            e = Region.objects.filter(Name='Earth').first()
-            x = check_commit_data(e, e.Block_obj.data[e.id])
-            prnt('x',x)
+            # from network.models import Block, _AccountChain_genesisId, _OperationsChain_genesisId
+            # from posts.models import Region
+            from transactions.models import Wallet
+            # from utils.locked import check_commit_data
+            from utils.models import get_data
 
 
             end_time = now_utc()

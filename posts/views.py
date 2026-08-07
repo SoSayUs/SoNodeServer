@@ -463,9 +463,10 @@ def splash_view(request):
             }
             return render_view(request, context)
 
-def home_view(request, region):
+def home_view(request):
     prnt('--homeview')
-    prnt(region)
+    from legis.views import legislature_view
+    return legislature_view(request, None)
     
     # user_data, user = get_user_data(request)
     # country, provState, county, city = get_regions(request, region, user)
@@ -875,8 +876,8 @@ def subregions_modal_view(request, region, regionType, baseLink):
 
 
 
-def chains_view(request):
-    prnt('-chains_view')
+def backend_view(request):
+    prnt('-backend_view')
     
     style = request.GET.get('style', 'preload')
     user_id = request.GET.get('user', None)
@@ -885,9 +886,8 @@ def chains_view(request):
     page = request.GET.get('page', 1)
     view = request.GET.get('view', 'Current')
     date = request.POST.get('date')
-    title = 'Blockchains'
+    title = 'Backend'
     if style == 'preload':
-        prnt('preload')
         context = {
             'title': title,
             'style':style,
@@ -899,10 +899,54 @@ def chains_view(request):
         except:
             isApp = None
         if style == 'index':
-            prnt('index')
             context = {}
-            # context = get_index(request, country_dict, gov_dict)
-            # context['sidebarData'] =  get_trending(request, country_dict, current_chamber=current_chamber_name, all_chambers=all_chambers)
+            context = get_user_sending_data(user_id, context)
+            return render(request, "utils/fetch_index.html", context)
+        else:
+            
+            nav_options = []
+            subtitle = ''
+            chain_count = Blockchain.objects.all().count()
+            context = {
+                'isApp': isApp,
+                'title': title,
+                'subtitle': subtitle,
+                'view': view,
+                'cards': 'backend',
+                'sort': sort,
+                'chain_count':chain_count,
+                'task_count': 0,    
+                'style':style, 
+                'isMobile': request.user_agent.is_mobile,
+                'nav_bar': nav_options,
+                'user': User.objects.filter(id=user_id).first(),
+            }
+            return render_view(request, context)
+
+def chains_view(request):
+    prnt('-chains_view')
+    
+    style = request.GET.get('style', 'preload')
+    user_id = request.GET.get('user', None)
+    include_nav = request.GET.get('include_nav', False)
+    sort = request.GET.get('sort', 'time')
+    page = request.GET.get('page', 1)
+    view = request.GET.get('view', 'Current')
+    date = request.POST.get('date')
+    title = 'Chains'
+    if style == 'preload':
+        context = {
+            'title': title,
+            'style':style,
+        }
+        return render(request, "home.html", get_cookies(request,context))
+    else:
+        try:
+            isApp = request.COOKIES['fcmDeviceId']
+        except:
+            isApp = None
+        if style == 'index':
+            context = {}
             context = get_user_sending_data(user_id, context)
             return render(request, "utils/fetch_index.html", context)
         else:
@@ -910,11 +954,8 @@ def chains_view(request):
             nav_options = []
             if include_nav == 'True':
                 nav_options = [
-                    # nav_item('button', f'Chamber: {current_chamber_name}', 'subNavWidget', 'chamberForm', fields=['All'] + all_chambers, key='chamber'),
-                        nav_item('button', 'Page: %s' %(page), 'subNavWidget', 'pageForm'), 
-                        nav_item('button', 'Date', 'subNavWidget', 'datePickerForm')]
+                        ]
             subtitle = ''
-            user_data, user = get_user_data(request)
             posts = Blockchain.objects.all().defer('queuedData').order_by('-updated_on_node')
             
             setlist = paginate(posts, page, request)
@@ -934,18 +975,17 @@ def chains_view(request):
 
 
 def chain_view(request, chain_id):
-    prnt('-chain_view')
+    prnt('-chain_view',chain_id)
     
     style = request.GET.get('style', 'preload')
     user_id = request.GET.get('user', None)
     include_nav = request.GET.get('include_nav', False)
     sort = request.GET.get('sort', 'time')
     page = request.GET.get('page', 1)
-    view = request.GET.get('view', 'Current')
+    view = request.GET.get('view', 'All')
     date = request.POST.get('date')
     title = Blockchain.objects.filter(id=chain_id).only('genesisName').first().genesisName
     if style == 'preload':
-        prnt('preload')
         context = {
             'title': title,
             'style':style,
@@ -957,23 +997,26 @@ def chain_view(request, chain_id):
         except:
             isApp = None
         if style == 'index':
-            prnt('index')
             context = {}
-            # context = get_index(request, country_dict, gov_dict)
-            # context['sidebarData'] =  get_trending(request, country_dict, current_chamber=current_chamber_name, all_chambers=all_chambers)
             context = get_user_sending_data(user_id, context)
             return render(request, "utils/fetch_index.html", context)
         else:
             
             nav_options = []
+            key_types = ['All','Validated','Invalidated','Pending']
             if include_nav == 'True':
                 nav_options = [
-                    # nav_item('button', f'Chamber: {current_chamber_name}', 'subNavWidget', 'chamberForm', fields=['All'] + all_chambers, key='chamber'),
-                        nav_item('button', 'Page: %s' %(page), 'subNavWidget', 'pageForm'), 
-                        nav_item('button', 'Date', 'subNavWidget', 'datePickerForm')]
+                    nav_item('button', 'View: %s'%(view), 'subNavWidget', 'viewForm', fields=key_types, key='view'),
+                        ]
             subtitle = ''
-            user_data, user = get_user_data(request)
-            posts = Block.objects.filter(Blockchain_obj__id=chain_id).order_by('-DateTime')
+            if view == 'All':
+                posts = Block.objects.filter(Blockchain_obj__id=chain_id).order_by('-DateTime')
+            elif view == 'Validated':
+                posts = Block.objects.filter(Blockchain_obj__id=chain_id, validated=True).order_by('-DateTime')
+            elif view == 'Invalidated':
+                posts = Block.objects.filter(Blockchain_obj__id=chain_id, validated=False).order_by('-DateTime')
+            elif view == 'Pending':
+                posts = Block.objects.filter(Blockchain_obj__id=chain_id, validated=None).order_by('-DateTime')
             setlist = paginate(posts, page, request)
             context = {
                 'isApp': isApp,

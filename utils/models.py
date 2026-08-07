@@ -2313,7 +2313,7 @@ def get_plugin(obj, name=False):
         if name:
             return obj._meta.app_label
         from network.models import Plugin
-        return Plugin.objects.filter(app_name=name).first()
+        return Plugin.objects.filter(app_name=obj._meta.app_label).first()
     except Exception as e:
         prnt('get_plugin err',str(e))
         return None
@@ -3448,6 +3448,13 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                         else:
                             commit_chain = Blockchain(genesisId=obj['commitChain'])
                         commit_chain.save()
+                elif obj_is_model and obj.commitChain == 'Plugin':
+                    if obj_is_model:
+                        plugin = get_plugin(obj)
+                    else:
+                        plugin = get_plugin(get_model(obj_type))
+                    if plugin:
+                        commit_chain = Blockchain.objects.filter(genesisId=plugin.id).only('id','genesisName','genesisId').first()
                 else:
                     try:
                         if obj_is_model:
@@ -3613,17 +3620,26 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                     if obj_is_model and obj.commitChain in universalChains:
                         commit_chain = Blockchain.objects.filter(genesisName=obj.commitChain).only('id','genesisName','genesisId').first()
                     if not commit_chain:
-                        try:
+                        if obj_is_model and obj.commitChain == 'Plugin':
                             if obj_is_model:
-                                chainGenObj = getattr(obj, f"{obj.commitChain}_obj")
+                                plugin = get_plugin(obj)
                             else:
-                                chainGenObj = get_dynamic_model(obj['commitChain'], id=obj[f"{obj['commitChain']}_obj"])
-                            commit_chain = Blockchain.objects.filter(genesisId=chainGenObj.id).only('id','genesisName','genesisId').first()
-                            if not commit_chain:
-                                commit_chain = Blockchain(genesisId=chainGenObj.id)
-                                commit_chain.save()
-                        except Exception as e:
-                            prnt('find chain err 2',str(e))
+                                plugin = get_plugin(get_model(obj_type))
+                            prnt('plugin',plugin)
+                            if plugin:
+                                commit_chain = Blockchain.objects.filter(genesisId=plugin.id).only('id','genesisName','genesisId').first()
+                        if not commit_chain:
+                            try:
+                                if obj_is_model:
+                                    chainGenObj = getattr(obj, f"{obj.commitChain}_obj")
+                                else:
+                                    chainGenObj = get_dynamic_model(obj['commitChain'], id=obj[f"{obj['commitChain']}_obj"])
+                                commit_chain = Blockchain.objects.filter(genesisId=chainGenObj.id).only('id','genesisName','genesisId').first()
+                                if not commit_chain:
+                                    commit_chain = Blockchain(genesisId=chainGenObj.id)
+                                    commit_chain.save()
+                            except Exception as e:
+                                prnt('find chain err 2',str(e))
                     
             prntDebug('done find chainx', network_chain, obj, commit_chain)
             return network_chain, obj, commit_chain

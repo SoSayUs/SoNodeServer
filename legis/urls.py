@@ -5,8 +5,8 @@ from django.urls import path, re_path
 
 urlpatterns = [
 
-    re_path('(?P<region>[\w-]+)/home', views.legislature_view),
-    re_path('home', views.legislature_view, {'region':None}),
+    re_path('sovote/(?P<region>[\w-]+)', views.legislature_view),
+    re_path('sovote', views.legislature_view, {'region':None}),
     path('someta', views.someta_view),
     re_path('profile/(?P<region>[\w-]+)/(?P<name>(.*))/(?P<iden>(.*))', views.representative_view),
 

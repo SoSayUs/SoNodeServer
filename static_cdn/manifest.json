@@ -1,7 +1,7 @@
 {
-  "name": "SoSayDev",
-  "short_name": "SoSayDev",
-  "start_url": "/",
+  "name": "SoSayUs",
+  "short_name": "SoSayUs",
+  "start_url": "/home",
   "display": "standalone",
   "background_color": "#01213f",
   "theme_color": "#0b559a",
