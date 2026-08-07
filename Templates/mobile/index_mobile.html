@@ -5,16 +5,6 @@
 {% if sonet %}
 <a href='/' class='navTop'>   
     <div class='shadow'></div>
-    {% comment %}
-    <ul>
-    {% if sonet.Title == 'SoVote' %}
-    <li><h1 id="sonet-title" style="margin-left: 20px;">So<span style='font-size:100%'>V</span>ote</h1> </li> 
-    {% else %}
-    <li><h1 id="sonet-title" style="margin-left: 20px;">{{ sonet.Title }}</h1> </li> 
-    {% endif %}
-    <li><h1 style="margin-left: 10px; font-size: 100%;">{{ sonet.Subtitle }}</h1></li>
-    </ul>
-    {% endcomment %}
 
     <div style="display: flex; justify-content: space-between; width: 98%; margin: 0 auto;">
         <h1 id="sonet-title" style="margin-left: 2%;">{{ sonet.Title }}</h1>
@@ -36,43 +26,18 @@
 
 <div style="position: relative; margin: 15px auto -15px auto; font-style:italic; display: block; width: fit-content; text-align: center; font-size: 85%;">in development</div>
 <ul id='userProfile'>
-    <li><img id='userPic' src={% static 'img/user-coloured.png' %}></li>
+    <li><img id='userPic' src={% static 'img/user-colored.png' %}></li>
     <li id='userName'>{% if user.id %}{{ user.get_userLink_html|safe }}{% else %}<span onclick="modalPopUp('Login / Signup', '/accounts/login-signup')">Login/Signup</span>{% endif %}</li>    
 </ul>
 
 <div class='container1'>
-{% comment %}
-<ul>
-    <li><a href='/{{ country.Name|lower }}/search'>Search</a></li>
-</ul>
 
-<ul>
-    {% if user.id %}
-    <li style='font-size:130%'><a href='/{{ country.lowerName }}/home'>Home</a></li>
-    <ul class='navSubmenu' id='home'>    
-        <li><a href='/{{ country.lowerName }}/region'>Region</a></li>
-        <li><a href='/{{ country.lowerName }}/following'>Following</a></li>
-    </ul>
-    {% else %}
-    <li style='font-size:130%'><a href='/{{ country.lowerName }}/home'>Home</a></li>
-    {% endif %}
-</ul>
-{% endcomment %}
     
 <ul>
-    <li style="font-style: italic;"><a href='/'>What is Us?</a></li>
+    <li style="font-style: italic;"><a href='/'>What is Us</a></li>
     <li style="font-style: italic;"><a href='/values'>For All Things</a></li>
-    {% comment %}
-    {% if not xRequest %}
-    <li><a href='/get-the-app'>Get the App</a></li>
-    {% endif %}
-    <li style="font-style: italic;"><a href='/someta'>SoMeta</a></li>
-    {% if user.is_superuser %}
-    <li><a href='/utils/super'>SuperUser</a></li>
-    {% endif %}
-    {% endcomment%}
-    <li><a href='/backend'>Backend</a></li>
     <br>
+    <li><a href='/backend'>Backend</a></li>
     {% if theme == 'night' %}
     <li id='theme' onclick='themer()'>Night Theme</a></li>
     {% else %}
