@@ -885,7 +885,6 @@ def chains_view(request):
     page = request.GET.get('page', 1)
     view = request.GET.get('view', 'Current')
     date = request.POST.get('date')
-    # form = AgendaForm()
     title = 'Blockchains'
     if style == 'preload':
         prnt('preload')
@@ -895,12 +894,6 @@ def chains_view(request):
         }
         return render(request, "home.html", get_cookies(request,context))
     else:
-        # country_dict, gov_dict, subRegions, subGovernments = get_regions_and_govs(region)
-        # current_chamber_list, current_chamber_name, all_chambers, gov_levels = get_chambers(request, gov_dict)
-        # prnt('country_dict, gov_dict, subRegions, subGovernments',country_dict, gov_dict, subRegions, subGovernments)
-        # prnt('Chamber', current_chamber_list, current_chamber_name, all_chambers, gov_levels)
-        # request = set_session_data(request, country_dict, gov_dict, subRegions, subGovernments, current_chamber_name)
-
         try:
             isApp = request.COOKIES['fcmDeviceId']
         except:
@@ -922,50 +915,18 @@ def chains_view(request):
                         nav_item('button', 'Date', 'subNavWidget', 'datePickerForm')]
             subtitle = ''
             user_data, user = get_user_data(request)
-            # if request.method == 'POST':
-            #     date = datetime.datetime.strptime(date, '%Y-%m-%d')
-            #     subtitle = date
-            #     view = None
-            #     posts = Post.objects.filter(Country_obj__id=country_dict['id'], Meeting_obj__meeting_type='Debate', Meeting_obj__DateTime__gte=date, Meeting_obj__DateTime__lt=date + datetime.timedelta(days=1)).filter(Meeting_obj__Chamber__in=current_chamber_list).select_related('Meeting_obj').order_by('-Meeting_obj__DateTime','Meeting_obj__Title')
-
-            # else:
-                # if view == 'Current':
-                #     # posts = Post.objects.filter(Country_obj=country, Meeting_obj__meeting_type__iexact='Debate', DateTime__lte=now_utc() + datetime.timedelta(hours=12)).filter(Meeting_obj__Chamber__in=Chambers).select_related('Meeting_obj').order_by('-Meeting_obj__DateTime')
-                #     posts = Post.objects.filter(Country_obj__id=country_dict['id'], Meeting_obj__meeting_type__iexact='Debate').filter(Meeting_obj__Chamber__in=current_chamber_list).select_related('Meeting_obj').order_by('-Meeting_obj__DateTime','Meeting_obj__Title')
-                    
-                # elif view == 'Recommended':
-                #     include_list = ['Statement']
-                #                 #   algorithim(user, include_list, chamber_list, country_dict, view='Recommended', page=1, provState_name=None)
-                #     posts, view = algorithim(user, include_list, current_chamber_list, country_dict, view, page)
-                #     # posts, view = algorithim(request, include_list, Chamber, region, view, page)
-                # elif view == 'Trending':
-                #     include_list = ['Meeting']
-                #     posts, view = algorithim(user, include_list, current_chamber_list, country_dict, view, page)
-                #     # posts, view = algorithim(request, include_list, Chamber, region, view, page)
             posts = Blockchain.objects.all().defer('queuedData').order_by('-updated_on_node')
             
-            # if view != 'Trending' and user and user.UserData_obj:
-            #     userKeys = [k for k, value in Counter(user.UserData_obj.get_interests()).most_common()]
-            # else:
-            #     try:
-            #         dateQuery = Meeting.objects.filter(Country_obj__id=country_dict['id'], meeting_type='Debate', Chamber__in=current_chamber_list).order_by('-DateTime')[12].DateTime
-            #     except:
-            #         dateQuery = now_utc()
-            #     dt = now_utc().replace(tzinfo=pytz.UTC) - dateQuery
-            #     userKeys = get_trending_keys(dt, ['Meeting'], current_chamber_list)
             setlist = paginate(posts, page, request)
             context = {
                 'isApp': isApp,
                 'title': title,
                 'subtitle': subtitle,
                 'view': view,
-                # 'dateForm': form,
                 'cards': 'chains_list',
                 'sort': sort,
                 'feed_list':setlist,      
                 'style':style, 
-                # 'user_keywords': userKeys,
-                # 'useractions': get_useractions(user, setlist),
                 'isMobile': request.user_agent.is_mobile,
                 'nav_bar': nav_options,
             }
@@ -982,7 +943,6 @@ def chain_view(request, chain_id):
     page = request.GET.get('page', 1)
     view = request.GET.get('view', 'Current')
     date = request.POST.get('date')
-    # form = AgendaForm()
     title = Blockchain.objects.filter(id=chain_id).only('genesisName').first().genesisName
     if style == 'preload':
         prnt('preload')
@@ -992,12 +952,6 @@ def chain_view(request, chain_id):
         }
         return render(request, "home.html", get_cookies(request,context))
     else:
-        # country_dict, gov_dict, subRegions, subGovernments = get_regions_and_govs(region)
-        # current_chamber_list, current_chamber_name, all_chambers, gov_levels = get_chambers(request, gov_dict)
-        # prnt('country_dict, gov_dict, subRegions, subGovernments',country_dict, gov_dict, subRegions, subGovernments)
-        # prnt('Chamber', current_chamber_list, current_chamber_name, all_chambers, gov_levels)
-        # request = set_session_data(request, country_dict, gov_dict, subRegions, subGovernments, current_chamber_name)
-
         try:
             isApp = request.COOKIES['fcmDeviceId']
         except:
@@ -1019,50 +973,17 @@ def chain_view(request, chain_id):
                         nav_item('button', 'Date', 'subNavWidget', 'datePickerForm')]
             subtitle = ''
             user_data, user = get_user_data(request)
-            # if request.method == 'POST':
-            #     date = datetime.datetime.strptime(date, '%Y-%m-%d')
-            #     subtitle = date
-            #     view = None
-            #     posts = Post.objects.filter(Country_obj__id=country_dict['id'], Meeting_obj__meeting_type='Debate', Meeting_obj__DateTime__gte=date, Meeting_obj__DateTime__lt=date + datetime.timedelta(days=1)).filter(Meeting_obj__Chamber__in=current_chamber_list).select_related('Meeting_obj').order_by('-Meeting_obj__DateTime','Meeting_obj__Title')
-
-            # else:
-                # if view == 'Current':
-                #     # posts = Post.objects.filter(Country_obj=country, Meeting_obj__meeting_type__iexact='Debate', DateTime__lte=now_utc() + datetime.timedelta(hours=12)).filter(Meeting_obj__Chamber__in=Chambers).select_related('Meeting_obj').order_by('-Meeting_obj__DateTime')
-                #     posts = Post.objects.filter(Country_obj__id=country_dict['id'], Meeting_obj__meeting_type__iexact='Debate').filter(Meeting_obj__Chamber__in=current_chamber_list).select_related('Meeting_obj').order_by('-Meeting_obj__DateTime','Meeting_obj__Title')
-                    
-                # elif view == 'Recommended':
-                #     include_list = ['Statement']
-                #                 #   algorithim(user, include_list, chamber_list, country_dict, view='Recommended', page=1, provState_name=None)
-                #     posts, view = algorithim(user, include_list, current_chamber_list, country_dict, view, page)
-                #     # posts, view = algorithim(request, include_list, Chamber, region, view, page)
-                # elif view == 'Trending':
-                #     include_list = ['Meeting']
-                #     posts, view = algorithim(user, include_list, current_chamber_list, country_dict, view, page)
-                #     # posts, view = algorithim(request, include_list, Chamber, region, view, page)
             posts = Block.objects.filter(Blockchain_obj__id=chain_id).order_by('-DateTime')
-            
-            # if view != 'Trending' and user and user.UserData_obj:
-            #     userKeys = [k for k, value in Counter(user.UserData_obj.get_interests()).most_common()]
-            # else:
-            #     try:
-            #         dateQuery = Meeting.objects.filter(Country_obj__id=country_dict['id'], meeting_type='Debate', Chamber__in=current_chamber_list).order_by('-DateTime')[12].DateTime
-            #     except:
-            #         dateQuery = now_utc()
-            #     dt = now_utc().replace(tzinfo=pytz.UTC) - dateQuery
-            #     userKeys = get_trending_keys(dt, ['Meeting'], current_chamber_list)
             setlist = paginate(posts, page, request)
             context = {
                 'isApp': isApp,
                 'title': title,
                 'subtitle': subtitle,
                 'view': view,
-                # 'dateForm': form,
                 'cards': 'chain_list',
                 'sort': sort,
                 'feed_list':setlist,      
                 'style':style, 
-                # 'user_keywords': userKeys,
-                # 'useractions': get_useractions(user, setlist),
                 'isMobile': request.user_agent.is_mobile,
                 'nav_bar': nav_options,
             }
