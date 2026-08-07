@@ -569,15 +569,17 @@ class Signature(models.Model):
         if int(version) >= 1:
             return ['pointerId', 'sig']
 
-    def save(self, share=False, *args, **kwargs):
+    def save(self, pointer=None, share=False, *args, **kwargs):
         prntDebug('-sig save...',self)
         if self.id is None:
             if self.pointerId and not self.pointerKey:
-                pointer = get_dynamic_model(self.pointerId, id=self.pointerId)
+                if not pointer:
+                    pointer = get_dynamic_model(self.pointerId, id=self.pointerId)
                 prnt('pointer1',pointer)
                 self.pointerKey = ContentType.objects.get_for_model(pointer)
             elif self.pointerKey:
-                pointer = self.Pointer_obj
+                if not pointer:
+                    pointer = self.Pointer_obj
                 prnt('pointer2',pointer)
                 self.pointerId = pointer.id
             self = initial_save(self)

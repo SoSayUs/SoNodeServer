@@ -2212,7 +2212,7 @@ def hash_upk_id(pubKey):
 _appInfo = None
 
 def get_app_info(rerun=False):
-    # prnt('-get_app_info')
+    prnt('-get_app_info')
     global _appInfo
     if _appInfo is None or rerun:
         import importlib
@@ -2221,7 +2221,7 @@ def get_app_info(rerun=False):
         app_dict = {'apps':{}}
         plugins = Plugin.objects.exclude(Block_obj=None)
         if plugins:
-            # prnt('plugins',plugins)
+            prnt('plugins',plugins)
             for plug in plugins:
                 app = plug.app_name
                 app_dict['apps'][plug.app_name] = []
@@ -2262,9 +2262,10 @@ def get_app_info(rerun=False):
         if plugins:
             _appInfo = app_dict
         else:
+            prnt('app_dict2',app_dict)
             return app_dict
         
-    # prnt('app_dict',app_dict)
+    prnt('_appInfo',_appInfo)
     return _appInfo
 
 
@@ -4943,7 +4944,6 @@ def register_new_user(userData, upkData_accnt, upkData_sign, walletData=None, no
                                                     if good:
                                                         err_code = 119
                                                         proceed = True
-                                                        proceed_to_login = True
                                             if reward_walletData:
                                                 sig_data = get_sigData(reward_walletData, first_key=True)
                                                 reward_wallet_PublicKey = sig_data['publicKey']
@@ -4989,7 +4989,7 @@ def register_new_user(userData, upkData_accnt, upkData_sign, walletData=None, no
                                                 # prnt('c2d',convert_to_dict(reward_wallet))
                                                 w = get_dynamic_model(reward_wallet.id, id=reward_wallet.id)
                                                 prnt('w',w)
-                                                sig_obj.save()
+                                                sig_obj.save(reward_wallet)
                                                 err_code = 122
                                                 reward_wallet, good = sync_and_share_object(reward_wallet, reward_walletData)
                                                 prnt('reward_wallet-good',good)
