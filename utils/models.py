@@ -5894,7 +5894,7 @@ def tasker(dt, test=False):
                 prnt('supported',supported)
                 prnt('selectableChains',selectableChains)
                 prnt('dt',dt)
-                chains = Blockchain.objects.filter(genesisId__in=supported, genesisType__in=selectableChains, last_block_datetime__lte=dt - datetime.timedelta(minutes=block_time_delay()-10)).exclude(queuedData={}).defer('queuedData').order_by('?')
+                chains = Blockchain.objects.filter(genesisId__in=supported, last_block_datetime__lte=dt - datetime.timedelta(minutes=block_time_delay()-10)).exclude(queuedData={}).defer('queuedData').order_by('?')
                 for c in chains:
                     prnt('chain2',c)
                     block_assigned = c.new_block_candidate(self_node=self_node_id, dt=dt)
