@@ -359,7 +359,7 @@ body a{
 }
 .navTop .shadow, #feedTop .shadow{
     height: 60px;
-  }
+}
 .navBarSpacer{
     position: relative;
     display: block;
@@ -531,6 +531,7 @@ body a{
     font-size: 110% !important;
     padding:15px;
 }
+
 #bottomCard{
     max-height: 350px !important;
     background-color: #f2f2f2;

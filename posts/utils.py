@@ -25,26 +25,31 @@ def render_view(request, context, country=None, feed=False):
     prnt('-renderview')
     style = request.GET.get('style', 'index')
     if style == 'feed' or feed:
-        return render(request, "utils/feed.html", get_paginator_url(request, context))
+        if feed:
+            template = f"{feed}/utils/feed.html"
+        else:
+            template = "utils/feed.html"
+        return render(request, template, get_paginator_url(request, context))
     else:
-        try:
-            fcmDeviceId = request.GET.get('fcmDeviceId', '')
-            if not fcmDeviceId:
-                fcmDeviceId = request.COOKIES['fcmDeviceId']
-            # prnt('dviceId', fcmDeviceId)
-            if fcmDeviceId:
-                # from fcm_django.models import FCMDevice
-                fcm_device = CustomFCM.objects.filter(registration_id=fcmDeviceId).first()
-                if not fcm_device:
-                    fcm_device = CustomFCM()
-                    fcm_device.registration_id = fcmDeviceId
-                fcm_device.user = request.user
-                fcm_device.active = True
-                fcm_device.save()
-                # prnt('saved device')
-        except Exception as e:
-            # prnt(str(e))
-            pass
+        fcmDeviceId = None
+        # try:
+        #     fcmDeviceId = request.GET.get('fcmDeviceId', '')
+        #     if not fcmDeviceId:
+        #         fcmDeviceId = request.COOKIES['fcmDeviceId']
+        #     # prnt('dviceId', fcmDeviceId)
+        #     if fcmDeviceId:
+        #         # from fcm_django.models import FCMDevice
+        #         fcm_device = CustomFCM.objects.filter(registration_id=fcmDeviceId).first()
+        #         if not fcm_device:
+        #             fcm_device = CustomFCM()
+        #             fcm_device.registration_id = fcmDeviceId
+        #         fcm_device.user = request.user
+        #         fcm_device.active = True
+        #         fcm_device.save()
+        #         # prnt('saved device')
+        # except Exception as e:
+        #     # prnt(str(e))
+        #     pass
         
         ctx = get_cookies(request,context,country=country)
         response = render(request, "home.html", ctx)
@@ -54,7 +59,31 @@ def render_view(request, context, country=None, feed=False):
         if fcmDeviceId:
             response.set_cookie(key='fcmDeviceId', value=fcmDeviceId, expires=datetime.datetime.today()+datetime.timedelta(days=3650))
         return response
-
+    
+def default_setup(request, title=None, region=None, plugin=None):
+    style = request.GET.get('style', 'preload')
+    if style == 'preload':
+        context = {
+            'title': title,
+            'style': style,
+        }
+        return render(request, "home.html", get_cookies(request,context))
+    elif style == 'index':
+        user_id = request.GET.get('user', None)
+        country_dict, gov_dict, subRegions, subGovernments = get_regions_and_govs(region)
+        current_chamber_list, current_chamber_name, all_chambers, gov_levels = get_chambers(request, gov_dict)
+        context = get_index(request, country_dict, gov_dict)
+        context['sidebarData'] =  get_trending(request, country_dict, current_chamber=current_chamber_name, all_chambers=all_chambers)
+        context = get_user_sending_data(user_id, context)
+        request = set_session_data(request, country_dict, gov_dict, subRegions, subGovernments, current_chamber_name)
+        if plugin:
+            template = f"{plugin}/utils/index.html"
+        else:
+            template = "utils/fetch_index.html"
+        return render(request, template, context)
+    else:
+        return False
+    
 def getTrendingTop(Chamber, country):
     if Chamber and country:
         try:
@@ -169,7 +198,7 @@ def algorithim(user, include_list, chamber_list, country, view='Recommended', pa
     return posts, view
 
 
-def get_index(request, country_dict, gov_dict):
+def get_index(request, country_dict=None, gov_dict=None):
     context = {
         'self_node': get_operator_obj('self_nodeId'),
         'is_mobile': get_isMobile(request),

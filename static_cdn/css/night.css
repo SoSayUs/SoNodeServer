@@ -12,7 +12,7 @@ body{
   background-color: #4f4e4e;
 }
 #feedContainer, .modalWidget{
-  background-color: #222222 !important;
+  /* background-color: #222222 !important; */
   border-left: 1px solid #4f4e4e;
   border-right: 1px solid #4f4e4e;
   border-top: 1px solid #4f4e4e;
@@ -40,7 +40,7 @@ body{
   background: linear-gradient(to top, RGBA(34, 34, 34, 0), #474646);
   border-bottom: 0px solid #4f4e4e;
 }
-.cardCover {
+.card, .cardCover {
   background-color: #222222;
 }
 #navBar{
@@ -124,6 +124,7 @@ body{
   border: 1px solid #4f4e4e;
 }
 .pagePicker li{
+  background-color: #222222;
   border: 1px solid #4f4e4e;
 }
 .pagePicker li.active {

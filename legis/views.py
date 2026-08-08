@@ -4,7 +4,7 @@ from django.shortcuts import render
 from posts.forms import AgendaForm, SearchForm
 from posts.utils import (
     get_cookies, get_regions_and_govs, get_chambers, set_session_data, algorithim, fetch_updated_objs,
-    get_index, get_trending, get_user_sending_data, nav_item, get_user_data, getTrendingTop,
+    get_index, get_trending, get_user_sending_data, nav_item, get_user_data, getTrendingTop, default_setup,
     algorithim, get_trending_keys, paginate, get_useractions, render_view, get_regions, get_isMobile
     )
 from posts.models import Region, Post, Spren
@@ -34,90 +34,95 @@ def house_or_senate_hansards_view(request, region):
     view = request.GET.get('view', 'Current')
     date = request.POST.get('date')
     form = AgendaForm()
-    if style == 'preload':
-        prnt('preload')
-        context = {
-            'title': 'Debates',
-            'style':style,
-        }
-        return render(request, "home.html", get_cookies(request,context))
+    title = 'Debates'
+    r = default_setup(request, title, region, 'legis')
+    if r:
+        return r
+    
+    # # if style == 'preload':
+    # #     prnt('preload')
+    # #     context = {
+    # #         'title': 'Debates',
+    # #         'style':style,
+    # #     }
+    # #     return render(request, "home.html", get_cookies(request,context))
+    # # else:
+    country_dict, gov_dict, subRegions, subGovernments = get_regions_and_govs(region)
+    current_chamber_list, current_chamber_name, all_chambers, gov_levels = get_chambers(request, gov_dict)
+    #     prnt('country_dict, gov_dict, subRegions, subGovernments',country_dict, gov_dict, subRegions, subGovernments)
+    #     prnt('Chamber', current_chamber_list, current_chamber_name, all_chambers, gov_levels)
+    #     request = set_session_data(request, country_dict, gov_dict, subRegions, subGovernments, current_chamber_name)
+
+    #     try:
+    #         isApp = request.COOKIES['fcmDeviceId']
+    #     except:
+    #         isApp = None
+    #     if style == 'index':
+    #         prnt('index')
+    #         context = get_index(request, country_dict, gov_dict)
+    #         context['sidebarData'] =  get_trending(request, country_dict, current_chamber=current_chamber_name, all_chambers=all_chambers)
+    #         context = get_user_sending_data(user_id, context)
+    #         return render(request, "utils/index.html", context)
+    #     else:
+    if current_chamber_name == 'All':
+        title = '%s Debates' %('All')
+    else:   
+        title = '%s Debates' %(current_chamber_name)
+    nav_options = []
+    if include_nav == 'True':
+        nav_options = [nav_item('button', f'Chamber: {current_chamber_name}', 'subNavWidget', 'chamberForm', fields=['All'] + all_chambers, key='chamber'),
+                nav_item('button', 'Page: %s' %(page), 'subNavWidget', 'pageForm'), 
+                nav_item('button', 'Date', 'subNavWidget', 'datePickerForm')]
+    subtitle = ''
+    user_data, user = get_user_data(request)
+    if request.method == 'POST':
+        date = datetime.datetime.strptime(date, '%Y-%m-%d')
+        subtitle = date
+        view = None
+        posts = Post.objects.filter(Country_obj__id=country_dict['id'], Meeting_obj__meeting_type='Debate', Meeting_obj__DateTime__gte=date, Meeting_obj__DateTime__lt=date + datetime.timedelta(days=1)).filter(Meeting_obj__Chamber__in=current_chamber_list).select_related('Meeting_obj').order_by('-Meeting_obj__DateTime','Meeting_obj__Title')
+
     else:
-        country_dict, gov_dict, subRegions, subGovernments = get_regions_and_govs(region)
-        current_chamber_list, current_chamber_name, all_chambers, gov_levels = get_chambers(request, gov_dict)
-        prnt('country_dict, gov_dict, subRegions, subGovernments',country_dict, gov_dict, subRegions, subGovernments)
-        prnt('Chamber', current_chamber_list, current_chamber_name, all_chambers, gov_levels)
-        request = set_session_data(request, country_dict, gov_dict, subRegions, subGovernments, current_chamber_name)
-
+        if view == 'Current':
+            # posts = Post.objects.filter(Country_obj=country, Meeting_obj__meeting_type__iexact='Debate', DateTime__lte=now_utc() + datetime.timedelta(hours=12)).filter(Meeting_obj__Chamber__in=Chambers).select_related('Meeting_obj').order_by('-Meeting_obj__DateTime')
+            posts = Post.objects.filter(Country_obj__id=country_dict['id'], Meeting_obj__meeting_type__iexact='Debate').filter(Meeting_obj__Chamber__in=current_chamber_list).select_related('Meeting_obj').order_by('-Meeting_obj__DateTime','Meeting_obj__Title')
+            
+        elif view == 'Recommended':
+            include_list = ['Statement']
+                        #   algorithim(user, include_list, chamber_list, country_dict, view='Recommended', page=1, provState_name=None)
+            posts, view = algorithim(user, include_list, current_chamber_list, country_dict, view, page)
+            # posts, view = algorithim(request, include_list, Chamber, region, view, page)
+        elif view == 'Trending':
+            include_list = ['Meeting']
+            posts, view = algorithim(user, include_list, current_chamber_list, country_dict, view, page)
+            # posts, view = algorithim(request, include_list, Chamber, region, view, page)
+    
+    
+    if view != 'Trending' and user and user.UserData_obj:
+        userKeys = [k for k, value in Counter(user.UserData_obj.get_interests()).most_common()]
+    else:
         try:
-            isApp = request.COOKIES['fcmDeviceId']
+            dateQuery = Meeting.objects.filter(Country_obj__id=country_dict['id'], meeting_type='Debate', Chamber__in=current_chamber_list).order_by('-DateTime')[12].DateTime
         except:
-            isApp = None
-        if style == 'index':
-            prnt('index')
-            context = get_index(request, country_dict, gov_dict)
-            context['sidebarData'] =  get_trending(request, country_dict, current_chamber=current_chamber_name, all_chambers=all_chambers)
-            context = get_user_sending_data(user_id, context)
-            return render(request, "utils/fetch_index.html", context)
-        else:
-            if current_chamber_name == 'All':
-                title = '%s Debates' %('All')
-            else:   
-                title = '%s Debates' %(current_chamber_name)
-            nav_options = []
-            if include_nav == 'True':
-                nav_options = [nav_item('button', f'Chamber: {current_chamber_name}', 'subNavWidget', 'chamberForm', fields=['All'] + all_chambers, key='chamber'),
-                        nav_item('button', 'Page: %s' %(page), 'subNavWidget', 'pageForm'), 
-                        nav_item('button', 'Date', 'subNavWidget', 'datePickerForm')]
-            subtitle = ''
-            user_data, user = get_user_data(request)
-            if request.method == 'POST':
-                date = datetime.datetime.strptime(date, '%Y-%m-%d')
-                subtitle = date
-                view = None
-                posts = Post.objects.filter(Country_obj__id=country_dict['id'], Meeting_obj__meeting_type='Debate', Meeting_obj__DateTime__gte=date, Meeting_obj__DateTime__lt=date + datetime.timedelta(days=1)).filter(Meeting_obj__Chamber__in=current_chamber_list).select_related('Meeting_obj').order_by('-Meeting_obj__DateTime','Meeting_obj__Title')
-
-            else:
-                if view == 'Current':
-                    # posts = Post.objects.filter(Country_obj=country, Meeting_obj__meeting_type__iexact='Debate', DateTime__lte=now_utc() + datetime.timedelta(hours=12)).filter(Meeting_obj__Chamber__in=Chambers).select_related('Meeting_obj').order_by('-Meeting_obj__DateTime')
-                    posts = Post.objects.filter(Country_obj__id=country_dict['id'], Meeting_obj__meeting_type__iexact='Debate').filter(Meeting_obj__Chamber__in=current_chamber_list).select_related('Meeting_obj').order_by('-Meeting_obj__DateTime','Meeting_obj__Title')
-                    
-                elif view == 'Recommended':
-                    include_list = ['Statement']
-                                #   algorithim(user, include_list, chamber_list, country_dict, view='Recommended', page=1, provState_name=None)
-                    posts, view = algorithim(user, include_list, current_chamber_list, country_dict, view, page)
-                    # posts, view = algorithim(request, include_list, Chamber, region, view, page)
-                elif view == 'Trending':
-                    include_list = ['Meeting']
-                    posts, view = algorithim(user, include_list, current_chamber_list, country_dict, view, page)
-                    # posts, view = algorithim(request, include_list, Chamber, region, view, page)
-            
-            
-            if view != 'Trending' and user and user.UserData_obj:
-                userKeys = [k for k, value in Counter(user.UserData_obj.get_interests()).most_common()]
-            else:
-                try:
-                    dateQuery = Meeting.objects.filter(Country_obj__id=country_dict['id'], meeting_type='Debate', Chamber__in=current_chamber_list).order_by('-DateTime')[12].DateTime
-                except:
-                    dateQuery = now_utc()
-                dt = now_utc().replace(tzinfo=pytz.UTC) - dateQuery
-                userKeys = get_trending_keys(dt, ['Meeting'], current_chamber_list)
-            setlist = paginate(posts, page, request)
-            context = {
-                'isApp': isApp,
-                'title': title,
-                'subtitle': subtitle,
-                'view': view,
-                'dateForm': form,
-                'cards': 'debates_list',
-                'sort': sort,
-                'feed_list':setlist,      
-                'style':style, 
-                'user_keywords': userKeys,
-                'useractions': get_useractions(user, setlist),
-                'isMobile': request.user_agent.is_mobile,
-                'nav_bar': nav_options,
-            }
-            return render_view(request, context, country=country_dict)
+            dateQuery = now_utc()
+        dt = now_utc().replace(tzinfo=pytz.UTC) - dateQuery
+        userKeys = get_trending_keys(dt, ['Meeting'], current_chamber_list)
+    setlist = paginate(posts, page, request)
+    context = {
+        # 'isApp': isApp,
+        'title': title,
+        'subtitle': subtitle,
+        'view': view,
+        'dateForm': form,
+        'cards': 'debates_list',
+        'sort': sort,
+        'feed_list':setlist,      
+        'style':style, 
+        'user_keywords': userKeys,
+        'useractions': get_useractions(user, setlist),
+        'isMobile': request.user_agent.is_mobile,
+        'nav_bar': nav_options,
+    }
+    return render_view(request, context, country_dict, 'legis')
 
 def debate_view(request, region, chamber, govNumber, session, iden, year, month, day, hour, minute):
     prnt('-hansard _view')

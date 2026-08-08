@@ -589,6 +589,7 @@ body a:hover{
     opacity: 0;
 }
 #feedTop{
+  background-color: rgba(249, 249, 249,1);
   position: absolute;
   margin: 0%;
   top: 0px;
@@ -761,6 +762,7 @@ body a:hover{
   color: #848484;
 }
 .card{
+  background-color: rgba(249, 249, 249,1);
   position: relative;
   display:flex;
   flex-flow:row;
@@ -1611,6 +1613,7 @@ background-color: #030491;
   padding: 0px;
 }
 .pagePicker li{
+  background-color: rgba(249, 249, 249,1);
   display: inline-block;
   float: left;
   border: 1px solid #c4c4c4;
