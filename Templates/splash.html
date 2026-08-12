@@ -7,7 +7,7 @@
     <br>
     <ul id='flags'>
         {% for region in supported_regions %}
-        <li id='flag'><a href='/{{ region.lowerName }}/home'><img src={% static region.ImgLinks|get_item:'flag' %}></a></li>
+        <li id='flag'><a href='/sovote/{{ region.lowerName }}'><img src={% static region.ImgLinks|get_item:'flag' %}></a></li>
         {% endfor %}
     </ul>
     <h2>If you could run your own government as easily as using Facebook,</h2><h2>Would you?</h2>
@@ -48,7 +48,7 @@
     <br>
     <ul id="flags">
         {% for region in supported_regions %}
-            <li style="display:inline-block; padding:30px"><a href='/{{ region.lowerName }}'>{{ region.Name }}</a></li>
+            <li style="display:inline-block; padding:30px"><a href='/sovote/{{ region.lowerName }}'>{{ region.Name }}</a></li>
         {% endfor %}
     </ul>
     <br>

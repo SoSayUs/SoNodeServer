@@ -6,22 +6,22 @@ from django.contrib.contenttypes.models import ContentType
 
 from accounts.models import UserData
 from legis.models import Government,Agenda,Action,Bill,Meeting,Statement,Motion,Vote,Election,Party,Person,District
-from legis.utils import get_gov, get_region, modify_gov, add_gov_menu_item
+from legis.utils import get_gov, get_region, modify_gov, add_gov_menu_item, remove_accents
 from posts.models import Post, Update, ImageFile, Region
 from posts.views import get_ordinal
-from network.models import DataPacket
+from network.models import Node
 from utils.models import (
     prnt, prntn, prntDebug, get_model_and_update, get_model_prefix, 
     save_and_return, declare_var, finishScript, create_share_object, 
     dt_to_string, save_mutable_fields, open_browser, close_browser, 
-    remove_accents, now_utc, timezonify, testing, create_job, request_browser_data,
+    now_utc, timezonify, testing, create_job, request_browser_data,
     logEvent, logError, return_test_result, script_test_error, save_image
     )
 
 import datetime
 from dateutil.parser import parse
 import requests
-# import feedparser
+import json
 from bs4 import BeautifulSoup
 import xml.etree.ElementTree as ET
 import xmltodict
@@ -95,7 +95,7 @@ runTimes = {
     'get_house_rollcalls_us' : 600, 'add_house_rollcall': 300, 
     'get_senate_rollcalls_us' : 600, 'add_senate_rollcall': 150, 
     'get_house_debates_us' : 1200, 'get_senate_debates_us' : 1200, 'add_official_debate_transcript': 420,
-    'get_house_persons_us' : 500, 'get_senate_persons_us' : 300,
+    'get_persons_us' : 600, 'get_senate_persons_us' : 300,
     'get_senate_committees' : 200, 
     'get_house_committees' : 1000, 'get_upcoming_senate_committees' : 200,
     'get_general_election_candidates' : 300, 'get_general_elections_results' : 200,
@@ -114,7 +114,7 @@ functions = { # in gov_region timezone
     {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 8, 10, 12, 14, 16, 18, 22], 'cmds' : ['get_bills_us'] },
     {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [1, 5, 11, 17, 21], 'cmds' : ['get_house_debates_us', 'get_house_rollcalls_us']},
     {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [3, 7, 19, 23], 'cmds' : ['get_senate_debates_us', 'get_senate_rollcalls_us']},
-    {'date' : ['x'], 'dayOfWeek' : [1], 'hour' : [14], 'cmds' : ['get_house_persons_us', 'get_senate_persons_us']},
+    {'date' : ['x'], 'dayOfWeek' : [1], 'hour' : [14], 'cmds' : ['get_persons_us']},
     ],
 }
 
@@ -123,8 +123,8 @@ functions = { # in gov_region timezone
 approved_models = {
         # 'get_house_agendas' : ['Government', 'Agenda', 'AgendaTime', 'AgendaItem', 'Meeting'],
             'initialize_region' : ['Government', 'Person', 'Party', 'District', 'Region', 'ImageFile'],
-            'get_house_persons_us' : ['Government', 'Person', 'Party', 'District', 'Region', 'ImageFile'],
-            'get_senate_persons_us' : ['Government', 'Person', 'Party', 'Region', 'ImageFile'],
+            'get_persons_us' : ['Government', 'Person', 'Party', 'District', 'Region', 'ImageFile'],
+            # 'get_senate_persons_us' : ['Government', 'Person', 'Party', 'Region', 'ImageFile'],
             'get_bills_us' : ['Bill', 'BillText', 'Committee', 'Meeting', 'Action', 'Government', 'Notification'],
             'get_house_debates_us' : ['Meeting', 'Statement', 'Agenda', 'Bill', 'BillText', 'Action', 'Government', 'Committee', 'Notification'],
             'get_senate_debates_us' : ['Meeting', 'Statement', 'Agenda', 'Bill', 'BillText', 'Action', 'Government', 'Committee', 'Notification'],
@@ -159,77 +159,48 @@ def find_party(party_short=None, party_name=None):
 
 gov_logo_links = {"House": "img/regions/usa/house.svg.png", "Senate": "img/regions/usa/senate.svg.png"}
 
-# get_wiki = True
 get_wiki = not testing()
-
-
-def get_browser_data(p=None, driver=None, url=None):
-    if p == 'get_house_persons_1':
-        # if not driver:
-        #     driver = open_browser(url)
-        # else:
-        if url:
-            driver.get(url)
-
-        prnt('loaded')
-        element_present = EC.presence_of_element_located((By.XPATH, '//*[@id="by-state"]/div/div/div[2]'))
-        WebDriverWait(driver, 10).until(element_present)
-        time.sleep(1)
-        return BeautifulSoup(driver.page_source, 'html.parser')
-    elif p == 'get_house_persons_2':
-        if url:
-            driver.get(url)
-        prnt('loaded1')
-        element_present = EC.presence_of_element_located((By.XPATH, '//*[@id="main"]'))
-        WebDriverWait(driver, 10).until(element_present)
-        prnt('ready1')
-
-        return BeautifulSoup(driver.page_source, 'html.parser')
-    elif p == 'get_house_persons_3':
-        if url:
-            driver.get(url)
-        prnt('loaded2')
-        element_present = EC.presence_of_element_located((By.XPATH, '//*[@id="main"]'))
-        WebDriverWait(driver, 10).until(element_present)
-        prnt('ready12')
-        return BeautifulSoup(driver.page_source, 'html.parser')
-    else:
-        return driver.get(url)
-
-
-
-def data_request(func):
-    data = {}
-    if func == 'get_house_persons':
-        driver = open_browser(None)
-
-        starting_url = 'https://www.house.gov/representatives'
-        soup = get_browser_data(p='get_house_persons_1', driver=driver, url=starting_url)
-        if soup:
-            country = get_region('USA')
-            gov = get_gov(country, Country_obj=country, gov_level='Federal', gov_type='Congress', Region_obj=country)
-            url = f'https://www.congress.gov/search?pageSize=250&q=%7B%22source%22%3A%22members%22%2C%22congress%22%3A%22{gov.GovernmentNumber}%22%2C%22chamber%22%3A%22House%22%7D'
-            url2 = f'https://www.congress.gov/search?pageSize=250&q=%7B%22source%22%3A%22members%22%2C%22congress%22%3A%22{gov.GovernmentNumber}%22%2C%22chamber%22%3A%22House%22%7D&page=2'
-            
-            data['soup'] = soup
-            soup = get_browser_data(p=2, driver=driver, url=url)
-            data['soup1'] = soup
-            soup = get_browser_data(p=3, driver=driver, url=url2)
-            data['soup2'] = soup
-
-        close_browser(driver)
-    return data
+get_wiki = False
 
 
 def initialize_region(special=None, dt=None, iden=None):
     dt = declare_var(dt, now_utc())
     country = get_region('USA')
     log = create_share_object('initialize_region', country, special=special, dt=dt, iden=iden)
-    get_house_persons_us(special=special, iden=log.id, func='initialize_region')
-    get_senate_persons_us(special=special, iden=log.id, func='initialize_region')
-        
+    get_persons_us(special=special, iden=log.id, func='initialize_region')
+    # get_senate_persons_us(special=special, iden=log.id, func='initialize_region')
 
-def get_house_persons_us(special=None, dt=None, iden=None, func='get_house_persons_us', as_rq=True):
+
+def api_fetch(url, country=None):
+    prnt('-api_fetch',url)
+    from utils.models import get_operatorData
+    if not country:
+        country = get_region('USA')
+    data = None
+    operatorData = get_operatorData()
+    try:
+        full_nodeData = operatorData['myNodes'][operatorData['local_nodeId']]
+        if 'abilities' in full_nodeData['meta'] and country.id in full_nodeData['meta']['abilities']:
+            api_key = full_nodeData['meta']['abilities'][country.id]['api_key']
+            if '?' in url:
+                x = '&api_key='
+            else:
+                x = '?api_key='
+            url = url + x + api_key
+            r = requests.get(url)
+            data = r.content
+            return data
+    except Exception as e:
+        prnt('err api_fetch',str(e))
+    if not data:
+        nodes = Node.objects.filter(active=True, region_array__contains=country.id).filter(abilities__api_keys__contains=country.id)
+        for node in nodes:
+            # proxy_request
+            ...
+    return None
+
+
+def get_persons_us(special=None, dt=None, iden=None, func='get_persons_us', as_rq=True):
     prnt(f'--{func} USA', now_utc())
     dt = declare_var(dt, now_utc())
     gov = None
@@ -238,20 +209,22 @@ def get_house_persons_us(special=None, dt=None, iden=None, func='get_house_perso
 
     if special != 'testing':
         logEvent('scrapeAssignment', region=country, func=func, log_type='Tasks')
+
     starting_url = 'https://www.house.gov/representatives'
-
-
     new_members = []
+    found_persons = {'house':[], 'senate':[]}
     try:
         driver = open_browser(starting_url)
 
-        soup = get_browser_data(p='get_house_persons_1', driver=driver)
+        # soup = get_browser_data(p='get_house_persons_1', driver=driver)
 
-        if not soup:
-            soup = request_browser_data(func, country, dt)
-            if not soup:
-                # queue to run later - add note to log
-                return
+        prnt('loaded')
+        element_present = EC.presence_of_element_located((By.XPATH, '//*[@id="by-state"]/div/div/div[2]'))
+        WebDriverWait(driver, 10).until(element_present)
+        time.sleep(1)
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        close_browser(driver)
+    
     
         div = soup.find('div', {'id':'house-in-session'}).text
         a = div.find(' Congress, ')
@@ -272,20 +245,20 @@ def get_house_persons_us(special=None, dt=None, iden=None, func='get_house_perso
             gov.migrate_data()
             gov.LogoLinks = gov_logo_links
         gov = modify_gov(gov, [{'Office_array':'Congressional Representative'},{'Chamber_array':'House'},{'menuItem_array':['Bills','Debates','RollCalls','Officials']}])
+        gov = modify_gov(gov, [{'Office_array':'Senator'},{'Chamber_array':'Senate'}])
         log.updateShare(gov)
         
         content = soup.find('div', {'class':'view-content'})
         tables = content.find_all('table', {'class':'table'})
-        congressmen = []
         for table in tables:
             state_name = table.find('caption').text.strip()
             for key, value in state_list.items():
                 if value == state_name:
                     AbbrName = key
                     break
-            state = Region.objects.filter(Name=state_name, AbbrName=AbbrName, nameType='State', modelType='provState', ParentRegion_obj=country, Validator_obj__is_valid=True).first()
+            state = Region.objects.filter(Name=state_name, AbbrName=AbbrName, nameType='State', ParentRegion_obj=country, Validator_obj__is_valid=True).first()
             if not state:
-                state = Region(func=func, Name=state_name, AbbrName=AbbrName, nameType='State', modelType='provState', ParentRegion_obj=country)
+                state = Region(func=func, Name=state_name, AbbrName=AbbrName, nameType='State', ParentRegion_obj=country)
                 state.save()
             if not state.Validator_obj or not state.Validator_obj.is_valid:
                 log.updateShare(state)
@@ -295,12 +268,12 @@ def get_house_persons_us(special=None, dt=None, iden=None, func='get_house_perso
             for tr in trs:
                 tds = tr.find_all('td')
                 district_name = tds[0].text.replace('st','').replace('nd','').replace('rd','').replace('th','').strip()
-                try:
-                    isint = int(district_name)
-                    district_name = 'District ' + district_name
-                except:
-                    # prnt('not int')
-                    ...
+                # try:
+                #     isint = int(district_name)
+                #     district_name = district_name
+                # except:
+                #     # prnt('not int')
+                #     ...
 
                 district = District.objects.filter(Name=district_name, Country_obj=country, Region_obj=country, ProvState_obj=state, gov_level='Federal', nameType='Congressional District', Validator_obj__is_valid=True).first()
                 if district:
@@ -385,10 +358,10 @@ def get_house_persons_us(special=None, dt=None, iden=None, func='get_house_perso
                             data = {'role':assignment, 'current':True, 'gov_level':'Federal', 'Chamber':'House', 'Government_id':gov.id}
                             person.update_role(personU, data=data)
                     person, personU, person_is_new, log = save_and_return(person, personU, log)
-                    congressmen.append(person.id)
+                    found_persons['house'].append(person.id)
                     if not person.GovIden:
                         prnt('no govIden')
-                        m = {'first':first_name, 'last':last_name, 'website':website, 'party':party, 'state':state, 'district':district, 'officeRoom':officeRoom, 'phone':phone, 'assignments':assignments}
+                        m = {'first':first_name, 'last':last_name, 'website':website, 'party':party, 'state':state, 'district':district, 'officeRoom':officeRoom, 'phone':phone, 'assignments':assignments, 'role':'Congressional Representative', 'chamber':'House'}
                         new_members.append(m)
                     elif 'PhotoLink' in personU.data and not ImageFile.objects.filter(pointerId=person.id, Validator_obj__is_valid=True).exists():
                         url = personU.data['PhotoLink']
@@ -401,158 +374,348 @@ def get_house_persons_us(special=None, dt=None, iden=None, func='get_house_perso
                             prnt('img err 575',str(e))
                             
                 else:
-                    m = {'first':first_name, 'last':last_name, 'website':website, 'party':party, 'state':state, 'district':district, 'officeRoom':officeRoom, 'phone':phone, 'assignments':assignments}
+                    m = {'first':first_name, 'last':last_name, 'website':website, 'party':party, 'state':state, 'district':district, 'officeRoom':officeRoom, 'phone':phone, 'assignments':assignments, 'role':'Congressional Representative', 'chamber':'House'}
                     new_members.append(m)
 
+        url = 'https://www.senate.gov/general/contact_information/senators_cfm.xml'
+        r = requests.get(url)
+        root = ET.fromstring(r.content)
+        last_update = root.find('last_updated')
+        prnt('last_update.text',last_update.text)
+        # driver = None
+        for member in root.findall('member'):
+            member_full = member.find('member_full').text
+            last_name = member.find('last_name').text
+            first_name = member.find('first_name').text
+            party_short = member.find('party').text
+            state_short = member.find('state').text
+            address = member.find('address').text
+            phone = member.find('phone').text
+            email = member.find('email').text
+            website = member.find('website').text
+            member_class = member.find('class').text
+            bioguide_id = member.find('bioguide_id').text
+
+            state = Region.objects.filter(AbbrName=state_short, Name=state_list[state_short], nameType='State', ParentRegion_obj=country, Validator_obj__is_valid=True).first()
+            
+            if not state:
+                state = Region(func=func, AbbrName=state_short, Name=state_list[state_short], nameType='State', ParentRegion_obj=country)
+                state.save()
+            if not state.Validator_obj or not state.Validator_obj.is_valid:
+                log.updateShare(state)
+            party_name, party_short, alt_name = find_party(party_short=party_short)
+
+            party, partyU, party_is_new = get_model_and_update('Party', Name=party_name, AltName=alt_name, ShortName=party_short, Country_obj=country, Region_obj=country, gov_level='Federal')
+            if party_is_new:
+                if get_wiki:
+                    try:   
+                        search_name = party_name + ' american federal political party'
+                        link = wikipedia.search(search_name)[0].replace(' ', '_')
+                        party.Wiki = 'https://en.wikipedia.org/wiki/' + link
+                    except:
+                        pass
+                party, partyU, party_is_new, log = save_and_return(party, partyU, log)
+
+            person, personU, person_is_new = get_model_and_update('Person', GovIden=bioguide_id, Country_obj=country, Region_obj=country)
+            personU.data['Chamber'] = 'Senate'
+            personU.data['ProvState_id'] = state.id
+            personU.data['FirstName'] = first_name
+            personU.data['LastName'] = last_name
+            personU.data['FullName'] = first_name + ' ' + last_name
+            personU.data['Position'] = 'Senator'
+            personU.data['gov_level'] = 'Federal'
+            personU.data['Telephones'] = [phone]
+            personU.data['Email'] = email
+            personU.data['Party_id'] = party.id
+            personU.data['Class'] = member_class
+            personU.data['member_detail'] = remove_accents(member_full)
+            person.update_role(personU, data={'role':'Senator','current':True, 'gov_level':'Federal'})
+        
+            person, personU, person_is_new, log = save_and_return(person, personU, log)
+
+            if person_is_new or not person.GovProfilePage or not person.GovIden or not 'PhotoLink' in personU.data:
+                s = {'person_obj':person, 'personU':personU, 'person_is_new':person_is_new, 'first':first_name, 'last':last_name, 'website':website, 'party':party, 'state':state, 'bioguide_id':bioguide_id, 'role':'Senator', 'chamber':'Senate'}
+                new_members.append(s)
+            elif 'PhotoLink' in personU.data and not ImageFile.objects.filter(pointerId=person.id, Validator_obj__is_valid=True).exists():
+                url = personU.data['PhotoLink']
+                try:
+                    img_r = requests.get(url)
+                    if img_r:
+                        img_obj = save_image(url, f'legis/usa/', pointerId=person.id, r=img_r, region=country)
+                        log.updateShare(img_obj)
+                except Exception as e:
+                    prnt('img err 578',str(e))
+                    
+            prnt(f"--Member Full: {member_full}")
+            prnt(f"Last Name: {last_name}")
+            prnt(f"First Name: {first_name}")
+            prnt(f"Party: {party}")
+            prnt(f"State: {state}")
+            prnt(f"Bioguide ID: {bioguide_id}")
+            found_persons['senate'].append(person.id)
+
+            
+        prnt('new_members',len(new_members),new_members)
         if new_members:
-            new_members = sorted(new_members, key=lambda item: item['last'].lower())
+            # new_members = sorted(new_members, key=lambda item: item['last'].lower())
 
-            prnt('len(new_members)',len(new_members))
-            prnt('^ new members')
-            url = f'https://www.congress.gov/search?pageSize=250&q=%7B%22source%22%3A%22members%22%2C%22congress%22%3A%22{gov.GovernmentNumber}%22%2C%22chamber%22%3A%22House%22%7D'
-            prnt('url',url)
-            url2 = f'https://www.congress.gov/search?pageSize=250&q=%7B%22source%22%3A%22members%22%2C%22congress%22%3A%22{gov.GovernmentNumber}%22%2C%22chamber%22%3A%22House%22%7D&page=2'
-            prnt('url2',url2)
-            try:
-                # driver.get(url)
-                # prnt('loaded')
-                # element_present = EC.presence_of_element_located((By.XPATH, '//*[@id="main"]'))
-                # WebDriverWait(driver, 10).until(element_present)
-                # prnt('ready1')
-
-                # soup1 = BeautifulSoup(driver.page_source, 'html.parser')
-                soup1 = get_browser_data(p='get_house_persons_2', driver=driver, url=url)
-
-                # driver.get(url2)
-                # prnt('loaded2')
-                # element_present = EC.presence_of_element_located((By.XPATH, '//*[@id="main"]'))
-                # WebDriverWait(driver, 10).until(element_present)
-                # prnt('ready12')
-                # soup2 = BeautifulSoup(driver.page_source, 'html.parser')
-                soup2 = get_browser_data(p='get_house_persons_3', driver=driver, url=url2)
-
-            except Exception as e:
-                prnt('house persons err 2',str(e))
-
-            close_browser(driver)
-
-            def get_data(soup, log):
-                main = soup.find('div', {'id':'main'})
-                lis = main.find_all('li', {'class':'expanded'})
-                for li in lis:
-                    if li.text and 'Present' in li.text:
-                        try:
-                            if not new_members:
-                                prnt('new_members done')
-                                break
-                        except:
-                            pass
-                        searchText = remove_accents(li.text).replace(' ','')
-                        found = False
-                        for m in new_members:
-                            required = [f"{m['last']}", f"{m['first']}", m['state'].Name, m['district'].Name.replace('District ',''), m['party'].Name, 'Present']
-                            for i in required:
-                                if i.replace(' ','') not in searchText:
-                                    found = False
-                                    break
-                                else:
+            url = f'https://api.congress.gov/v3/member/congress/{gov.GovernmentNumber}?format=json&limit=200&currentMember=true'
+            
+            def parse_data(url, found_persons, new_members, log):
+                data = api_fetch(url)
+                data = json.loads(data)
+                for d in data:
+                    if d == 'members':
+                        for member_data in data[d]:
+                            print()
+                            print(member_data)
+                            name = member_data['name']
+                            found = False
+                            for m in new_members:
+                                if 'district' in m and str(member_data['district']) in m['district'].Name or member_data['district'] == 0:
+                                    prnt("str(member_data['district'])",str(member_data['district']))
+                                    if member_data['state'].lower() == m['state'].Name.lower():
+                                        prnt("member_data['state'].lower()",member_data['state'].lower())
+                                        if remove_accents(m['last']) in remove_accents(name):
+                                            prnt("remove_accents(m['last'])",remove_accents(m['last']))
+                                            found = True
+                                            break
+                                elif 'bioguide_id' in m and m['bioguide_id'] == member_data['bioguideId']:
+                                    prnt("member_data['bioguideId']",member_data['bioguideId'])
                                     found = True
+                                    break
+                            prnt('found',found)
                             if found:
-                                prnt('FOUND',m)
                                 new_members.remove(m)
-                                heading = li.find('span', {'class':'result-heading'})
-                                try:
-                                    img_url = 'https://www.congress.gov' + li.find('img')['src']
-                                    prnt('firstImg:',img_url)
-                                except Exception as e:
-                                    prnt('find image fail',str(e))
-                                    img_url = None
-                                listing_name = remove_accents(heading.find('a').text)
-                                x = listing_name.find(', ')
-                                z = listing_name[x+2:].find(' - ')
-                                first_name = listing_name[x+2:x+2+z].strip()
-                                last_name = listing_name[:x].strip()
+                                prnt(m)
 
-                                link = heading.find('a')['href']
-                                
-                                prnt('link',link)
-                                q = link.find('?')
-                                w = link[:q].rfind('/')
-                                code = link[w+1:q]
-                                link = link[:q]
-                                person, personU, person_is_new = get_model_and_update('Person', GovIden=code, Country_obj=country, Region_obj=country)
-                                if not img_url:
-                                    img_url = 'https://www.congress.gov/img/member/%s_200.jpg' %(code.lower())
+                                code = member_data['bioguideId']
+                                # img_url = f'https://www.congress.gov/img/member/{code}_200.jpg'
+                                img_url = None
+
+                                x = name.find(', ')
+                                first_name = name[x+2:].strip()
+                                last_name = name[:x].strip()
+                                link = f"{first_name.split(' ')[0]}-{last_name.split(' ')[0]}/{code}"
+
+                                if m.get('person') and m.get('personU'):
+                                    person = m.get('person')
+                                    personU = m.get('personU')
+                                else:
+                                    person, personU, person_is_new = get_model_and_update('Person', GovIden=code, Country_obj=country, Region_obj=country)
+                                person.GovProfilePage = 'https://www.congress.gov' + link
+                                personU.data['Websites'] = [m['website']]
+                                personU.data['Chamber'] = m['chamber']
+                                if m.get('district'):
+                                    personU.data['District_id'] = m['district'].id
+                                personU.data['ProvState_id'] = m['state'].id
+                                personU.data['FirstName'] = first_name
+                                personU.data['LastName'] = last_name
+                                personU.data['FullName'] = name
+                                personU.data['Position'] = m['role']
+                                personU.data['gov_level'] = 'Federal'
+                                if m.get('phone'):
+                                    personU.data['Telephones'] = [m['phone']]
+                                personU.data['Party_id'] = m['party'].id
+                                if 'depiction' in member_data:
+                                    img_url = member_data['depiction']['imageUrl']
+                                    personU.data['PhotoLink'] = img_url
+
+                                role_data = {'role':m['role'],'current':True, 'gov_level':'Federal', 'officeName':m['officeRoom'] if m.get('officeRoom') else None}
+                                start_date = None
+                                for item in member_data['terms']['item']:
+                                    dt = datetime.datetime(year=int(item['startYear']), month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+                                    year = timezonify('est', dt)
+                                    if not start_date or year < start_date:
+                                        start_date = year
+                                if start_date:
+                                    role_data['StartDate'] = dt_to_string(start_date)
+                                person.update_role(personU, data=role_data)
+
+                                if 'assignments' in m and m['assignments']:
+                                    for assignment in m['assignments'].split('|'):
+                                        role_data = {'role':assignment,'current':True,'gov_level':'Federal', 'Chamber':m['chamber'],'Government_id':gov.id}
+                                        person.update_role(personU, data=role_data)
+
+                                person, personU, person_is_new, log = save_and_return(person, personU, log)
 
                                 try:
+                                    prnt('img_url',img_url)
                                     if img_url:
+                                        time.sleep(1)
                                         img_r = requests.get(img_url)
                                     if img_r:
                                         img_obj = save_image(img_url, f'legis/usa/', pointerId=person.id, r=img_r, region=country)
                                         log.updateShare(img_obj)
                                 except Exception as e:
-                                    prnt('img err 576',str(e))
+                                    prnt('img err 579',str(e))
+                                if m['chamber'] == 'House':
+                                    found_persons['house'].append(person.id)
+                                elif m['chamber'] == 'Senate':
+                                    found_persons['senate'].append(person.id)
+    
+                    elif d == 'pagination' and 'next' in data[d]:
+                        prnt('data[d]',data[d])
+                        prnt('found_persons:',len(found_persons['house'] + found_persons['senate']))
+                        prnt('new_members len:',len(new_members))
+                        if new_members:
+                            time.sleep(1)
+                            found_persons, new_members, log = parse_data(data[d]['next'], found_persons, new_members, log)
+                    else:
+                        prnt('else')
+                        print(d, data[d])
+                return found_persons, new_members, log
+
+            found_persons, new_members, log = parse_data(url, found_persons, new_members, log)
+
+
+
+        #     prnt('len(new_members)',len(new_members))
+        #     prnt('^ new members')
+        #     url = f'https://www.congress.gov/search?pageSize=250&q=%7B%22source%22%3A%22members%22%2C%22congress%22%3A%22{gov.GovernmentNumber}%22%2C%22chamber%22%3A%22House%22%7D'
+        #     prnt('url',url)
+        #     url2 = f'https://www.congress.gov/search?pageSize=250&q=%7B%22source%22%3A%22members%22%2C%22congress%22%3A%22{gov.GovernmentNumber}%22%2C%22chamber%22%3A%22House%22%7D&page=2'
+        #     prnt('url2',url2)
+        #     try:
+        #         # driver.get(url)
+        #         # prnt('loaded')
+        #         # element_present = EC.presence_of_element_located((By.XPATH, '//*[@id="main"]'))
+        #         # WebDriverWait(driver, 10).until(element_present)
+        #         # prnt('ready1')
+
+        #         # soup1 = BeautifulSoup(driver.page_source, 'html.parser')
+        #         soup1 = get_browser_data(p='get_house_persons_2', driver=driver, url=url)
+
+        #         # driver.get(url2)
+        #         # prnt('loaded2')
+        #         # element_present = EC.presence_of_element_located((By.XPATH, '//*[@id="main"]'))
+        #         # WebDriverWait(driver, 10).until(element_present)
+        #         # prnt('ready12')
+        #         # soup2 = BeautifulSoup(driver.page_source, 'html.parser')
+        #         soup2 = get_browser_data(p='get_house_persons_3', driver=driver, url=url2)
+
+        #     except Exception as e:
+        #         prnt('house persons err 2',str(e))
+
+        #     close_browser(driver)
+
+            # def get_data(soup, log):
+            #     main = soup.find('div', {'id':'main'})
+            #     lis = main.find_all('li', {'class':'expanded'})
+            #     for li in lis:
+            #         if li.text and 'Present' in li.text:
+            #             try:
+            #                 if not new_members:
+            #                     prnt('new_members done')
+            #                     break
+            #             except:
+            #                 pass
+            #             searchText = remove_accents(li.text).replace(' ','')
+            #             found = False
+            #             for m in new_members:
+            #                 required = [f"{m['last']}", f"{m['first']}", m['state'].Name, m['district'].Name.replace('District ',''), m['party'].Name, 'Present']
+            #                 for i in required:
+            #                     if i.replace(' ','') not in searchText:
+            #                         found = False
+            #                         break
+            #                     else:
+            #                         found = True
+            #                 if found:
+            #                     prnt('FOUND',m)
+            #                     new_members.remove(m)
+            #                     heading = li.find('span', {'class':'result-heading'})
+            #                     try:
+            #                         img_url = 'https://www.congress.gov' + li.find('img')['src']
+            #                         prnt('firstImg:',img_url)
+            #                     except Exception as e:
+            #                         prnt('find image fail',str(e))
+            #                         img_url = None
+            #                     listing_name = remove_accents(heading.find('a').text)
+            #                     x = listing_name.find(', ')
+            #                     z = listing_name[x+2:].find(' - ')
+            #                     first_name = listing_name[x+2:x+2+z].strip()
+            #                     last_name = listing_name[:x].strip()
+
+            #                     link = heading.find('a')['href']
+                                
+            #                     prnt('link',link)
+            #                     q = link.find('?')
+            #                     w = link[:q].rfind('/')
+            #                     code = link[w+1:q]
+            #                     link = link[:q]
+            #                     person, personU, person_is_new = get_model_and_update('Person', GovIden=code, Country_obj=country, Region_obj=country)
+            #                     if not img_url:
+            #                         img_url = 'https://www.congress.gov/img/member/%s_200.jpg' %(code.lower())
+
+            #                     try:
+            #                         if img_url:
+            #                             img_r = requests.get(img_url)
+            #                         if img_r:
+            #                             img_obj = save_image(img_url, f'legis/usa/', pointerId=person.id, r=img_r, region=country)
+            #                             log.updateShare(img_obj)
+            #                     except Exception as e:
+            #                         prnt('img err 576',str(e))
                                     
-                                profile = li.find('div', {'class':'member-profile'})
-                                spans = profile.find_all('span', {'class':'result-item'})
-                                start_date = None
-                                for span in spans:
-                                    if 'Served' in span.text:
-                                        z = span.text.find('House: ')+len('House: ')
-                                        x = span.text[z:].find('-')
-                                        dt = datetime.datetime(year=int(span.text[z:z+x].strip()), month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-                                        start_date = timezonify('est', dt)
-                                        break
-                                if person_is_new and get_wiki:
-                                    try:
-                                        time.sleep(1)
-                                        search_name = m['state'].Name + ' congressional representative ' + first_name + ' ' + last_name
-                                        prnt(search_name)
-                                        title = wikipedia.search(search_name)[0].replace(' ', '_')
-                                        u = 'https://en.wikipedia.org/wiki/' + title
-                                        person.Wiki = u
-                                    except Exception as e:
-                                        prnt(str(e))
-                                person.GovProfilePage = 'https://www.congress.gov' + link
-                                personU.data['Websites'] = [m['website']]
-                                personU.data['Chamber'] = 'House'
-                                personU.data['District_id'] = m['district'].id
-                                personU.data['ProvState_id'] = m['state'].id
-                                personU.data['FirstName'] = first_name
-                                personU.data['LastName'] = last_name
-                                personU.data['FullName'] = first_name + ' ' + last_name
-                                personU.data['Position'] = 'Congressional Representative'
-                                personU.data['gov_level'] = 'Federal'
-                                personU.data['Telephones'] = [m['phone']]
-                                personU.data['Party_id'] = m['party'].id
-                                personU.data['PhotoLink'] = img_url
-                                data = {'role':'Congressional Representative','current':True, 'gov_level':'Federal', 'officeName':m['officeRoom']}
-                                if start_date:
-                                    data['StartDate'] = dt_to_string(start_date)
-                                person.update_role(personU, data=data)
+            #                     profile = li.find('div', {'class':'member-profile'})
+            #                     spans = profile.find_all('span', {'class':'result-item'})
+            #                     start_date = None
+            #                     for span in spans:
+            #                         if 'Served' in span.text:
+            #                             z = span.text.find('House: ')+len('House: ')
+            #                             x = span.text[z:].find('-')
+            #                             dt = datetime.datetime(year=int(span.text[z:z+x].strip()), month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            #                             start_date = timezonify('est', dt)
+            #                             break
+            #                     if person_is_new and get_wiki:
+            #                         try:
+            #                             time.sleep(1)
+            #                             search_name = m['state'].Name + ' congressional representative ' + first_name + ' ' + last_name
+            #                             prnt(search_name)
+            #                             title = wikipedia.search(search_name)[0].replace(' ', '_')
+            #                             u = 'https://en.wikipedia.org/wiki/' + title
+            #                             person.Wiki = u
+            #                         except Exception as e:
+            #                             prnt(str(e))
+            #                     person.GovProfilePage = 'https://www.congress.gov' + link
+            #                     personU.data['Websites'] = [m['website']]
+            #                     personU.data['Chamber'] = 'House'
+            #                     personU.data['District_id'] = m['district'].id
+            #                     personU.data['ProvState_id'] = m['state'].id
+            #                     personU.data['FirstName'] = first_name
+            #                     personU.data['LastName'] = last_name
+            #                     personU.data['FullName'] = first_name + ' ' + last_name
+            #                     personU.data['Position'] = 'Congressional Representative'
+            #                     personU.data['gov_level'] = 'Federal'
+            #                     personU.data['Telephones'] = [m['phone']]
+            #                     personU.data['Party_id'] = m['party'].id
+            #                     personU.data['PhotoLink'] = img_url
+            #                     data = {'role':'Congressional Representative','current':True, 'gov_level':'Federal', 'officeName':m['officeRoom']}
+            #                     if start_date:
+            #                         data['StartDate'] = dt_to_string(start_date)
+            #                     person.update_role(personU, data=data)
 
-                                if 'assignments' in m and m['assignments']:
-                                    for assignment in m['assignments'].split('|'):
+            #                     if 'assignments' in m and m['assignments']:
+            #                         for assignment in m['assignments'].split('|'):
 
-                                        data = {'role':assignment,'current':True,'gov_level':'Federal', 'Chamber':'House','Government_id':gov.id}
-                                        person.update_role(personU, data=data)
-                                person, personU, person_is_new, log = save_and_return(person, personU, log)
-                                congressmen.append(person.id)
-                                break
-                return log
+            #                             data = {'role':assignment,'current':True,'gov_level':'Federal', 'Chamber':'House','Government_id':gov.id}
+            #                             person.update_role(personU, data=data)
+            #                     person, personU, person_is_new, log = save_and_return(person, personU, log)
+            #                     congressmen.append(person.id)
+            #                     break
+            #     return log
 
-            log = get_data(soup1, log)
-            log = get_data(soup2, log)
-        else:
-            close_browser(driver)
+        #     log = get_data(soup1, log)
+        #     log = get_data(soup2, log)
+        # else:
+        #     close_browser(driver)
 
         prnt('not found members:',new_members)
         # if new_members:
         #     logEvent('not found members', func='get_house_persons', code='37463', region=country, extra={'missing':new_members})
-        prnt('congressmen len',len(congressmen))
+        prnt('found_persons len',len(found_persons))
 
         prnt('remove previous congressmen')
-        repUpdates = Update.valid_objects.filter(pointerKey=ContentType.objects.get_for_model(Person), Region_obj=country, extra__roles__contains=[{'role':'Congressional Representative','current':True, 'gov_level':'Federal'}]).exclude(pointerId__in=congressmen)
+        repUpdates = Update.valid_objects.filter(pointerKey=ContentType.objects.get_for_model(Person), Region_obj=country, extra__roles__contains=[{'role':'Congressional Representative','current':True, 'gov_level':'Federal'}]).exclude(pointerId__in=found_persons['house'])
         for u in repUpdates:
             prnt('removing:::',u.pointerId)
             update = u.create_next_version()
@@ -562,13 +725,26 @@ def get_house_persons_us(special=None, dt=None, iden=None, func='get_house_perso
             update, u_is_new = update.save_if_new(func=func)
             if u_is_new:
                 log.updateShare(update)
+        
+        prnt('remove previous senators')
+        repUpdates = Update.valid_objects.filter(pointerKey=ContentType.objects.get_for_model(Person), Region_obj=country, extra__roles__contains=[{'role':'Senator', 'current':True, 'gov_level':'Federal'}]).exclude(pointerId__in=found_persons['senate'])
+        for u in repUpdates:
+            prnt('removing:::',u.pointerId)
+            update = u.create_next_version()
+            if 'Position' in update.data and update.data['Position'] == 'Senator':
+                del update.data['Position']
+            update.Pointer_obj.update_role(update, role='Senator', current=False)
+            update, u_is_new = update.save_if_new(func=func)
+            if u_is_new:
+                log.updateShare(update)
         prnt('done')
     
     except Exception as e:
         prnt('house persons fail ',str(e))
 
-    close_browser(driver)
+    # close_browser(driver)
     return finishScript(log, gov, special)
+
 
 def get_senate_persons_us(special=None, dt=None, iden=None, func='get_senate_persons_us', as_rq=True):
     prnt(f'--{func} USA', now_utc())
@@ -606,10 +782,10 @@ def get_senate_persons_us(special=None, dt=None, iden=None, func='get_senate_per
         member_class = member.find('class').text
         bioguide_id = member.find('bioguide_id').text
 
-        state = Region.objects.filter(AbbrName=state_short, Name=state_list[state_short], nameType='State', modelType='provState', ParentRegion_obj=country, Validator_obj__is_valid=True).first()
+        state = Region.objects.filter(AbbrName=state_short, Name=state_list[state_short], nameType='State', ParentRegion_obj=country, Validator_obj__is_valid=True).first()
         
         if not state:
-            state = Region(func=func, AbbrName=state_short, Name=state_list[state_short], nameType='State', modelType='provState', ParentRegion_obj=country)
+            state = Region(func=func, AbbrName=state_short, Name=state_list[state_short], nameType='State', ParentRegion_obj=country)
             state.save()
         if not state.Validator_obj or not state.Validator_obj.is_valid:
             log.updateShare(state)
@@ -680,6 +856,7 @@ def get_senate_persons_us(special=None, dt=None, iden=None, func='get_senate_per
             soup1 = BeautifulSoup(driver.page_source, 'html.parser')
         except Exception as e:
             prnt('sen persons url err', str(e))
+            soup1 = {}
 
         close_browser(driver)
 
@@ -942,7 +1119,7 @@ def add_bill(url=None, log=None, update_dt=None, driver=None, driver_service=Non
     dt = now_utc()
     log = declare_var(log, [])
     if not country:
-        country = Region.supported_objects.filter(modelType='country', Name='USA').first()
+        country = Region.supported_objects.filter(nameType='Country', Name='USA').first()
     if not log:
         log = create_share_object(func, country, special=special, dt=now_utc(), iden=None)
     err = 'start'
@@ -1985,7 +2162,7 @@ def add_bill(url=None, log=None, update_dt=None, driver=None, driver_service=Non
 def get_live_house_debates(special=None, dt=now_utc(), iden=None):
     func = 'get_live_house_debates'
     log = []
-    country = Region.supported_objects.filter(modelType='country', Name='USA').first()
+    country = Region.supported_objects.filter(nameType='Country', Name='USA').first()
     log = create_share_object(func, country, special=special, dt=dt, iden=iden)
     gov = Government.objects.filter(Country_obj=country, gov_level='Federal').first()
     if special != 'testing':
@@ -2356,7 +2533,7 @@ def get_house_rollcalls_us(special=None, dt=None, iden=None, target={}, job_dt=N
     prnt(f'--{func} USA', now_utc())
     dt = declare_var(dt, now_utc())
     task = declare_var(task, 1)
-    country = Region.supported_objects.filter(modelType='country', Name='USA', Validator_obj__is_valid=True).first()
+    country = Region.supported_objects.filter(nameType='Country', Name='USA', Validator_obj__is_valid=True).first()
     if not job_dt:
         job_dt = dt
     log = create_share_object(func, country, special=special, dt=dt, iden=iden, job_dt=job_dt, task=task)
@@ -3150,7 +3327,7 @@ def get_house_debates_us(special=None, dt=None, iden=None, target={}, driver=Non
     prnt(f'--{func} USA', now_utc())
     dt = declare_var(dt, now_utc())
     task = declare_var(task, 1)
-    country = Region.supported_objects.filter(modelType='country', Name='USA', Validator_obj__is_valid=True).first()
+    country = Region.supported_objects.filter(nameType='Country', Name='USA', Validator_obj__is_valid=True).first()
     if not job_dt:
         job_dt = dt
     log = create_share_object(func, country, special=special, dt=dt, iden=iden, job_dt=job_dt, task=task)
@@ -3232,7 +3409,7 @@ def get_senate_debates_us(special=None, dt=None, iden=None, target={}, driver=No
     prnt(f'--{func} USA', now_utc())
     dt = declare_var(dt, now_utc())
     task = declare_var(task, 1)
-    country = Region.supported_objects.filter(modelType='country', Name='USA', Validator_obj__is_valid=True).first()
+    country = Region.supported_objects.filter(nameType='Country', Name='USA', Validator_obj__is_valid=True).first()
     if not job_dt:
         job_dt = dt
     log = create_share_object(func, country, special=special, dt=dt, iden=iden, job_dt=job_dt, task=task)
@@ -3297,7 +3474,7 @@ def get_senate_rollcalls_us(special=None, dt=None, iden=None, target={}, driver=
     prnt(f'--{func} USA', now_utc())
     dt = declare_var(dt, now_utc())
     task = declare_var(task, 1)
-    country = Region.supported_objects.filter(modelType='country', Name='USA').first()
+    country = Region.supported_objects.filter(nameType='Country', Name='USA').first()
     if not job_dt:
         job_dt = dt
     log = create_share_object(func, country, special=special, dt=dt, iden=iden, job_dt=job_dt, task=task)
@@ -3630,7 +3807,7 @@ def get_general_election_candidates(special=None, dt=None, iden=None):
     func = 'get_general_election_candidates'
     prnt(f'--{func} USA', now_utc())
     dt = declare_var(dt, now_utc())
-    country = Region.supported_objects.filter(modelType='country', Name='USA').first()
+    country = Region.supported_objects.filter(nameType='Country', Name='USA').first()
     log = create_share_object(func, country, special=special, dt=dt, iden=iden)
     gov = Government.objects.filter(Country_obj=country, gov_level='Federal').first()
     if special != 'testing':
@@ -3775,7 +3952,7 @@ def get_general_election_candidates(special=None, dt=None, iden=None):
                     if election_is_new:
                         election, electionU, election_is_new, log = save_and_return(election, electionU, log)
 
-                    state = Region.objects.filter(Name__icontains=state_name, nameType='State', modelType='provState', ParentRegion_obj=country).first()
+                    state = Region.objects.filter(Name__icontains=state_name, nameType='State', ParentRegion_obj=country).first()
 
                     prnt('\n---',caption.text)
                     tbody = tab.find('tbody')
@@ -3886,7 +4063,7 @@ def get_general_elections_results(special=None, dt=None, iden=None):
     func = 'get_general_elections_results'
     prnt(f'--{func} USA', now_utc())
     dt = declare_var(dt, now_utc())
-    country = Region.supported_objects.filter(modelType='country', Name='USA').first()
+    country = Region.supported_objects.filter(nameType='Country', Name='USA').first()
     log = create_share_object(func, country, special=special, dt=dt, iden=iden)
     gov = Government.objects.filter(Country_obj=country, gov_level='Federal').first()
     if special != 'testing':
@@ -3962,7 +4139,7 @@ def get_user_region(address=None, city=None, zip_code=None, state=None, special=
     func = 'get_user_region'
     prnt(f'--{func} USA', now_utc())
     dt = declare_var(dt, now_utc())
-    country = Region.supported_objects.filter(modelType='country', Name='USA').first()
+    country = Region.supported_objects.filter(nameType='Country', Name='USA').first()
     log = create_share_object(func, country, special=special, dt=dt, iden=iden)
     gov = Government.objects.filter(Country_obj=country, gov_level='Federal').first()
     # if not special:
@@ -4069,9 +4246,9 @@ def get_user_region(address=None, city=None, zip_code=None, state=None, special=
                         state_short_name = iden[a:]
                         prnt('get provstate:', state_short_name)
                     state_name = state_list[state_short_name.upper()]
-                    state = Region.objects.filter(Name=state_name, ParentRegion_obj=country, modelType='provState').first()
+                    state = Region.objects.filter(Name=state_name, ParentRegion_obj=country, nameType='State').first()
                     if not state:
-                        state = Region(Name=state_name, ParentRegion_obj=country, modelType='provState', nameType='State', AbbrName=state_short_name.upper(), Office_array=[office_name], func=func)
+                        state = Region(Name=state_name, ParentRegion_obj=country, nameType='State', AbbrName=state_short_name.upper(), Office_array=[office_name], func=func)
                         state.update_data()
                         log.updateShare(state)
                 if 'cd:' in iden:
@@ -4121,9 +4298,9 @@ def get_user_region(address=None, city=None, zip_code=None, state=None, special=
                     # county_name = iden[a:].replace('_',' ').title()
                     county_name = i['division']['name']
                     prnt('get county', county_name)
-                    region = Region.objects.filter(Name=county_name, ParentRegion_obj=state, modelType='county').first()
+                    region = Region.objects.filter(Name=county_name, ParentRegion_obj=state, nameType='County').first()
                     if not region:
-                        region = Region(Name=county_name, ParentRegion_obj=state, modelType='county', nameType='County', Office_array=[office_name], func=func)
+                        region = Region(Name=county_name, ParentRegion_obj=state, nameType='County', Office_array=[office_name], func=func)
                         region.update_data()
                         log.updateShare(region)
                     # region.add_office(office_name)
@@ -4136,9 +4313,9 @@ def get_user_region(address=None, city=None, zip_code=None, state=None, special=
                     # locality_name = iden[a:].replace('_',' ').title()
                     locality_name = i['division']['name']
                     prnt('get municpality', locality_name)
-                    region = Region.objects.filter(Name=locality_name, ParentRegion_obj=country, modelType='city').first()
+                    region = Region.objects.filter(Name=locality_name, ParentRegion_obj=country, nameType='City').first()
                     if not region:
-                        region = Region(Name=locality_name, ParentRegion_obj=country, modelType='city', nameType='City', Office_array=[office_name], func=func)
+                        region = Region(Name=locality_name, ParentRegion_obj=country, nameType='City', Office_array=[office_name], func=func)
                         region.update_data()
                         log.updateShare(region)
                     elif not region.Office_array or office_name not in region.Office_array:

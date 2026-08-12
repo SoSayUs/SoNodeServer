@@ -638,13 +638,13 @@ def run_super_function_view(request, region, func, worker, super):
         result = 'result to come'
         for file in all_files:
             try:
-                a = file.find('/regions/')+len('/regions/')
+                a = file.find('/legis/generators/')+len('/legis/generators/')
                 x = file[a:]
                 words = x.split('/')
                 txt = x.replace('/', '.').replace('.py','')
                 if txt == region:
                     import importlib
-                    scraperScripts = importlib.import_module('regions.'+txt) 
+                    scraperScripts = importlib.import_module('legis.generators.'+txt) 
                     approved_models = scraperScripts.approved_models
                     for f, models in approved_models.items():
                         if f == func:
@@ -713,7 +713,7 @@ def scrapers_view(request, region, test):
         for file in all_files:
             prnt('file',file)
             try:
-                a = file.find('/regions/')+len('/regions/')
+                a = file.find('/legis/generators/')+len('/legis/generators/')
                 x = file[a:]
                 words = x.split('/')
                 scraper_region = words[-2]
@@ -1341,6 +1341,28 @@ def tester_queue_view(request):
             from transactions.models import Wallet
             # from utils.locked import check_commit_data
             from utils.models import get_data
+            self_node = get_self_node()
+
+            prnt('self_node.chain_array',self_node.region_array)
+            prnt('self_node.chain_array tye',type(self_node.region_array))
+
+            govPosts = list(Post.objects.filter(pointerType='Government', Region_obj__is_supported=True, Region_obj__id__in=self_node.region_array, validated=True).exclude(Update_obj__data__has_key='EndDate').distinct('Region_obj__id').order_by('Region_obj__id','-DateTime'))
+            prnt('govPosts',govPosts)
+
+            govPosts = list(Post.objects.filter(pointerType='Government', Region_obj__is_supported=True, Region_obj__id__in=self_node.region_array,).exclude(Update_obj__data__has_key='EndDate').distinct('Region_obj__id').order_by('Region_obj__id','-DateTime'))
+            prnt('govPosts1',govPosts)
+
+            govPosts = list(Post.objects.filter(pointerType='Government', Region_obj__is_supported=True, Region_obj__id__in=self_node.region_array, validated=True).distinct('Region_obj__id').order_by('Region_obj__id','-DateTime'))
+            prnt('govPosts2',govPosts)
+
+            govPosts = list(Post.objects.filter(pointerType='Government', Region_obj__is_supported=True).distinct('Region_obj__id').order_by('Region_obj__id','-DateTime'))
+            prnt('govPosts23',govPosts)
+
+            govPosts = list(Post.objects.filter(pointerType='Government').distinct('Region_obj__id').order_by('Region_obj__id','-DateTime'))
+            prnt('govPosts234',govPosts)
+
+            govPosts = list(Post.objects.filter(pointerType='Government').order_by('Region_obj__id','-DateTime'))
+            prnt('govPosts2345',govPosts)
 
 
             end_time = now_utc()

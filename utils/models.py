@@ -49,7 +49,8 @@ _e_brake = 0
 # 0 = run all
 # 1 = run nothing
 # 2 = resolve blocks
-# 3 = resolve blocks/txs/posts, do not run scrapers
+# 3 = resolve blocks/txs/posts, stop all scrapers
+# 4 = finish active scrapers, do not call from tasker
 
 def e_brake(priority):
     global _e_brake
@@ -1028,15 +1029,6 @@ def create_job(job_func, job_timeout=60, worker='low', clear_chrome_job=False, *
     except Exception as e:
         prnt('create_job fail 459', str(e))
         
-
-def remove_accents(input_str):
-    import unicodedata
-    normalized_str = unicodedata.normalize('NFD', input_str)
-    filtered_str = ''.join(
-        char for char in normalized_str 
-        if unicodedata.category(char) != 'Mn'
-    )
-    return unicodedata.normalize('NFC', filtered_str)
 
 def get_timeData(obj, sort='created', querying=False, descending=True, first_string=False):
     # prntDebug('-get_timeData', obj)
@@ -6253,7 +6245,7 @@ def run_script_duty(receivedDt=None, result=None):
 
         # check plugin support for self_node
         # shuffle plugins list
-        plugins = Plugin.objects.filter(app_name='legis')
+        plugins = Plugin.objects.filter(id__in=self_node.plugin_array, app_name='legis')
         for plugin in plugins:
             importScript = f'{plugin.app_name}.utils'
             utils_funcs = importlib.import_module(importScript)

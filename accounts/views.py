@@ -309,7 +309,7 @@ def receive_user_login_view(request):
                     try:
                         prnt('user found', user)
                         if user.alerts and 'must_rename' in user.alerts:
-                            if User.objects.filter(username=userData['username']).exclude(id=userData['id']).count() > 0:
+                            if User.objects.filter(username__iexact=userData['username']).exclude(id=userData['id']).count() > 0:
                                 return JsonResponse({'message' : 'Username taken'})
                         # x = get_signing_data(userData)
                         if is_id(userPublicKey):
@@ -319,7 +319,7 @@ def receive_user_login_view(request):
                             iden = hash_upk_id(userPublicKey)
                         prnt('iden',iden)
                         upk = UserPubKey.objects.filter(User_obj__id=user.id, id=iden, end_life_dt=None, keyType='account').only('publicKey').first()
-                        if upk:
+                        if upk and string_to_dt(userData['lastUpdate']) > now_utc() - datetime.timedelta(seconds=90):
                             prnt('upk fouund:',upk)
                             is_valid = upk.verify(userData, userSignature, userPublicKey)
                             prnt('Login_is_valid', is_valid)

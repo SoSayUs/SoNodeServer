@@ -862,7 +862,7 @@ def process_posts_for_validating(received_json, override_completed=False):
                             if network_chain:
                                 network_chain.add_item_to_queue([validator] + [v for v in val_objs])
 
-                            opBlock_data = get_relevant_nodes_from_block(dt=job_dt, blockchain=validator.networkChain, sublist='maintainer')
+                            opBlock_data = get_relevant_nodes_from_block(dt=job_dt, genesisId=validator.networkChain, sublist='maintainer')
 
                             prntDebug(f'val posts step1')
                             verifiedIdens = [i for i in matched_idens if not i.startswith(get_model_prefix('Update')) and not i.startswith(get_model_prefix('Notification'))]
@@ -2753,7 +2753,7 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
             if not has_field(genesis_obj, 'Block_obj'):
                 prnt('stoppage 1 for gen obj',genesis_obj)
                 proceed = False
-            elif genesis_obj.Block_obj.Blockchain_obj == block.Blockchain_obj and not genesis_obj._meta.object_name in ['Sonet']:
+            elif genesis_obj.Block_obj.Blockchain_obj == block.Blockchain_obj and block.index == 1 and not genesis_obj._meta.object_name in ['Sonet']:
                 # Sonet is only genesis obj that starts a new tree
                 prnt('stoppage 2 for gen obj',genesis_obj, genesis_obj.Block_obj)
                 proceed = False

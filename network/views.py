@@ -1544,7 +1544,9 @@ def get_chain_data_view(request):
             for child in children:
                 has_support = support_found
                 gov = Government.objects.filter(Region_obj=child).exclude(Block_obj=None).first()
-                data = {child.Name:{'obj_type':child._meta.object_name,'type':child.nameType,'id':child.id,'children':[]}}
+                data = {child.Name:{'obj_type':child._meta.object_name,'type':child.nameType,'id':child.id,'reqs':{},'children':[]}}
+                if child.data and 'reqs' in child.data:
+                    data[child.Name]['reqs'] = child.data['reqs']
                 if gov:
                     govData = {gov.gov_level:{'obj_type':gov._meta.object_name,'type':'Government','id':gov.id,'regionId':gov.Region_obj.id,'children':[]}}
                 

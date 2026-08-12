@@ -392,101 +392,104 @@ def legislature_view(request, region):
     page = request.GET.get('page', 1)
     getDate = request.GET.get('date', None)
     date = request.POST.get('date')
+    title = 'Legislature'
+    r = default_setup(request, title, region, 'legis')
+    if r:
+        return r
+    # if style == 'preload':
+    #     prnt('preload')
+    #     context = {
+    #         'title': 'Legislature',
+    #         'style':style,
+    #     }
+    #     return render(request, "home.html", get_cookies(request,context))
+    # else:
+    country_dict, gov_dict, subRegions, subGovernments = get_regions_and_govs(region)
+    current_chamber_list, current_chamber_name, all_chambers, gov_levels = get_chambers(request, gov_dict)
+    # prnt('country_dict, gov_dict, subRegions, subGovernments',country_dict, gov_dict, subRegions, subGovernments)
+    # prnt('Chamber', current_chamber_list, current_chamber_name, all_chambers, gov_levels)
+    # request = set_session_data(request, country_dict, gov_dict, subRegions, subGovernments, current_chamber_name)
+    
+        # if style == 'index':
+        #     context = get_index(request, country_dict, gov_dict)
+        #     context['sidebarData'] =  get_trending(request, country_dict, current_chamber=current_chamber_name, all_chambers=all_chambers)
+        #     context = get_user_sending_data(user_id, context)
+        #     return render(request, "utils/fetch_index.html", context)
+        # else:
+    nav_options = []
+    if include_nav == 'True':
+        nav_options = [
+            nav_item('button', f'Chamber: {current_chamber_name}', 'subNavWidget', 'chamberForm', fields=['All'] + all_chambers, key='chamber'),
+            nav_item('button', 'Page: %s' %(page), 'subNavWidget', 'pageForm'), 
+            nav_item('link', 'Current', '?view=Current', None), 
+            nav_item('link', 'Recommended', '?view=Recommended', None), 
+            nav_item('link', 'Trending', '?view=Trending', None)
+            ]
 
-    if style == 'preload':
-        prnt('preload')
-        context = {
-            'title': 'Legislature',
-            'style':style,
-        }
-        return render(request, "home.html", get_cookies(request,context))
+    form = AgendaForm()
+    title = f'{country_dict["Name"]} Legislature!'
+    subtitle = ''
+    cards = 'home_list'
+    if view == 'Upcoming':
+        include_list = ['Bill','Meeting', 'Motion']
+        posts = Post.objects.filter(Country_obj__id=country_dict['id'], DateTime__gte=datetime.datetime.now() - datetime.timedelta(hours=1)).filter(pointerType__in=include_list).order_by('date_time', 'id')
+    elif view == 'Current':
+        prnt('currret')
+        include_list = ['Bill','Meeting', 'Motion']
+        if getDate:
+            firstDate = datetime.datetime.strptime(getDate, '%Y-%m-%d')
+            secondDate = firstDate + datetime.timedelta(days=1)
+        else: 
+            secondDate = datetime.datetime.now() + datetime.timedelta(hours=1)
+            firstDate = secondDate - datetime.timedelta(days=1000)
+        
+        posts = Post.objects.filter(Country_obj__id=country_dict['id'], Chamber__in=current_chamber_list).filter(DateTime__gte=firstDate, DateTime__lt=secondDate).filter(pointerType__in=include_list).order_by(sort_type, 'id')
+        prnt('posts len',len(posts))
+    elif view == 'Recommended':
+        include_list = ['Bill','Meeting']
+        posts, view = algorithim(user_id, include_list, current_chamber_list, country_dict, view, page)
+    elif view == 'Trending':
+        include_list = ['Bill','Meeting']
+        posts = getTrendingTop(current_chamber_name, country_dict)
+        cards = 'top_cards'
+    if view != 'Trending' and False:
+        userKeys = [k for k, value in Counter(json.loads(user.localities)).most_common()]
     else:
-        country_dict, gov_dict, subRegions, subGovernments = get_regions_and_govs(region)
-        current_chamber_list, current_chamber_name, all_chambers, gov_levels = get_chambers(request, gov_dict)
-        prnt('country_dict, gov_dict, subRegions, subGovernments',country_dict, gov_dict, subRegions, subGovernments)
-        prnt('Chamber', current_chamber_list, current_chamber_name, all_chambers, gov_levels)
-        request = set_session_data(request, country_dict, gov_dict, subRegions, subGovernments, current_chamber_name)
-    
-        if style == 'index':
-            context = get_index(request, country_dict, gov_dict)
-            context['sidebarData'] =  get_trending(request, country_dict, current_chamber=current_chamber_name, all_chambers=all_chambers)
-            context = get_user_sending_data(user_id, context)
-            return render(request, "utils/fetch_index.html", context)
-        else:
-            nav_options = []
-            if include_nav == 'True':
-                nav_options = [
-                    nav_item('button', f'Chamber: {current_chamber_name}', 'subNavWidget', 'chamberForm', fields=['All'] + all_chambers, key='chamber'),
-                    nav_item('button', 'Page: %s' %(page), 'subNavWidget', 'pageForm'), 
-                    nav_item('link', 'Current', '?view=Current', None), 
-                    nav_item('link', 'Recommended', '?view=Recommended', None), 
-                    nav_item('link', 'Trending', '?view=Trending', None)
-                    ]
-    
-            form = AgendaForm()
-            title = f'{country_dict["Name"]} Legislature!'
-            subtitle = ''
-            cards = 'home_list'
-            if view == 'Upcoming':
-                include_list = ['Bill','Meeting', 'Motion']
-                posts = Post.objects.filter(Country_obj__id=country_dict['id'], DateTime__gte=datetime.datetime.now() - datetime.timedelta(hours=1)).filter(pointerType__in=include_list).order_by('date_time', 'id')
-            elif view == 'Current':
-                prnt('currret')
-                include_list = ['Bill','Meeting', 'Motion']
-                if getDate:
-                    firstDate = datetime.datetime.strptime(getDate, '%Y-%m-%d')
-                    secondDate = firstDate + datetime.timedelta(days=1)
-                else: 
-                    secondDate = datetime.datetime.now() + datetime.timedelta(hours=1)
-                    firstDate = secondDate - datetime.timedelta(days=1000)
-                
-                posts = Post.objects.filter(Country_obj__id=country_dict['id'], Chamber__in=current_chamber_list).filter(DateTime__gte=firstDate, DateTime__lt=secondDate).filter(pointerType__in=include_list).order_by(sort_type, 'id')
-                prnt('posts len',len(posts))
-            elif view == 'Recommended':
-                include_list = ['Bill','Meeting']
-                posts, view = algorithim(user_id, include_list, current_chamber_list, country_dict, view, page)
-            elif view == 'Trending':
-                include_list = ['Bill','Meeting']
-                posts = getTrendingTop(current_chamber_name, country_dict)
-                cards = 'top_cards'
-            if view != 'Trending' and False:
-                userKeys = [k for k, value in Counter(json.loads(user.localities)).most_common()]
+        try:
+            if current_chamber_name == 'All':
+                dateQuery = Meeting.objects.filter(meeting_type='Debate', Country_obj__id=country_dict['id'], Chamber__in=current_chamber_list).order_by('-DateTime')[12].DateTime
             else:
-                try:
-                    if current_chamber_name == 'All':
-                        dateQuery = Meeting.objects.filter(meeting_type='Debate', Country_obj__id=country_dict['id'], Chamber__in=current_chamber_list).order_by('-DateTime')[12].DateTime
-                    else:
-                        dateQuery = Meeting.objects.filter(meeting_type='Debate', Country_obj__id=country_dict['id'], Chamber=current_chamber_name).order_by('-DateTime')[12].DateTime
-                    dt = datetime.datetime.now().replace(tzinfo=pytz.UTC) - dateQuery
-                except:
-                    dt = datetime.datetime.now().replace(tzinfo=pytz.UTC) - datetime.datetime.now().replace(tzinfo=pytz.UTC)
-                userKeys = get_trending_keys(dt, include_list, current_chamber_list)
-            setlist = paginate(posts, page, request)
-            daily = None
-            if page == 1:
-                pass
-            try:
-                isApp = request.COOKIES['fcmDeviceId']
-            except:
-                isApp = None
-            context = {
-                'isApp': isApp,
-                'title': title,
-                'subtitle': subtitle,
-                'nav_bar': nav_options,
-                'view': view,
-                'region': region,
-                'dateForm': form,
-                'user_keywords': userKeys,
-                'dailyCard': daily,
-                'cards': cards,
-                'sort': sort,
-                'filter': current_chamber_name,
-                'feed_list':setlist,
-                'useractions': get_useractions(user_id, setlist),
-                'myRepVotes': getMyRepVotes(user_id, setlist),
-            }
-            return render_view(request, context, country=country_dict)
+                dateQuery = Meeting.objects.filter(meeting_type='Debate', Country_obj__id=country_dict['id'], Chamber=current_chamber_name).order_by('-DateTime')[12].DateTime
+            dt = datetime.datetime.now().replace(tzinfo=pytz.UTC) - dateQuery
+        except:
+            dt = datetime.datetime.now().replace(tzinfo=pytz.UTC) - datetime.datetime.now().replace(tzinfo=pytz.UTC)
+        userKeys = get_trending_keys(dt, include_list, current_chamber_list)
+    setlist = paginate(posts, page, request)
+    daily = None
+    if page == 1:
+        pass
+    try:
+        isApp = request.COOKIES['fcmDeviceId']
+    except:
+        isApp = None
+    context = {
+        'isApp': isApp,
+        'title': title,
+        'subtitle': subtitle,
+        'nav_bar': nav_options,
+        'view': view,
+        'region': region,
+        'dateForm': form,
+        'user_keywords': userKeys,
+        'dailyCard': daily,
+        'cards': cards,
+        'sort': sort,
+        'filter': current_chamber_name,
+        'feed_list':setlist,
+        'useractions': get_useractions(user_id, setlist),
+        # 'myRepVotes': getMyRepVotes(user_id, setlist),
+    }
+    return render_view(request, context, country=country_dict)
         
 
 def agendas_view(request, region, Chamber):

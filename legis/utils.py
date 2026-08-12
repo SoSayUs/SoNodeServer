@@ -15,7 +15,7 @@ def for_validation(obj):
 
 def get_region(Name, modelType='country'):
     from posts.models import Region
-    return Region.supported_objects.filter(modelType=modelType, Name=Name).order_by('created').first()
+    return Region.supported_objects.filter(nameType__iexact=modelType, Name=Name).order_by('created').first()
 
 def get_gov(country, gv_lvl='Federal', **kwargs):
     prnt('-get_gov',country,gv_lvl, kwargs)
@@ -79,6 +79,15 @@ def add_gov_menu_item(gov, item, log):
         log.updateShare(gov)
     return log
 
+
+def remove_accents(input_str):
+    import unicodedata
+    normalized_str = unicodedata.normalize('NFD', input_str)
+    filtered_str = ''.join(
+        char for char in normalized_str 
+        if unicodedata.category(char) != 'Mn'
+    )
+    return unicodedata.normalize('NFC', filtered_str)
 
 
 def summarize_meetings(special=None, post=None, dt=None, max_mins=45):
@@ -683,14 +692,14 @@ def get_scraperScripts(gov=None, region=None, gov_level=''):
         region = gov.Region_obj
         region_name = region.Name
         gov_level = gov.gov_level
-        model_type = region.modelType
+        model_type = region.nameType.lower()
     elif region:
         if isinstance(region, models.Model):
             region_name = region.Name
-            model_type = region.modelType
+            model_type = region.nameType.lower()
         elif isinstance(region, dict):
             region_name = region['Name']
-            model_type = region['modelType']
+            model_type = region['nameType'].lower()
     prnt('region',region)
     if region and model_type and model_type == 'country':
         country_name = region_name.lower()
@@ -814,7 +823,7 @@ def run_assigned_duties(receivedDt=None, result=None):
             return lst
 
         # if 'maintainer' in self_node.node_type:
-        govPosts = list(Post.objects.filter(pointerType='Government', Region_obj__is_supported=True, networkChain__in=self_node.chain_array, validated=True).exclude(Update_obj__data__has_key='EndDate').distinct('Region_obj__id').order_by('Region_obj__id','-DateTime'))
+        govPosts = list(Post.objects.filter(pointerType='Government', Region_obj__is_supported=True, Region_obj__id__in=self_node.region_array, validated=True).exclude(Update_obj__data__has_key='EndDate').distinct('Region_obj__id').order_by('Region_obj__id','-DateTime'))
         
         seed_input = f"govPosts_{dt_to_string(receivedDt)}"
         prnt('seed_input',seed_input)
@@ -822,7 +831,7 @@ def run_assigned_duties(receivedDt=None, result=None):
         
         prnt('govPosts',govPosts)
         for post in govPosts:
-            gov = post.Government_obj
+            gov = post.get_pointer()
             scraper_list, approved_models = get_scrape_duty(gov, receivedDt)
 
             seed_input = f"{post.pointerId}_{dt_to_string(receivedDt)}"

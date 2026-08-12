@@ -4135,7 +4135,9 @@ class Blockchain(models.Model):
                 new_block.opBlockId = Block.objects.filter(Blockchain_obj__genesisId=_OperationsChain_genesisId, DateTime__lte=new_block.DateTime, validated=True).exclude(id=self.id).order_by('-index', 'created').values('id').first()['id']
             
             new_block = add_default_data(new_block)
-
+            if not dummy_block.data:
+                prnt('no data')
+                return None, None
             prnt('should save new_block here')
             new_block = new_block.save() # save before creating hash
 
