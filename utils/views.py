@@ -901,7 +901,7 @@ def validate_test_data_view(request):
             'Person',
             'Party',
             'Government',
-            'Vote',
+            'RepVote',
             'Motion',
             'Committee',
             'Statement',
@@ -1250,39 +1250,45 @@ def remove_target_test_data_view(request, region, model):
                 return JsonResponse({'message' : f'error:{str(e)}'})
 
 def clear_test_data_view(request):
-    if request.user.assess_super_status() and False:
+    if request.user.assess_super_status():
         from utils.models import testing, debugging, get_model
         if testing() or debugging():
+            from django.apps import apps
             models = [
-            'Region',
             'Update',
-            'District',
-            'Person',
             'Party',
             'Government',
-            'Vote',
+            'RepVote',
             'Motion',
             'Committee',
             'Statement',
             'Meeting',
             'Bill',
             'BillText',
+            'Action',
             'Agenda',
             'Post',
             'Keyphrase',
             'KeyphraseTrend',
             'Election',
-            'Notification',
-            'UserNotification',
-            'Blockchain',
-            'Node'
+            'District',
+            'Person',
             ]
-            for model in models:
-                prnt('get model:', model)
-                objs = get_dynamic_model(model, list=True)
+            for m in models:
+                prnt('get model:', m)
+                # try:
+                #     m = apps.get_model('legis', m)
+                # except:
+                #     pass
+    
+                objs = get_dynamic_model(m, list=True)
                 for obj in objs:
-                    super(get_model(obj._meta.object_name), obj).delete()
-
+                    try:
+                        # super(m, obj).delete()
+                        super(get_model(obj._meta.object_name), obj).delete()
+                    except Exception as e:
+                        prnt('err x',str(e))
+            prnt('done')
             return JsonResponse({'message' : 'complete'})
         return JsonResponse({'message' : 'is production'})
 
@@ -1336,33 +1342,12 @@ def tester_queue_view(request):
             queue = django_rq.get_queue('low')
             # queue.enqueue(tester_queue, job_timeout=1200)
             # queue.enqueue(tester_queue, job_timeout=3600)
-            # from network.models import Block, _AccountChain_genesisId, _OperationsChain_genesisId
+            from network.models import Plugin, _AccountChain_genesisId, _OperationsChain_genesisId
             # from posts.models import Region
             from transactions.models import Wallet
             # from utils.locked import check_commit_data
             from utils.models import get_data
             self_node = get_self_node()
-
-            prnt('self_node.chain_array',self_node.region_array)
-            prnt('self_node.chain_array tye',type(self_node.region_array))
-
-            govPosts = list(Post.objects.filter(pointerType='Government', Region_obj__is_supported=True, Region_obj__id__in=self_node.region_array, validated=True).exclude(Update_obj__data__has_key='EndDate').distinct('Region_obj__id').order_by('Region_obj__id','-DateTime'))
-            prnt('govPosts',govPosts)
-
-            govPosts = list(Post.objects.filter(pointerType='Government', Region_obj__is_supported=True, Region_obj__id__in=self_node.region_array,).exclude(Update_obj__data__has_key='EndDate').distinct('Region_obj__id').order_by('Region_obj__id','-DateTime'))
-            prnt('govPosts1',govPosts)
-
-            govPosts = list(Post.objects.filter(pointerType='Government', Region_obj__is_supported=True, Region_obj__id__in=self_node.region_array, validated=True).distinct('Region_obj__id').order_by('Region_obj__id','-DateTime'))
-            prnt('govPosts2',govPosts)
-
-            govPosts = list(Post.objects.filter(pointerType='Government', Region_obj__is_supported=True).distinct('Region_obj__id').order_by('Region_obj__id','-DateTime'))
-            prnt('govPosts23',govPosts)
-
-            govPosts = list(Post.objects.filter(pointerType='Government').distinct('Region_obj__id').order_by('Region_obj__id','-DateTime'))
-            prnt('govPosts234',govPosts)
-
-            govPosts = list(Post.objects.filter(pointerType='Government').order_by('Region_obj__id','-DateTime'))
-            prnt('govPosts2345',govPosts)
 
 
             end_time = now_utc()

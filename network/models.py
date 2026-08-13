@@ -13,10 +13,10 @@ from utils.models import (
     get_timeData, is_id, 
     chunk_list, chunk_dict, get_chain_id,
     get_dynamic_model, get_model, exists_in_worker, initial_save, downstream_broadcast, get_node_list, get_model_prefix,
-    deactivate, convert_to_datetime, dynamic_bulk_update, get_app_name, get_pointer_type, retrieve_transaction, logBroadcast, get_app_info,
+    deactivate, convert_to_datetime, dynamic_bulk_update, get_app_name, get_pointer_type, logBroadcast, get_app_info,
     has_method, has_field, value_is_none, round_time, get_self_node, find_or_create_chain_from_object, get_data, sigData_to_hash, is_locked
 )
-from utils.locked import hash_obj_id, verify_obj_to_data, sort_for_sign, validate_obj, dt_to_string, sign_obj, get_relevant_nodes_from_block, get_node_assignment, check_block_contents, get_commit_data, get_signing_data, sign_for_sending, convert_to_dict, check_validation_consensus, verify_data
+from utils.locked import hash_obj_id, verify_obj_to_data, sort_for_sign, validate_obj, dt_to_string, sign_obj, get_relevant_nodes, get_node_assignment, check_block_contents, get_commit_data, get_signing_data, sign_for_sending, convert_to_dict, check_validation_consensus, verify_data
 
 import datetime
 from dateutil.parser import parse
@@ -60,14 +60,14 @@ def get_required_validator_count(dt=None, obj=None, func=None, genesisId=None, n
             else:
                 chain = Blockchain.objects.filter(genesisId=_OperationsChain_genesisId).first()
             if chain:
-                node_ids = get_relevant_nodes_from_block(dt=dt, genesisId=chain.genesisId, node_ids_only=True)
+                node_ids = get_relevant_nodes(dt=dt, genesisId=chain.genesisId, node_ids_only=True)
         if node_ids == None:
             if obj:
                 if has_field(obj, 'created'):
                     dt = obj.created
             if not dt:
                 dt = now_utc()
-            node_ids = get_relevant_nodes_from_block(dt=dt, node_ids_only=True)
+            node_ids = get_relevant_nodes(dt=dt, node_ids_only=True)
     if func:
         # for scraping functions
         if include_initializers:
@@ -206,7 +206,7 @@ if is_test_env():
     default_apps.append('legis')
 
 universalChains = [_KeyChain_genesisId, _OperationsChain_genesisId, _SonetChain_genesisName, _AccountChain_genesisId]
-mandatoryChains = [_KeyChain_genesisId, _OperationsChain_genesisId, _SonetChain_genesisName, _AccountChain_genesisId] # careful usage in get_broadcast_list, get_relevant_nodes_from_block
+mandatoryChains = [_KeyChain_genesisId, _OperationsChain_genesisId, _SonetChain_genesisName, _AccountChain_genesisId] # careful usage in get_broadcast_list, get_relevant_nodes
 specialChains = ['New']
 selectableChains = ['Region','Plugin']
 user_created_modifiable_models = ['UserFollow','UserSavePost','DataPacket','Node','NodeReview']
@@ -378,7 +378,7 @@ class Plugin(models.Model):
             return ['id','created','User_obj','Title','model_prefixes','app_name','assign_plugin_prefix'] # should create a new block if any of these are changed
         
     def assign_plugin_prefix(self, addition=0, check_data=None):
-        prnt('-assign_plugin_prefix',self.id)
+        prnt('-assign_plugin_prefix',self.id, addition)
 
         if check_data:
             prnt('check_data',check_data)
@@ -416,7 +416,7 @@ class Plugin(models.Model):
         if latest_plugin:
             return {'plugin_prefix':str(int(latest_plugin['plugin_prefix']) + addition)}
         else:
-            return {'plugin_prefix':'1'}
+            return {'plugin_prefix':str(1 + addition)}
 
     def block_conditions(self):
         if self.commitChain == Blockchain.objects.filter(genesisType='Sonet').first().genesisId:
@@ -1817,12 +1817,12 @@ class Block(models.Model):
                     return_receiverTransaction = False
                     carry_on = True
                     if not opBlock_data:
-                        opBlock_data = get_relevant_nodes_from_block(obj=self, blockchain=get_chain_id(self.Transaction_obj.senderChainGenId))
+                        opBlock_data = get_relevant_nodes(obj=self, blockchain=get_chain_id(self.Transaction_obj.senderChainGenId))
                 elif self.Transaction_obj.ReceiverWallet_obj and self.Transaction_obj.ReceiverWallet_obj.id == self.Blockchain_obj.genesisId:
                     return_receiverTransaction = True
                     carry_on = True
                     if not opBlock_data:
-                        opBlock_data = get_relevant_nodes_from_block(obj=self, genesisId=self.Transaction_obj.ReceiverWallet_obj.id)
+                        opBlock_data = get_relevant_nodes(obj=self, genesisId=self.Transaction_obj.ReceiverWallet_obj.id)
                 if carry_on:
                     creator_nodes, validator_nodes = get_node_assignment(self, return_receiverTransaction=return_receiverTransaction, full_validator_list=True, opBlock_data=opBlock_data)
                     if fetch_broadcast_list:
@@ -1835,7 +1835,7 @@ class Block(models.Model):
             else:
                 # peer to peer transactions - will need work
                 if not opBlock_data:
-                    opBlock_data = get_relevant_nodes_from_block(obj=self, genesisId=self.Blockchain_obj.genesisId)
+                    opBlock_data = get_relevant_nodes(obj=self, genesisId=self.Blockchain_obj.genesisId)
                 if self.Transaction_obj.ReceiverWallet_obj == self.Blockchain_obj:
                     # transaction_type = 'sender'
                     creator_nodes, validator_nodes = get_node_assignment(self, return_receiverTransaction=True, full_validator_list=True, opBlock_data=opBlock_data)
@@ -1851,15 +1851,15 @@ class Block(models.Model):
                 
         elif self.Blockchain_obj.genesisId == _OperationsChain_genesisId:
             if not opBlock_data:
-            #     opBlock_data = get_relevant_nodes_from_block(obj=self, genesisId=self.Blockchain_obj.genesisId, first_block_override=True)
-                opBlock_data = get_relevant_nodes_from_block(dt=(string_to_dt(self.DateTime)-datetime.timedelta(minutes=20)), blockchain=self.Blockchain_obj, obj=self, include_relays=True, first_block_override=True)
+            #     opBlock_data = get_relevant_nodes(obj=self, genesisId=self.Blockchain_obj.genesisId, first_block_override=True)
+                opBlock_data = get_relevant_nodes(dt=(string_to_dt(self.DateTime)-datetime.timedelta(minutes=20)), blockchain=self.Blockchain_obj, obj=self, include_relays=True, first_block_override=True)
             prnt('opBlock_data',opBlock_data)
             creator_nodes, validator_nodes = get_node_assignment(self, opBlock_data=opBlock_data, full_creator_list=True)
 
             return creator_nodes, validator_nodes, broadcast_list
         else:
             if not opBlock_data:
-                opBlock_data = get_relevant_nodes_from_block(obj=self, blockchain=self.Blockchain_obj)
+                opBlock_data = get_relevant_nodes(obj=self, blockchain=self.Blockchain_obj)
             creator_nodes, validator_nodes = get_node_assignment(self, full_validator_list=True, opBlock_data=opBlock_data)
             if fetch_broadcast_list:
                 broadcast_list = get_broadcast_list(self, relevant_nodes=opBlock_data['relevant_nodes'], peer_count=_number_of_peers, seed_nodes=creator_nodes, important_nodes=validator_nodes, loop=loop, all_nodes=True)
@@ -1880,7 +1880,7 @@ class Block(models.Model):
                 first_block_override = True
             if self.Blockchain_obj.genesisId in ['Sonet',_OperationsChain_genesisId]:
                 include_relays = True
-            node_data = get_relevant_nodes_from_block(dt=self.DateTime, obj=self, blockchain=self.Blockchain_obj, strings_only=strings_only, first_block_override=first_block_override, include_relays=include_relays)
+            node_data = get_relevant_nodes(dt=self.DateTime, obj=self, blockchain=self.Blockchain_obj, strings_only=strings_only, first_block_override=first_block_override, include_relays=include_relays)
         if not node_ids:
             node_ids = [iden for iden in node_data['relevant_nodes']]
         if self.networkChain == _OperationsChain_genesisId and self.index == 1:
@@ -2832,7 +2832,7 @@ class Block(models.Model):
                             if has_field(pointer, 'created'):
                                 created_dt = dt_to_string(pointer.created)
                                 if created_dt not in opBlock_dict:
-                                    node_data = get_relevant_nodes_from_block(dt=pointer.created, genesisId=_OperationsChain_genesisId, include_relays=True)
+                                    node_data = get_relevant_nodes(dt=pointer.created, genesisId=_OperationsChain_genesisId, include_relays=True)
                                     opBlock = Block.objects.filter(Blockchain_obj__genesisId=_OperationsChain_genesisId, DateTime__lte=self.DateTime, validated=True).only('opData').order_by('-index', 'created').first()
                                     opBlock_dict[created_dt] = {'node_ids':[n for n in node_data['relevant_nodes']],'number_of_peers':opBlock.opData['number_of_peers'],'relevant_nodes':node_data['relevant_nodes']}
                                 validated = validate_obj(obj=p, opBlock_data=opBlock_dict[created_dt], save_obj=False, verify_validator=False, update_pointer=False)
@@ -2954,6 +2954,7 @@ class Block(models.Model):
                                 prntDebug('asses pq6')
                                 receiverBlock = self.Transaction_obj.send_for_block_creation(id=self.Transaction_obj.id, downstream_worker=False, do_not_save=True)
 
+                            from network.utils import retrieve_transaction
                             if not receiverBlock and self.DateTime + datetime.timedelta(minutes=block_time_delay(self)) > now_utc():
                                 prnt('b')
                             
@@ -3004,6 +3005,7 @@ class Block(models.Model):
                                 prntDebug('asses p3a')
                                 if self.DateTime < now_utc() - datetime.timedelta(minutes=block_time_delay(self)):
                                     senderBlock = Block.objects.filter(id=self.Transaction_obj.senderBlockId).first()
+                                    from network.utils import retrieve_transaction
                                     if not senderBlock and retrieve_transaction(tx=self.Transaction_obj.id, block_type='sender'):
                                         senderBlock = Block.objects.filter(id=self.Transaction_obj.senderBlockId).defer('data').first()
                                     prnt('retreived senderBlocker2',senderBlock)
@@ -3636,15 +3638,18 @@ class Blockchain(models.Model):
                         proceed = True
                         genesis_obj = get_dynamic_model(self.genesisId, id=self.genesisId)
                         if not has_field(genesis_obj, 'Block_obj'):
-                            prnt('stoppage 1 for gen obj',genesis_obj)
+                            # genesis obj must be on a chain to start a chain
+                            prnt('stoppage 1a for gen obj',genesis_obj)
                             proceed = False
-                        elif genesis_obj.Block_obj and genesis_obj.Block_obj.Blockchain_obj == self and not genesis_obj._meta.object_name in ['Sonet']:
+                        elif genesis_obj.Block_obj.Blockchain_obj == block.Blockchain_obj and block.index == 1 and not genesis_obj._meta.object_name in ['Sonet']:
                             # Sonet is only genesis obj that starts a new tree
-                            prnt('stoppage 2 for gen obj',genesis_obj, genesis_obj.Block_obj)
+                            prnt('stoppage 2a for gen obj',genesis_obj, genesis_obj.Block_obj)
                             proceed = False
                         elif not genesis_obj._meta.object_name in ['Sonet'] and (not genesis_obj.Block_obj or not genesis_obj.Block_obj.validated):
-                            prnt('stoppage 3 for gen obj',genesis_obj, genesis_obj.Block_obj)
-                            proceed = False
+                            if self.chain_length > 0:
+                                # genesis obj must be on a block before startings its chain
+                                prnt('stoppage 3a for gen obj',genesis_obj, genesis_obj.Block_obj)
+                                proceed = False
                         if not proceed:
                             if genesis_obj:
                                 from utils.models import find_or_create_chain_from_object

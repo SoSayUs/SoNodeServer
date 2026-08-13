@@ -400,7 +400,7 @@ def process_posts_for_validating(received_json, override_completed=False):
         from posts.models import Update, Post, Region
         from legis.models import Government
         from legis.utils import get_scrape_duty
-        from network.models import Validator, Blockchain, DataPacket, script_created_modifiable_models,max_validation_window, _OperationsChain_genesisId, intelligence_funcs
+        from network.models import Validator, Blockchain, DataPacket, Plugin, script_created_modifiable_models,max_validation_window, _OperationsChain_genesisId, intelligence_funcs
         from utils.models import logError, logEvent,request_items, get_model_prefix, get_self_node, get_node, find_or_create_chain_from_object, get_latest_dataPacket, data_sort_priority, testing, check_missing_data, prntDebugn, prntDebug, is_locked, has_field, has_method, convert_to_datetime, sigData_to_hash,get_or_create_model,super_sync,get_model,exists_in_worker,create_dynamic_model,dynamic_bulk_update,seperate_by_type,get_model_prefix,debugging,string_to_dt, get_dynamic_model, rgetattr, value_is_none, get_objType
         validator = None
         invalid_validator = None
@@ -416,6 +416,7 @@ def process_posts_for_validating(received_json, override_completed=False):
         prnt('job_dt1',dt_to_string(job_dt))
         network_chain = None
         dataPacket = None
+        plugin_id = None
         gov = None
 
         gov_level = received_json['gov_level']
@@ -553,6 +554,7 @@ def process_posts_for_validating(received_json, override_completed=False):
                                                     if not network_chain:
                                                         network_chain, obj, commit_chain = find_or_create_chain_from_object(obj)
                                                         dataPacket = get_latest_dataPacket(network_chain)
+                                                        plugin_id = Plugin.objects.filter(app_name=obj._meta.app_label).values('id').first()['id']
                                                     if obj and has_field(obj, 'Validator_obj') and (not obj.Validator_obj or not obj.Validator_obj.signed or not obj.Validator_obj.is_valid):
                                                         w += 'a'
                                                         if obj.CreatorNode_obj.id not in i['scraping_order'] or (self_is_validator and obj.validatorNodeId != self_node.id) or obj.created != string_to_dt(z['created']):
@@ -862,7 +864,11 @@ def process_posts_for_validating(received_json, override_completed=False):
                             if network_chain:
                                 network_chain.add_item_to_queue([validator] + [v for v in val_objs])
 
-                            opBlock_data = get_relevant_nodes_from_block(dt=job_dt, genesisId=validator.networkChain, sublist='maintainer')
+                            masterData = get_relevant_nodes(dt=job_dt, blockchain=validator.networkChain, plugin_id=plugin_id, sublist='maintainer')
+                            def get_opData(networkChain, data):
+                                if not networkChain in data:
+                                    data[networkChain] = get_relevant_nodes(dt=job_dt, blockchain=networkChain, plugin_id=plugin_id, sublist='maintainer')
+                                return data[networkChain], data
 
                             prntDebug(f'val posts step1')
                             verifiedIdens = [i for i in matched_idens if not i.startswith(get_model_prefix('Update')) and not i.startswith(get_model_prefix('Notification'))]
@@ -876,7 +882,7 @@ def process_posts_for_validating(received_json, override_completed=False):
                                         q += 'b'
                                         bulk_update = []
                                         for i in get_dynamic_model(model_name, list=True, id__in=objIdens[:200]):
-
+                                            opBlock_data, masterData = get_opData(i.networkChain, masterData)
                                             if validate_obj(obj=i, pointer=i, validators=validators, opBlock_data=opBlock_data, save_obj=False, update_pointer=False):
                                                 i.Validator_obj = validator
                                                 i.updated_on_node = now
@@ -914,7 +920,7 @@ def process_posts_for_validating(received_json, override_completed=False):
                                 del pointerIdens[:500]
                                 for p in posts:
                                     try:
-                                        if validate_obj(obj=p, pointer=None, validators=validators, opBlock_data=opBlock_data, save_obj=False, verify_validator=False, update_pointer=False):
+                                        if validate_obj(obj=p, pointer=None, validators=validators, opBlock_data={}, save_obj=False, verify_validator=False, update_pointer=False):
                                             p.validated = True
                                             p.updated_on_node = now
                                             p, updated_fields = update_post(p=p, save_p=False)
@@ -948,6 +954,7 @@ def process_posts_for_validating(received_json, override_completed=False):
                                     for u in updates:
                                         try:
                                             if not is_locked(u, skip=['Validator_obj']):
+                                                opBlock_data, masterData = get_opData(u.networkChain, masterData)
                                                 if validate_obj(obj=u, pointer=None, validators=validators, opBlock_data=opBlock_data, save_obj=False, verify_validator=False, update_pointer=False):
                                                     u.validated = True
                                                     u.Validator_obj = validator
@@ -982,6 +989,7 @@ def process_posts_for_validating(received_json, override_completed=False):
                                     for n in notifications:
                                         try:
                                             if not is_locked(n):
+                                                opBlock_data, masterData = get_opData(n.networkChain, masterData)
                                                 if validate_obj(obj=n, pointer=None, validators=validators, opBlock_data=opBlock_data, save_obj=False, update_pointer=False, verify_validator=False, add_to_queue=False):
                                                     n.validated = True
                                                     n.Validator_obj = validator
@@ -1067,7 +1075,8 @@ def process_posts_for_validating(received_json, override_completed=False):
     return result
 
 def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, broadcast_if_unknown=False, downstream_worker=True, handle_discrepancies=True, backcheck=False, get_missing_blocks=True, next_block=None, next_block_must_val=True, only_if_unkown=False, block_id=None):
-    from utils.models import get_objType, prntDebug, create_job, sigData_to_hash, get_operator_obj, now_utc, prnt, string_to_dt, e_brake, logEvent, resolve_block_differences, retrieve_missing_blocks, send_missing_blocks, request_items, get_chain_id
+    from utils.models import get_objType, prntDebug, create_job, sigData_to_hash, get_operator_obj, now_utc, prnt, string_to_dt, e_brake, logEvent, request_items, get_chain_id
+    from network.utils import resolve_block_differences, retrieve_missing_blocks, send_missing_blocks
     prnt('---check_validation_consensus',block, now_utc(),do_mark_valid,handle_discrepancies,'next_block:',next_block)
     from network.models import Blockchain, Block, Validator, Node, _OperationsChain_genesisId
     # return is_valid, consensus_found, validators
@@ -2047,7 +2056,7 @@ def calculate_reward(dt, previous_dt):
 
 def validate_obj(obj=None, pointer=None, validators=None, save_obj=True, update_pointer=True, verify_validator=True, add_to_queue=True, opBlock_data={}):
     # obj should be post
-    from utils.models import prnt, now_utc, has_field
+    from utils.models import prnt, now_utc, has_field, get_plugin
     prnt('--validate_obj now_utc:',obj,pointer, now_utc(),'save_obj',save_obj)
     validator = None
     target = None
@@ -2090,7 +2099,7 @@ def validate_obj(obj=None, pointer=None, validators=None, save_obj=True, update_
                         proceed = True
                 else:
                 
-                    creator_nodes, validator_nodes = get_node_assignment(dt=round_time(dt=string_to_dt(get_timeData(target, sort=['lastUpdate','created']))), func=target.func, chainId=target.networkChain, opBlock_data=opBlock_data, nodeType='maintainer')
+                    creator_nodes, validator_nodes = get_node_assignment(dt=round_time(dt=string_to_dt(get_timeData(target, sort=['lastUpdate','created']))), func=target.func, chainId=target.networkChain, plugin_id=get_plugin(target), opBlock_data=opBlock_data, nodeType='maintainer')
                     prnt('creator_nodes',creator_nodes)
                     prnt('validator_nodes',validator_nodes)
                     prnt('target.validatorNodeId',target.validatorNodeId)
@@ -2150,7 +2159,7 @@ def validate_obj(obj=None, pointer=None, validators=None, save_obj=True, update_
                         proceed = True
                 elif validators:
                     # maybe should check that target was scraped at appropriate time
-                    creator_nodes, validator_nodes = get_node_assignment(dt=round_time(dt=string_to_dt(get_timeData(target, sort=['lastUpdate','created']))), chainId=target.networkChain, func=target.func, opBlock_data=opBlock_data, nodeType='maintainer')
+                    creator_nodes, validator_nodes = get_node_assignment(dt=round_time(dt=string_to_dt(get_timeData(target, sort=['lastUpdate','created']))), chainId=target.networkChain, plugin_id=get_plugin(target), func=target.func, opBlock_data=opBlock_data, nodeType='maintainer')
                     prnt('creator_nodes, validator_nodes',creator_nodes, validator_nodes)
                     prnt('target.validatorNodeId',target.validatorNodeId)
                     prnt('validators',validators)
@@ -2504,7 +2513,7 @@ def get_broadcast_list(seed, dt=None, region_id=None, relevant_nodes={}, seed_no
                     include_relays = True
                 if not relevant_nodes:
                     if not opBlock_data:
-                        opBlock_data = get_relevant_nodes_from_block(dt=seed.DateTime, obj=seed, genesisId=seed.Blockchain_obj.genesisId, include_relays=include_relays)
+                        opBlock_data = get_relevant_nodes(dt=seed.DateTime, obj=seed, genesisId=seed.Blockchain_obj.genesisId, include_relays=include_relays)
                     relevant_nodes = opBlock_data['relevant_nodes']
                 if not seed_nodes and not important_nodes:
                     seed_nodes, important_nodes = get_node_assignment(chainId=region_id, obj=seed, dt=dt)
@@ -2520,7 +2529,7 @@ def get_broadcast_list(seed, dt=None, region_id=None, relevant_nodes={}, seed_no
                 dt = round_time(dt=seed.created, dir='down', amount='evenhour')
                 if not relevant_nodes:
                     if not opBlock_data:
-                        opBlock_data = get_relevant_nodes_from_block(dt=dt, obj=seed, include_relays=include_relays)
+                        opBlock_data = get_relevant_nodes(dt=dt, obj=seed, include_relays=include_relays)
                     relevant_nodes = opBlock_data['relevant_nodes']
                 if not seed_nodes and not important_nodes:
                     seed_nodes, important_nodes = get_node_assignment(chainId=region_id, obj=seed, dt=dt)
@@ -2529,7 +2538,7 @@ def get_broadcast_list(seed, dt=None, region_id=None, relevant_nodes={}, seed_no
                 dt = round_time(dt=seed.lastUpdate, dir='down', amount='10mins')
             if not relevant_nodes:
                 if not opBlock_data:
-                    opBlock_data = get_relevant_nodes_from_block(genesisId=region_id, obj=seed, dt=dt, include_relays=include_relays)
+                    opBlock_data = get_relevant_nodes(genesisId=region_id, obj=seed, dt=dt, include_relays=include_relays)
                 relevant_nodes = opBlock_data['relevant_nodes']
             seed_nodes.append(seed.id)
         else:
@@ -2548,12 +2557,12 @@ def get_broadcast_list(seed, dt=None, region_id=None, relevant_nodes={}, seed_no
                 dt = round_time(dt=now_utc(), dir='down', amount='10mins')
             if not relevant_nodes:
                 if not opBlock_data:
-                    opBlock_data = get_relevant_nodes_from_block(genesisId=region_id, obj=seed, dt=dt, include_relays=include_relays)
+                    opBlock_data = get_relevant_nodes(genesisId=region_id, obj=seed, dt=dt, include_relays=include_relays)
                 relevant_nodes = opBlock_data['relevant_nodes']
         seed_text = seed.id
     elif isinstance(seed, str) and region_id and dt:
         if not opBlock_data:
-            opBlock_data = get_relevant_nodes_from_block(genesisId=region_id, dt=dt, include_relays=include_relays)
+            opBlock_data = get_relevant_nodes(genesisId=region_id, dt=dt, include_relays=include_relays)
             prnt('opBlock_data::',opBlock_data)
         if not seed_nodes and not important_nodes:
             seed_nodes, important_nodes = get_node_assignment(chainId=region_id, func=seed, dt=dt, opBlock_data=opBlock_data)
@@ -2579,7 +2588,7 @@ def get_broadcast_list(seed, dt=None, region_id=None, relevant_nodes={}, seed_no
         dt = now_utc()
     if not peer_count:
         if not opBlock_data:
-            opBlock_data = get_relevant_nodes_from_block(genesisId=region_id, dt=dt, include_relays=include_relays)
+            opBlock_data = get_relevant_nodes(genesisId=region_id, dt=dt, include_relays=include_relays)
         peer_count = opBlock_data['opData']['number_of_peers']
     broadcast_map = {}
     for nid, recipients in get_broadcast_map(seed_text, dt, relevant_nodes, seed_nodes, important_nodes, peer_count=peer_count, excluded_nodes=excluded_nodes, included_nodes=included_nodes, extra_nodes=extra_nodes, loop=loop).items():
@@ -2588,9 +2597,9 @@ def get_broadcast_list(seed, dt=None, region_id=None, relevant_nodes={}, seed_no
     prnt('returned broadcast_map',broadcast_map)
     return broadcast_map
 
-def get_relevant_nodes_from_block(dt=None, genesisId=None, chains=None, blockchain=None, obj=None, for_user=False, include_relays=False, exclude_list=None, opBlock=None, strings_only=True, sublist='', first_block_override=False, node_ids_only=False):
+def get_relevant_nodes(dt=None, genesisId=None, chains=None, blockchain=None, plugin_id=None, obj=None, for_user=False, include_relays=False, exclude_list=None, opBlock=None, strings_only=True, sublist='', first_block_override=False, node_ids_only=False):
     from utils.models import now_utc, get_timeData, testing, round_time, prnt
-    prnt('--get_relevant_nodes_from_block - strings_only:',strings_only,'genesisId',genesisId,'blockchain',blockchain,'chains',chains,'obj',obj,'dt',dt,'include_relays',include_relays,'exclude_list',exclude_list,'first_block_override',first_block_override)
+    prnt('--get_relevant_nodes - strings_only:',strings_only,'genesisId',genesisId,'blockchain',blockchain,'chains',chains,'obj',obj,'dt',dt,'include_relays',include_relays,'exclude_list',exclude_list,'first_block_override',first_block_override)
     if not exclude_list:
         exclude_list = []
     if not dt and obj:
@@ -2666,11 +2675,19 @@ def get_relevant_nodes_from_block(dt=None, genesisId=None, chains=None, blockcha
             if isinstance(blockchain, models.Model):
                 genesisId = blockchain.genesisId
             prnt('genesisId',genesisId,'sublist',sublist)
+            # if genID not either region or plugin, fetch genObj, cross references plugin and region
             record = NodeRecord.objects.filter(pointerId=genesisId, DateTime__lte=dt, is_valid=True).first()
             prnt('record',record)
             if record:
                 prnt('record.data',record.data)
                 node_ids = [n for n in record.data[sublist] if n not in exclude_list]
+                if plugin_id:
+                    plugin_record = NodeRecord.objects.filter(pointerId=plugin_id, DateTime__lte=dt, is_valid=True).first()
+                    prnt('plugin record',plugin_record)
+                    if plugin_record:
+                        prnt('plugin record.data',plugin_record.data)
+                        node_ids = [n for n in plugin_record.data[sublist] if n in node_ids]
+
         elif chains:
             if not sublist:
                 sublist = 'active'
@@ -2751,6 +2768,7 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
         if is_id(block.Blockchain_obj.genesisId):
             genesis_obj = get_dynamic_model(block.Blockchain_obj.genesisId, id=block.Blockchain_obj.genesisId)
             if not has_field(genesis_obj, 'Block_obj'):
+                # genesis obj must be on a chain to start a chain
                 prnt('stoppage 1 for gen obj',genesis_obj)
                 proceed = False
             elif genesis_obj.Block_obj.Blockchain_obj == block.Blockchain_obj and block.index == 1 and not genesis_obj._meta.object_name in ['Sonet']:
@@ -2758,8 +2776,10 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
                 prnt('stoppage 2 for gen obj',genesis_obj, genesis_obj.Block_obj)
                 proceed = False
             elif not genesis_obj._meta.object_name in ['Sonet'] and (not genesis_obj.Block_obj or not genesis_obj.Block_obj.validated):
-                prnt('stoppage 3 for gen obj',genesis_obj, genesis_obj.Block_obj)
-                proceed = False
+                if block.index == 1:
+                    # genesis obj must be on a block before startings its chain
+                    prnt('stoppage 3 for gen obj',genesis_obj, genesis_obj.Block_obj)
+                    proceed = False
         if not proceed:
             if genesis_obj:
                 from utils.models import find_or_create_chain_from_object
@@ -2814,7 +2834,7 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
                     if x.id in block_data:
                         i_dt = get_timeData(x)
                         if not has_method(x, 'block_conditions') or x.block_conditions():
-                            prnt('ac')
+                            prnt('zc')
                             if check_commit_data(x, block_data[x.id]): 
                                 obj_idens.append(x.id)
                             else:
@@ -3708,7 +3728,7 @@ def position_sort_old(starting_id, pattern, nodes_dict, number_of_matches, max_p
     # return {iden:nodes_dict[iden]['addr'] for iden in node_match_idens}
     return node_match_idens
 
-def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_receiverTransaction=False, full_validator_list=False, full_creator_list=False, strings_only=False, include_relays=False, opBlock_data=None, nodeType=''):
+def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=None, return_receiverTransaction=False, full_validator_list=False, full_creator_list=False, strings_only=False, include_relays=False, opBlock_data=None, nodeType=''):
     import random
     from network.models import get_required_validator_count
     from utils.models import round_time, dt_to_string, prnt, string_to_dt, declare_var, get_chain_id, has_method
@@ -3771,7 +3791,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
             if obj.networkChain in ['Sonet',_OperationsChain_genesisId]:
                 include_relays = True
             if not valid_node_ids_received:
-                opBlock_data = get_relevant_nodes_from_block(dt=dt, obj=obj, genesisId=obj.Blockchain_obj.genesisId, strings_only=strings_only, include_relays=include_relays)
+                opBlock_data = get_relevant_nodes(dt=dt, obj=obj, genesisId=obj.Blockchain_obj.genesisId, plugin_id=plugin_id, strings_only=strings_only, include_relays=include_relays)
                 node_ids = [i for i in opBlock_data['relevant_nodes']]
             # prnt('node_ids',node_ids)
             
@@ -3813,7 +3833,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
                     from accounts.models import User
                     user = User.objects.filter(id=obj.ReceiverWallet_obj.networkChain).values('nodeCreatorId','pattern').first()
                     # position_sort requires strings_only=True to receive "pos"
-                    opBlock_data = get_relevant_nodes_from_block(dt=dt, genesisId=plugin['id'], sublist='maintainer', strings_only=True, include_relays=False)
+                    opBlock_data = get_relevant_nodes(dt=dt, genesisId=plugin['id'], plugin_id=plugin_id, sublist='maintainer', strings_only=True, include_relays=False)
                     prnt('opBlock_data',opBlock_data)
                     node_ids = position_sort(user['nodeCreatorId'], user['pattern'], {d['pos']:n for n, d in opBlock_data['relevant_nodes'].items()}, opBlock_data['opData']['number_of_peers'])
                     valid_node_ids_received = True
@@ -3833,7 +3853,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
                 if not valid_node_ids_received:
                     # consider for consistency:
                     # required_validators, opBlock_data = block.get_required_validator_count(return_node_data=True)
-                    opBlock_data = get_relevant_nodes_from_block(dt=dt, obj=obj, blockchain=chain, strings_only=strings_only, include_relays=include_relays)
+                    opBlock_data = get_relevant_nodes(dt=dt, obj=obj, blockchain=chain, plugin_id=plugin_id, strings_only=strings_only, include_relays=include_relays)
                     node_ids = [i for i in opBlock_data['relevant_nodes']]
 
                 shuffled_nodes = shuffle_nodes(shuffle_seed, dt, node_ids)
@@ -3858,7 +3878,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
                     if not dt:
                         dt = round_time(dt=obj.created, dir='down', amount='10mins')
                     # get genesisId from user region (country? only if enough available, else larger region)
-                    opBlock_data = get_relevant_nodes_from_block(dt=dt, for_user=True, sublist='server')
+                    opBlock_data = get_relevant_nodes(dt=dt, for_user=True, plugin_id=plugin_id, sublist='server')
                     # prnt('opBlock_data',opBlock_data)
                     required_validators = get_required_validator_count(obj=user, node_ids=[i for i in opBlock_data['relevant_nodes']])
 
@@ -3870,7 +3890,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
                 # else:
                 #     shuffle_seed = obj.ReceiverWallet_obj.id
                 # if not valid_node_ids_received:
-                #     node_ids = get_relevant_nodes_from_block(dt=dt, obj=obj, strings_only=strings_only, node_ids_only=True, include_relays=include_relays)
+                #     node_ids = get_relevant_nodes(dt=dt, obj=obj, strings_only=strings_only, node_ids_only=True, include_relays=include_relays)
                 # shuffled_nodes = browser_shuffle(shuffle_seed, dt, node_ids)
                 
 
@@ -3892,7 +3912,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
         if not dt:
             dt = round_time(dt=obj.created, dir='down', amount='10mins')
         # if not valid_node_ids_received:
-        #     node_ids, number_of_peers, relevant_nodes = get_relevant_nodes_from_block(dt=dt, blockchain=obj.chainId, strings_only=strings_only)
+        #     node_ids, number_of_peers, relevant_nodes = get_relevant_nodes(dt=dt, blockchain=obj.chainId, strings_only=strings_only)
         if obj.Node_obj:
             if strings_only:
                 creator_nodes.append(obj.Node_obj.id)
@@ -3903,7 +3923,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
 
 
         if not valid_node_ids_received:
-            node_ids = get_relevant_nodes_from_block(dt=dt, blockchain=obj.networkChain, strings_only=strings_only, node_ids_only=True, include_relays=include_relays)
+            node_ids = get_relevant_nodes(dt=dt, blockchain=obj.networkChain, plugin_id=plugin_id, strings_only=strings_only, node_ids_only=True, include_relays=include_relays)
         shuffled_nodes = shuffle_nodes(obj.id, dt, node_ids)
         return shuffled_nodes, []
 
@@ -3916,7 +3936,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
         # chain_list = [chain.genesisId]
         dt = round_time(dt=obj.created, dir='down', amount='10mins')
         if not valid_node_ids_received:
-            node_ids = get_relevant_nodes_from_block(dt=dt, blockchain=obj.networkChain, strings_only=strings_only, node_ids_only=True)
+            node_ids = get_relevant_nodes(dt=dt, blockchain=obj.networkChain, plugin_id=plugin_id, strings_only=strings_only, node_ids_only=True)
         # date_int = date_to_int(dt)
         # starting_position = hash_to_int(obj.id, len(node_ids))
 
@@ -3928,13 +3948,13 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
         if not dt:
             dt = round_time(dt=obj.lastUpdate, dir='down', amount='10mins')
         # if not valid_node_ids_received:
-        #     node_ids, number_of_peers, relevant_nodes = get_relevant_nodes_from_block(dt=dt, strings_only=strings_only)
+        #     node_ids, number_of_peers, relevant_nodes = get_relevant_nodes(dt=dt, strings_only=strings_only)
         # date_int = date_to_int(dt)
         # starting_position = hash_to_int(obj.id, len(node_ids))
 
 
         if not valid_node_ids_received:
-            node_ids = get_relevant_nodes_from_block(dt=dt, strings_only=strings_only, node_ids_only=True, include_relays=include_relays)
+            node_ids = get_relevant_nodes(dt=dt, strings_only=strings_only, plugin_id=plugin_id, node_ids_only=True, include_relays=include_relays)
         shuffled_nodes = shuffle_nodes(obj.id, dt, node_ids)
         return shuffled_nodes, []
     
@@ -3951,7 +3971,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
         if not dt:
             dt = round_time(dt=obj.lastUpdate, dir='down', amount='evenhour')
         # get genesisId from user region (country? only if enough available, else larger region)
-        opBlock_data = get_relevant_nodes_from_block(dt=dt, for_user=True, sublist='server')
+        opBlock_data = get_relevant_nodes(dt=dt, for_user=True, plugin_id=plugin_id, sublist='server')
         required_validators = get_required_validator_count(obj=obj, node_ids=[i for i in opBlock_data['relevant_nodes']])
 
         user_assigned_nodes = position_sort(obj.nodeCreatorId, obj.pattern, opBlock_data['relevant_nodes'], opBlock_data['opData']['number_of_peers'])
@@ -3967,7 +3987,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
         dt = round_time(dt=obj.created, dir='down', amount='10mins')
         if not valid_node_ids_received:
             # likely returns full active node list
-            node_ids = get_relevant_nodes_from_block(dt=dt, obj=obj, strings_only=strings_only, node_ids_only=True, include_relays=include_relays)
+            node_ids = get_relevant_nodes(dt=dt, obj=obj, plugin_id=plugin_id, strings_only=strings_only, node_ids_only=True, include_relays=include_relays)
         shuffled_nodes = shuffle_nodes(obj.id, dt, node_ids)
         prnt('assignment path 4',shuffled_nodes)
         return shuffled_nodes, []
@@ -3983,13 +4003,13 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
             if not chainId.startswith(get_model_prefix('Blockchain')):
                 chainId = Blockchain.objects.filter(genesisId=chainId).values('id').first()['id']
         if func in intelligence_funcs or nodeType == 'intelligence':
-            node_ids = get_relevant_nodes_from_block(dt=dt, blockchain=chainId, strings_only=strings_only, node_ids_only=True, include_relays=False, sublist='intelligence')
+            node_ids = get_relevant_nodes(dt=dt, blockchain=chainId, plugin_id=plugin_id, strings_only=strings_only, node_ids_only=True, include_relays=False, sublist='intelligence')
             shuffled_nodes = shuffle_nodes(func, dt, node_ids)
             required_scrapers, required_validators = 1, 1
             # prnt('shuffled_nodes',shuffled_nodes,'required_validators',required_validators)
             creator_nodes = shuffled_nodes[:required_scrapers]
             if len(node_ids) <= required_scrapers:
-                node_ids = get_relevant_nodes_from_block(dt=dt, blockchain=chainId, strings_only=strings_only, node_ids_only=True, include_relays=False, sublist='maintainer')
+                node_ids = get_relevant_nodes(dt=dt, blockchain=chainId, plugin_id=plugin_id, strings_only=strings_only, node_ids_only=True, include_relays=False, sublist='maintainer')
                 shuffled_nodes = shuffle_nodes(func, dt, node_ids)
 
             validator_nodes = list(reversed(shuffled_nodes[-required_validators:]))
@@ -3998,7 +4018,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, return_recei
             if not nodeType and 'get_' in func:
                 nodeType = 'maintainer'
             if not valid_node_ids_received:
-                node_ids = get_relevant_nodes_from_block(dt=dt, blockchain=chainId, strings_only=strings_only, node_ids_only=True, include_relays=include_relays, sublist=nodeType)
+                node_ids = get_relevant_nodes(dt=dt, blockchain=chainId, plugin_id=plugin_id, strings_only=strings_only, node_ids_only=True, include_relays=include_relays, sublist=nodeType)
             shuffled_nodes = shuffle_nodes(func, dt, node_ids)
             required_scrapers, required_validators = get_required_validator_count(dt=dt, func=func, node_ids=node_ids, include_initializers=True)
             # prnt('shuffled_nodes',shuffled_nodes,'required_validators',required_validators)

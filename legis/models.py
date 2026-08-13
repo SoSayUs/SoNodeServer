@@ -17,13 +17,15 @@ from django.utils import timezone
 
 model_prefixes = {'Government':'gov','Agenda':'agn','Bill':'bil','BillText':'btxt',
                 'Meeting':'mtg','Statement':'sta','Committee':'com','Action':'act',
-                'Motion':'mot','Vote':'vot','Election':'elc',
+                'Motion':'mot','RepVote':'rvot','Election':'elc',
                 'Party':'prt','Person':'per','District':'dis',
                 'LegisUserAction':'lact','LegisUserSettings':'lset','UserRegisteredVote':'urvot'}
 
 from posts.models import BaseModel
 
 class LegisModel(BaseModel):
+    commitChain = models.CharField(max_length=50, default="Government", blank=True)
+    networkChain = models.CharField(max_length=50, default="Region", blank=True)
     Chamber = models.CharField(max_length=20, default=None, blank=True, null=True)
     Region_obj = models.ForeignKey('posts.Region', related_name='%(class)s_region_obj', blank=True, null=True, on_delete=models.PROTECT)
     Country_obj = models.ForeignKey('posts.Region', related_name='%(class)s_country_obj', blank=True, null=True, on_delete=models.PROTECT)
@@ -127,7 +129,7 @@ class UserRegisteredVote(models.Model):
 class Government(ModifiableModel):
     commitChain = models.CharField(max_length=50, default="Government", blank=True)
     networkChain = models.CharField(max_length=50, default="Government", blank=True)
-    latestVer = 2
+    latestVer = 1
     modlVer = models.IntegerField(default=latestVer)
     Region_obj = models.ForeignKey('posts.Region', related_name='%(class)s_region_obj', blank=True, null=True, on_delete=models.PROTECT)
     Country_obj = models.ForeignKey('posts.Region', related_name='%(class)s_country_obj', blank=True, null=True, on_delete=models.PROTECT)
@@ -152,7 +154,7 @@ class Government(ModifiableModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Government', 'is_modifiable': True, 'networkChain': 'Region', 'id': '0', 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': '', 'Validator_obj': None, 'blockchainId': '', 'Block_obj': None, 'lastUpdate': None, 'proposed_modification': None, 'modlVer': version, 'Region_obj': None, 'Country_obj': None, 'DateTime': None, 'LogoLinks': None, 'GovernmentNumber': None, 'SessionNumber': 1, 'gov_level': '', 'gov_type': '', 'menuItem_array': None, 'Chamber_array': None, 'Office_array': None, 'signed': {}}
+            return {'objType': 'Government', 'is_modifiable': True, 'networkChain': 'Government', 'commitChain': 'Government', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'lastUpdate': None, 'proposed_modification': None, 'modlVer': 1, 'Region_obj': None, 'Country_obj': None, 'LogoLinks': None, 'GovernmentNumber': None, 'SessionNumber': 1, 'StartDate': None, 'EndDate': None, 'gov_level': '', 'gov_type': '', 'menuItem_array': None, 'Chamber_array': None, 'Office_array': None, 'signed': {}}
         
     def get_hash_to_id(self, version=None):
         if not version:
@@ -307,7 +309,6 @@ class Government(ModifiableModel):
         return p
 
 class Agenda(LegisModel):
-    networkChain = models.CharField(max_length=50, default="Government", blank=True)
     latestVer = 1
     modlVer = models.IntegerField(default=latestVer)
     bill_dict = models.JSONField(default=None, blank=True, null=True)
@@ -323,8 +324,8 @@ class Agenda(LegisModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Agenda', 'networkChain': 'Region', 'id': '0', 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': '', 'Validator_obj': None, 'blockchainId': '', 'Block_obj': None, 'Chamber': None, 'Region_obj': None, 'Country_obj': None, 'Government_obj': None, 'DateTime': None, 'modlVer': version, 'bill_dict': None, 'data': None, 'signed': {}}
-        
+            return {'objType': 'Agenda', 'networkChain': 'Region', 'commitChain': 'Government', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'Chamber': None, 'Region_obj': None, 'Country_obj': None, 'Government_obj': None, 'DateTime': None, 'modlVer': 1, 'bill_dict': None, 'data': None, 'signed': {}}
+    
     def get_hash_to_id(self, version=None):
         if not version:
             version = self.modlVer
@@ -374,7 +375,8 @@ class Agenda(LegisModel):
 
 
 class BillText(BaseModel):
-    networkChain = models.CharField(max_length=50, default="Government", blank=True)
+    commitChain = models.CharField(max_length=50, default="Government", blank=True)
+    networkChain = models.CharField(max_length=50, default="Region", blank=True)
     latestVer = 1
     modlVer = models.IntegerField(default=latestVer)
     Region_obj = models.ForeignKey('posts.Region', related_name='%(class)s_region_obj', blank=True, null=True, on_delete=models.PROTECT)
@@ -393,7 +395,7 @@ class BillText(BaseModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'BillText', 'networkChain': 'Region', 'id': '0', 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': '', 'Validator_obj': None, 'blockchainId': '', 'Block_obj': None, 'modlVer': version, 'Region_obj': None, 'pointerId': '', 'data': {}, 'keyword_array': None, 'signed': {}}
+            return {'objType': 'BillText', 'networkChain': 'Region', 'commitChain': 'Government', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'modlVer': 1, 'Region_obj': None, 'pointerId': '', 'data': {}, 'text': {}, 'keyword_array': None, 'signed': {}}
 
     def get_hash_to_id(self, version=None):
         if not version:
@@ -447,7 +449,6 @@ class BillText(BaseModel):
             superDelete(self)
 
 class Bill(LegisModel):
-    networkChain = models.CharField(max_length=50, default="Government", blank=True)
     latestVer = 1
     modlVer = models.IntegerField(default=latestVer)
     Person_obj = models.ForeignKey('legis.Person', blank=True, null=True, on_delete=models.PROTECT) #sponsor
@@ -483,7 +484,7 @@ class Bill(LegisModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Bill', 'networkChain': 'Region', 'id': '0', 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': '', 'Validator_obj': None, 'blockchainId': '', 'Block_obj': None, 'Chamber': None, 'Region_obj': None, 'Country_obj': None, 'Government_obj': None, 'DateTime': None, 'modlVer': version, 'Person_obj': None, 'GovIden': 0, 'LegisLink': None, 'Started': None, 'Party_obj': None, 'District_obj': None, 'BillText_obj': None, 'NumberCode': '', 'amendedNumberCode': '', 'NumberPrefix': '', 'Number': None, 'Subjects': '', 'Title': '', 'ShortTitle': '', 'BillDocumentTypeName': '', 'IsGovernmentBill': '', 'SponsorPersonName': '', 'SponsorCode': '', 'keyword_array': None, 'signed': {}}
+            return {'objType': 'Bill', 'networkChain': 'Region', 'commitChain': 'Government', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'Chamber': None, 'Region_obj': None, 'Country_obj': None, 'Government_obj': None, 'DateTime': None, 'modlVer': 1, 'Person_obj': None, 'GovIden': 0, 'LegisLink': None, 'Started': None, 'Party_obj': None, 'District_obj': None, 'BillText_obj': None, 'NumberCode': '', 'amendedNumberCode': '', 'NumberPrefix': '', 'Number': None, 'Subjects': '', 'Title': '', 'ShortTitle': '', 'BillDocumentTypeName': '', 'IsGovernmentBill': '', 'SponsorPersonName': '', 'SponsorCode': '', 'keyword_array': None, 'signed': {}}
 
     def get_hash_to_id(self, version=None):
         if not version:
@@ -637,7 +638,6 @@ class Bill(LegisModel):
 
 
 class Meeting(LegisModel):
-    networkChain = models.CharField(max_length=50, default="Government", blank=True)
     latestVer = 1
     modlVer = models.IntegerField(default=latestVer)
     meeting_type = models.CharField(max_length=100, default="", blank=True, null=True) # Debate, Committee
@@ -656,7 +656,7 @@ class Meeting(LegisModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Meeting', 'networkChain': 'Region', 'id': '0', 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': '', 'Validator_obj': None, 'blockchainId': '', 'Block_obj': None, 'Chamber': None, 'Region_obj': None, 'Country_obj': None, 'Government_obj': None, 'DateTime': None, 'modlVer': version, 'meeting_type': '', 'GovPage': '', 'Title': '', 'PublicationId': '', 'hide_time': None, 'signed': {}}
+            return {'objType': 'Meeting', 'networkChain': 'Region', 'commitChain': 'Government', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'Chamber': None, 'Region_obj': None, 'Country_obj': None, 'Government_obj': None, 'DateTime': None, 'modlVer': 1, 'meeting_type': '', 'GovPage': '', 'Title': '', 'PublicationId': '', 'hide_time': None, 'signed': {}}
         
     def get_hash_to_id(self, version=None):
         if not version:
@@ -791,7 +791,6 @@ class Meeting(LegisModel):
             return None
 
 class Statement(LegisModel):
-    networkChain = models.CharField(max_length=50, default="Government", blank=True)
     latestVer = 1
     modlVer = models.IntegerField(default=latestVer)
     Meeting_obj = models.ForeignKey('legis.Meeting', blank=True, null=True, related_name='debate_key', on_delete=models.SET_NULL)
@@ -819,7 +818,7 @@ class Statement(LegisModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Statement', 'networkChain': 'Region', 'id': '0', 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': '', 'Validator_obj': None, 'blockchainId': '', 'Block_obj': None, 'Chamber': None, 'Region_obj': None, 'Country_obj': None, 'Government_obj': None, 'DateTime': None, 'modlVer': version, 'Meeting_obj': None, 'Person_obj': None, 'PersonName': '', 'Party_obj': None, 'District_obj': None, 'keyword_array': None, 'bill_dict': None, 'ItemId': '', 'EventId': '', 'source_link': '', 'OrderOfBusiness': '', 'SubjectOfBusiness': '', 'Language': 'English', 'Content': '', 'order': None, 'word_count': None, 'Terms_array': None, 'signed': {}}
+            return {'objType': 'Statement', 'networkChain': 'Region', 'commitChain': 'Government', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'Chamber': None, 'Region_obj': None, 'Country_obj': None, 'Government_obj': None, 'DateTime': None, 'modlVer': 1, 'Meeting_obj': None, 'Person_obj': None, 'PersonName': '', 'Party_obj': None, 'District_obj': None, 'keyword_array': None, 'bill_dict': None, 'ItemId': '', 'EventId': '', 'source_link': '', 'OrderOfBusiness': '', 'SubjectOfBusiness': '', 'Language': 'English', 'Content': '', 'order': None, 'word_count': None, 'Terms_array': None, 'signed': {}}
         
     def get_hash_to_id(self, version=None):
         if not version:
@@ -923,7 +922,6 @@ class Statement(LegisModel):
             personPost.save()
 
 class Committee(LegisModel):
-    networkChain = models.CharField(max_length=50, default="Government", blank=True)
     latestVer = 1
     modlVer = models.IntegerField(default=latestVer)
     Chair_obj = models.ForeignKey('legis.Person', related_name='committee_chair', blank=True, null=True, on_delete=models.PROTECT)
@@ -945,7 +943,7 @@ class Committee(LegisModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Committee', 'networkChain': 'Region', 'id': '0', 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': '', 'Validator_obj': None, 'blockchainId': '', 'Block_obj': None, 'Chamber': None, 'Region_obj': None, 'Country_obj': None, 'Government_obj': None, 'DateTime': None, 'modlVer': version, 'Chair_obj': None, 'members': None, 'Code': '', 'Title': '', 'GovURL': '', 'signed': {}}
+            return {'objType': 'Committee', 'networkChain': 'Region', 'commitChain': 'Government', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'Chamber': None, 'Region_obj': None, 'Country_obj': None, 'Government_obj': None, 'DateTime': None, 'modlVer': 1, 'Chair_obj': None, 'members': None, 'Code': '', 'Title': '', 'GovURL': '', 'signed': {}}
         
     def get_hash_to_id(self, version=None):
         if not version:
@@ -991,7 +989,6 @@ class Committee(LegisModel):
 
 
 class Motion(LegisModel):
-    networkChain = models.CharField(max_length=50, default="Government", blank=True)
     latestVer = 1
     modlVer = models.IntegerField(default=latestVer)
     Bill_obj = models.ForeignKey(Bill, blank=True, null=True, on_delete=models.SET_NULL)
@@ -1030,7 +1027,7 @@ class Motion(LegisModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Motion', 'networkChain': 'Region', 'id': '0', 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': '', 'Validator_obj': None, 'blockchainId': '', 'Block_obj': None, 'Chamber': None, 'Region_obj': None, 'Country_obj': None, 'Government_obj': None, 'DateTime': None, 'modlVer': version, 'Bill_obj': None, 'billCode': '', 'Person_obj': None, 'result_data': None, 'GovUrl': None, 'VoteNumber': None, 'Subject': '', 'MotionText': None, 'DecisionType': '', 'Yeas': 0, 'Nays': 0, 'Present': None, 'Absent': None, 'TotalVotes': 0, 'Result': '', 'is_official': None, 'signed': {}}
+            return {'objType': 'Motion', 'networkChain': 'Region', 'commitChain': 'Government', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'Chamber': None, 'Region_obj': None, 'Country_obj': None, 'Government_obj': None, 'DateTime': None, 'modlVer': 1, 'Bill_obj': None, 'billCode': '', 'Person_obj': None, 'result_data': None, 'GovUrl': None, 'VoteNumber': None, 'Subject': '', 'MotionText': None, 'DecisionType': '', 'Yeas': 0, 'Nays': 0, 'Present': None, 'Absent': None, 'TotalVotes': 0, 'Result': '', 'is_official': None, 'signed': {}}
         
     def get_hash_to_id(self, version=None):
         if not version:
@@ -1073,7 +1070,7 @@ class Motion(LegisModel):
     
     def delete(self):
         if not is_locked(self):
-            for v in Vote.objects.filter(Motion_obj=self):
+            for v in RepVote.objects.filter(Motion_obj=self):
                 v.delete()
             superDelete(self)
 
@@ -1085,8 +1082,7 @@ class Motion(LegisModel):
         p.save(share=share)
         return p
 
-class Vote(LegisModel):
-    networkChain = models.CharField(max_length=50, default="Government", blank=True)
+class RepVote(LegisModel):
     latestVer = 1
     modlVer = models.IntegerField(default=latestVer)
     Motion_obj = models.ForeignKey(Motion, blank=True, null=True, on_delete=models.PROTECT)
@@ -1105,7 +1101,7 @@ class Vote(LegisModel):
     PersonId = models.CharField(max_length=20, default="", blank=True, null=True)
 
     def __str__(self):
-        return 'VOTE:voter-%s-%s-%s' %(self.VoteValue, self.PersonFullName, self.id)
+        return 'REPVOTE:voter-%s-%s-%s' %(self.VoteValue, self.PersonFullName, self.id)
 
     class Meta:
         ordering = ['PersonFullName', 'ConstituencyName', "-created"]
@@ -1114,7 +1110,7 @@ class Vote(LegisModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Vote', 'networkChain': 'Region', 'id': '0', 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': '', 'Validator_obj': None, 'blockchainId': '', 'Block_obj': None, 'Chamber': None, 'Region_obj': None, 'Country_obj': None, 'Government_obj': None, 'DateTime': None, 'modlVer': version, 'Motion_obj': None, 'Person_obj': None, 'Party_obj': None, 'District_obj': None, 'ConstituencyName': '', 'VoteValue': '', 'PersonFullName': '', 'ConstituencyProvStateName': '', 'CaucusName': '', 'IsVoteYea': '', 'IsVoteNay': '', 'IsVotePresent': '', 'IsVoteAbsent': '', 'PersonId': '', 'signed': {}}
+            return {'objType': 'RepVote', 'networkChain': 'Region', 'commitChain': 'Government', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'Chamber': None, 'Region_obj': None, 'Country_obj': None, 'Government_obj': None, 'DateTime': None, 'modlVer': 1, 'Motion_obj': None, 'Person_obj': None, 'Party_obj': None, 'District_obj': None, 'ConstituencyName': '', 'VoteValue': '', 'PersonFullName': '', 'ConstituencyProvStateName': '', 'CaucusName': '', 'IsVoteYea': '', 'IsVoteNay': '', 'IsVotePresent': '', 'IsVoteAbsent': '', 'PersonId': '', 'signed': {}}
         
     def get_hash_to_id(self, version=None):
         if not version:
@@ -1135,7 +1131,7 @@ class Vote(LegisModel):
         if self.id is None:
             self = initial_save(self)
         elif not is_locked(self):
-            compensate_save(self, Vote, *args, **kwargs)
+            compensate_save(self, RepVote, *args, **kwargs)
 
     def delete(self):
         if not is_locked(self):
@@ -1148,7 +1144,8 @@ class Vote(LegisModel):
 
 
 class Action(BaseModel):
-    networkChain = models.CharField(max_length=50, default="Government", blank=True)
+    commitChain = models.CharField(max_length=50, default="Government", blank=True)
+    networkChain = models.CharField(max_length=50, default="Region", blank=True)
     latestVer = 1
     modlVer = models.IntegerField(default=latestVer)
     pointerId = models.CharField(max_length=100, db_index=True, default=None, null=True, blank=True)
@@ -1171,8 +1168,8 @@ class Action(BaseModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Action', 'networkChain': 'Region', 'id': '0', 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': '', 'Validator_obj': None, 'blockchainId': '', 'Block_obj': None, 'modlVer': version, 'pointerId': None, 'distinction': None, 'Data': {}, 'type': None, 'Chamber': None, 'Region_obj': None, 'Country_obj': None, 'Government_obj': None, 'DateTime': None, 'signed': {}}
-
+            return {'objType': 'Action', 'networkChain': 'Region', 'commitChain': 'Government', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'modlVer': 1, 'pointerId': None, 'distinction': None, 'Data': {}, 'type': None, 'Chamber': None, 'Region_obj': None, 'Country_obj': None, 'Government_obj': None, 'DateTime': None, 'signed': {}}
+        
     def get_hash_to_id(self, version=None):
         if not version:
             version = self.modlVer
@@ -1213,7 +1210,6 @@ class Action(BaseModel):
 
 
 class Election(LegisModel):
-    networkChain = models.CharField(max_length=50, default="Government", blank=True)
     latestVer = 1
     modlVer = models.IntegerField(default=latestVer)
     type = models.CharField(max_length=25, default="", blank=True, null=True)
@@ -1230,7 +1226,7 @@ class Election(LegisModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Election', 'networkChain': 'Region', 'id': '0', 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': '', 'Validator_obj': None, 'blockchainId': '', 'Block_obj': None, 'Chamber': None, 'Region_obj': None, 'Country_obj': None, 'Government_obj': None, 'DateTime': None, 'modlVer': version, 'type': '', 'gov_level': None, 'District_obj': None, 'signed': {}}
+            return {'objType': 'Election', 'networkChain': 'Region', 'commitChain': 'Government', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'Chamber': None, 'Region_obj': None, 'Country_obj': None, 'Government_obj': None, 'DateTime': None, 'modlVer': 1, 'type': '', 'gov_level': None, 'District_obj': None, 'signed': {}}
         
     def get_hash_to_id(self, version=None):
         if not version:
@@ -1264,7 +1260,7 @@ class Election(LegisModel):
 
 class Party(ModifiableModel):
     networkChain = models.CharField(max_length=50, default="Region", blank=True)
-    latestVer = 2
+    latestVer = 1
     modlVer = models.IntegerField(default=latestVer)
     Chamber = models.CharField(max_length=100, default="", blank=True, null=True)
     Region_obj = models.ForeignKey('posts.Region', related_name='%(class)s_region_obj', blank=True, null=True, on_delete=models.PROTECT)
@@ -1293,7 +1289,7 @@ class Party(ModifiableModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Party', 'is_modifiable': True, 'networkChain': 'Region', 'id': '0', 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': '', 'Validator_obj': None, 'blockchainId': '', 'Block_obj': None, 'lastUpdate': None, 'proposed_modification': None, 'modlVer': version, 'Chamber': '', 'Region_obj': None, 'Country_obj': None, 'ProvState_obj': None, 'Name': '', 'AltName': None, 'ShortName': None, 'gov_level': None, 'Leader': None, 'Color': '#808080', 'InfoLink': None, 'LogoLink': None, 'StartDate': None, 'EndDate': None, 'Website_array': None, 'Wiki': None, 'signed': {}}
+            return {'objType': 'Party', 'is_modifiable': True, 'networkChain': 'Region', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'lastUpdate': None, 'proposed_modification': None, 'modlVer': 1, 'Chamber': '', 'Region_obj': None, 'Country_obj': None, 'ProvState_obj': None, 'Name': '', 'AltName': None, 'ShortName': None, 'gov_level': None, 'Leader': None, 'Color': '#808080', 'InfoLink': None, 'LogoLink': None, 'StartDate': None, 'EndDate': None, 'Website_array': None, 'Wiki': None, 'signed': {}}
         
     def get_hash_to_id(self, version=None):
         if not version:
@@ -1434,7 +1430,7 @@ class Party(ModifiableModel):
 
 class Person(BaseModel):
     networkChain = models.CharField(max_length=50, default="Region", blank=True)
-    latestVer = 2
+    latestVer = 1
     modlVer = models.IntegerField(default=latestVer)
     GovIden = models.CharField(max_length=50, blank=True, null=True)
     GovProfilePage = models.CharField(max_length=500, blank=True, null=True)
@@ -1453,8 +1449,8 @@ class Person(BaseModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Person', 'networkChain': 'Region', 'id': '0', 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': '', 'Validator_obj': None, 'blockchainId': '', 'Block_obj': None, 'modlVer': version, 'GovIden': None, 'GovProfilePage': None, 'Update_obj': None, 'ImageFile_obj': None, 'Region_obj': None, 'Country_obj': None, 'signed': {}}        
-    
+            return {'objType': 'Person', 'networkChain': 'Region', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'modlVer': 1, 'GovIden': None, 'GovProfilePage': None, 'Update_obj': None, 'ImageFile_obj': None, 'Region_obj': None, 'Country_obj': None, 'signed': {}}
+        
     def get_hash_to_id(self, version=None):
         if not version:
             version = self.modlVer
@@ -1470,10 +1466,8 @@ class Person(BaseModel):
     def no_sign_fields(self, version=None):
         if not version:
             version = self.modlVer
-        if int(version) >= 2:
-            return ['ImageFile_obj']
         if int(version) >= 1:
-            return []
+            return ['ImageFile_obj']
 
     def get_name(self, update_obj=None):
         if not update_obj:
@@ -1573,7 +1567,7 @@ class District(ModifiableModel):
     Chamber = models.CharField(max_length=100, default="", blank=True, null=True)
     Region_obj = models.ForeignKey('posts.Region', related_name='%(class)s_region_obj', blank=True, null=True, on_delete=models.PROTECT)
     Country_obj = models.ForeignKey('posts.Region', related_name='%(class)s_country_obj', blank=True, null=True, on_delete=models.PROTECT)
-    latestVer = 2
+    latestVer = 1
     modlVer = models.IntegerField(default=latestVer)
     Office_array = ArrayField(models.CharField(max_length=30, default='', blank=True, null=True), size=25, null=True, blank=True)
     nameType = models.CharField(max_length=100, default="", blank=True, null=True) # Riding, District, Ward
@@ -1603,8 +1597,8 @@ class District(ModifiableModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'District', 'is_modifiable': True, 'networkChain': 'Region', 'id': '0', 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': '', 'Validator_obj': None, 'blockchainId': '', 'Block_obj': None, 'lastUpdate': None, 'proposed_modification': None, 'Chamber': '', 'Region_obj': None, 'Country_obj': None, 'modlVer': version, 'Office_array': None, 'nameType': '', 'Name': '', 'AltName': '', 'gov_level': '', 'ProvState_obj': None, 'Population': None, 'StartDate': None, 'MapLink': None, 'InfoLink': None, 'Info': None, 'Wiki': None, 'signed': {}}
-        
+            return {'objType': 'District', 'is_modifiable': True, 'networkChain': 'Region', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'lastUpdate': None, 'proposed_modification': None, 'Chamber': '', 'Region_obj': None, 'Country_obj': None, 'modlVer': 1, 'Office_array': None, 'nameType': '', 'Name': '', 'AltName': '', 'gov_level': '', 'ProvState_obj': None, 'Population': None, 'StartDate': None, 'MapLink': None, 'InfoLink': None, 'Info': None, 'Wiki': None, 'signed': {}}
+
     def get_hash_to_id(self, version=None):
         if not version:
             version = self.modlVer

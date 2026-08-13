@@ -110,8 +110,8 @@ approved_models = {
     'get_senate_bills' : ['Bill', 'BillVersion', 'Role', 'Person', 'Notification'],
     'get_house_debates' : ['Meeting', 'Statement', 'Agenda', 'Government', 'Person', 'Bill'],
     'get_senate_debates' : ['Meeting', 'Statement', 'Bill'],
-    'get_house_motions' : ['Government', 'Motion', 'Vote', 'Interaction', 'Person'],
-    'get_senate_motions' : ['Government', 'Motion', 'Vote', 'Interaction'],
+    'get_house_motions' : ['Government', 'Motion', 'RepVote', 'Interaction', 'Person'],
+    'get_senate_motions' : ['Government', 'Motion', 'RepVote', 'Interaction'],
     'get_user_region' : ['District', 'Region', 'Role', 'Party', 'Person'],
     }
 
@@ -146,6 +146,11 @@ def get_persons_uk(special=None, chamber=None, value='current', dt=None, iden=No
         chamber_num = '2'
     country = get_region('United Kingdom')
     log = create_share_object(func, country, special=special, dt=dt, iden=iden)
+
+    gov = get_gov(country, Country_obj=country, gov_level='Federal', gov_type='Parliament', GovernmentNumber=int(parl), SessionNumber=int(sess), Region_obj=country)
+    prnt('gov',gov)
+
+
     gov = get_gov(country)
     gov = modify_gov(gov, [{'Office_array':office},{'Chamber_array':chamber},{'menuItem_array':'Officials'}])
     log.updateShare(gov)
@@ -412,13 +417,12 @@ def get_bills_uk(special=None, value='current', dt=None, iden=None, func='get_bi
     gov = None
     country = get_region('United Kingdom')
     log = create_share_object(func, country, special=special, dt=dt, iden=iden)
-    gov = get_gov(country)
-    log.updateShare(gov)
+    # gov = get_gov(country)
+    # log.updateShare(gov)
+    # gov = modify_gov(gov, [{'menuItem_array':['Bills','Debates','Motions','Officials']}])
+    # log = add_gov_menu_item(gov, 'Bills', log)
+    # log.updateShare(gov)
 
-
-    gov = modify_gov(gov, [{'menuItem_array':['Bills','Debates','Motions','Officials']}])
-    log = add_gov_menu_item(gov, 'Bills', log)
-    log.updateShare(gov)
 
     import requests
     import xml.etree.ElementTree as ET
@@ -441,8 +445,8 @@ def get_bills_uk(special=None, value='current', dt=None, iden=None, func='get_bi
 
     base = 'https://bills-api.parliament.uk/api'
     bills_rss = base + "/v1/Rss/allbills.rss'"
-    bills_data = fetch_rss(bills_rss)
-
+    # bills_data = fetch_rss(bills_rss)
+    
     # for item in items[:3]:
     #     print(item)
     #     print("-" * 80)
@@ -468,13 +472,407 @@ def get_bills_uk(special=None, value='current', dt=None, iden=None, func='get_bi
     if latest_update:
         pub_dt = string_to_dt(latest_update['DateTime'])
         prnt('latest_update',latest_update['id'])
+    bills_url = base + '/v1/Bills'
 
-    for bill_dict in bills_data:
-        updated_dt = parser.parse(bill_dict['updated'])
-        if not pub_dt or updated_dt > updated_dt:
-            ...
+    r = requests.get(bills_url)
+    bills_data = json.loads(r.content)
+    for bill_data in bills_data['items']:
+        billId = bill_data['billId']
+        shortTitle = bill_data['shortTitle']
+        currentHouse = bill_data['currentHouse']
+        originChamber = bill_data['originatingHouse']
+        lastUpdate = bill_data['lastUpdate']
+        billWithdrawn = bill_data['billWithdrawn']
+        isDefeated = bill_data['isDefeated']
 
+        currentStage = bill_data['currentStage']
+        stage = currentStage['description']
+        abbreviation = currentStage['abbreviation']
+        house = currentStage['house']
+
+
+
+
+        # "items": [
+        # {
+        #   "billId": 3973,
+        #   "shortTitle": "A34 Slip Road Safety (East Ilsley and Beedon) Bill",
+        #   "formerShortTitle": null,
+        #   "currentHouse": "Commons",
+        #   "originatingHouse": "Commons",
+        #   "lastUpdate": "2025-09-16T17:08:18.2184786",
+        #   "billWithdrawn": "2025-09-15T00:00:00",
+        #   "isDefeated": false,
+        #   "billTypeId": 5,
+        #   "introducedSessionId": 39,
+        #   "includedSessionIds": [
+        #     39
+        #   ],
+        #   "isAct": false,
+        #   "currentStage": {
+        #     "id": 19929,
+        #     "stageId": 7,
+        #     "sessionId": 39,
+        #     "description": "2nd reading",
+        #     "abbreviation": "2R",
+        #     "house": "Commons",
+        #     "stageSittings": [
+        #       {
+        #         "id": 17032,
+        #         "stageId": 7,
+        #         "billStageId": 19929,
+        #         "billId": 3973,
+        #         "date": "2025-07-11T00:00:00"
+        #       }
+        #     ],
+        #     "sortOrder": 2
+        #   }
+        # },
+        # {
+        #   "billId": 2818,
+
+
+    # for bill_dict in bills_data:
+        updated_dt = parser.parse(lastUpdate)
+
+        if not pub_dt or updated_dt > pub_dt:
+            log = add_bill_uk(billId, log, func, special=special, country=country)
 
     prntDebug('done gather bills')
     # send_for_validation(log, gov, func)
     return finishScript(log, gov, special)
+
+def add_bill_uk(billId, log, func, special=None, country=None):
+    prnt(f'--add_bill_uk', func, now_utc())
+    if not country:
+        country = get_region('United Kingdom')
+
+    lords_list = {'Lords 1/3':{'desc':'1st reading'},'Lords 2/3':{'desc':'2nd reading'},'Lords 3/3':{'desc':'3rd reading'}}
+    commons_list = {'Commons 1/3':{'desc':'1st reading'},'Commons 2/3':{'desc':'2nd reading'},'Commons 3/3':{'desc':'3rd reading'}}
+    royal_list = {'Royal Assent':{'desc':'Royal Assent'}}
+
+    def get_text(bill, billU):
+        pubs_api = f'https://bills-api.parliament.uk/api/v1/Bills/{bill.GovIden}/Publications'
+
+        r = requests.get(pubs_api)
+        pub_data = json.loads(r.content)
+        for data in pub_data['publications']:
+            if data['publicationType']['name'] == 'Bill':
+                for file in pub_data['files']:
+                    if file['contentType'] == 'text/html':
+                        dl_url = f'https://bills-api.parliament.uk/api/v1/Publications/{data["id"]}/Documents/{file["id"]}/Download'
+                        # r = requests.get(dl_url)
+                        # billtext = BillText.objects.filter()
+            #         },
+            # {
+            #   "house": "Lords",
+            #   "id": 66884,
+            #   "title": "HL Bill 36 (as brought from the Commons)",
+            #   "publicationType": {
+            #     "id": 5,
+            #     "name": "Bill",
+            #     "description": "Full text of the Bill as introduced and further versions of the Bill as it is reprinted to incorporate amendments (proposals for change) made during its passage through Parliament."
+            #   },
+            #   "displayDate": "2026-06-23T00:00:00",
+            #   "links": [],
+            #   "files": [
+            #     {
+            #       "id": 8482,
+            #       "filename": "5902036.pdf",
+            #       "contentType": "application/pdf",
+            #       "contentLength": 7980079
+            #     },
+            #     {
+            #       "id": 8483,
+            #       "filename": "5902036.html",
+            #       "contentType": "text/html",
+            #       "contentLength": 3298405
+            #     },
+            #     {
+            #       "id": 8484,
+            #       "filename": "5902036.xml",
+            #       "contentType": "text/xml",
+            #       "contentLength": 1398453
+            #     }
+            #   ]
+            # },
+            # {
+
+        
+        return bill, billU
+
+    def get_stages(bill, billU):
+        stages_api = f'https://bills-api.parliament.uk/api/v1/Bills/{billId}/Stages'
+
+        stages = lords_list | commons_list | royal_list
+        versions = []
+
+        r = requests.get(stages_api)
+        stages_data = json.loads(r.content)
+        for stage_data in stages_data['items']:
+            stage_desc = stage_data['description']
+            stage_house = stage_data['house']
+            stage_abbr = stage_data['abbreviation']
+            stageSittings = stage_data['stageSittings']
+            stage_dt = None
+            current_stage = None
+            for sitting in stageSittings:
+                if sitting.get("date",None):
+                    dt = parser.parse(sitting['date'])
+                    if not stage_dt or dt < stage_dt:
+                        stage_dt = dt
+                    if not bill.DateTime or dt > bill.DateTime:
+                        bill.DateTime = dt
+                        billU.data['LatestBillEventDateTime'] = dt_to_string(dt)
+            if not bill.Started:
+                bill.Started = stage_dt
+            for stage in stages:
+                if stage_house in stage and stage_desc == stage['desc']:
+                    if not any([v for v in versions if v['version'] == stage]):
+                        current_stage = stage
+                        current_stage_dt = stage_dt
+                        versions.append({'version':stage, 'current':False, 'status':None, 'started_dt':dt_to_string(stage_dt), 'completed_dt':None})
+                        break
+        found_current = False
+        for v in versions:
+            if v['version'] == current_stage:
+                v['current'] = True
+                v['status'] = 'current'
+                found_current = True
+            if not found_current and v['started_dt']:
+                v['status'] = 'passed'
+        if not found_current:
+            latest = None
+            for v in reversed(versions):
+                if v['started_dt']:
+                    latest = v['version']
+            if latest:
+                new_versions = []
+                for v in versions:
+                    new_versions.append(v)
+                    if v['version'] == latest:
+                        c = {'version':current_stage, 'current':True, 'status':'current', 'started_dt':dt_to_string(current_stage_dt), 'completed_dt':None}
+                        new_versions.append(c)
+                versions = new_versions
+
+        if versions:
+            billU.data['billVersions'] = versions
+            
+
+        return bill, billU
+            
+
+
+    # gov = get_gov(country, Country_obj=country, gov_level='Federal', gov_type='Parliament', GovernmentNumber=int(ParliamentNumber), SessionNumber=int(SessionNumber), Region_obj=country)
+    prnt('gov',gov)
+    if not gov.StartDate:
+        from utils.models import round_time
+        gov.StartDate = timezonify('est', round_time(dt=now_utc(), dir='down', amount='day'))
+        gov.migrate_data()
+        gov.LogoLinks = gov_logo_links
+
+    gov = get_gov(country)
+    log.updateShare(gov)
+    gov = modify_gov(gov, [{'menuItem_array':['Bills','Debates','Motions','Officials']}])
+    log = add_gov_menu_item(gov, 'Bills', log)
+    log.updateShare(gov)
+
+    bill, billU, bill_is_new = get_model_and_update('Bill', Government_obj=gov, Country_obj=country, Region_obj=country, NumberCode=billId, GovIden=billId)
+    bill_url = f'https://bills.parliament.uk/bills/{billId}'
+
+    prntDebug('got bill, bill_is_new:', bill_is_new)
+    if bill_is_new:
+        bill_api = f'https://bills-api.parliament.uk/api/v1/Bills/{billId}'
+
+        # data {'longTitle': 'A Bill to continue the Armed Forces Act 2006; to amend that Act and other enactments relating to the armed forces; to make provision about the reserve forces; to make provision about visiting forces; to make provision about the Ministry of Defence Police; to make provision about the defence functions of the Oil and Pipelines Agency; to make provision about the protection of military remains; and for connected purposes.', 
+        # 'summary': None, 
+        # 'sponsors': [{'member': {'memberId': 400, 'name': 'John Healey', 'party': 'Labour', 'partyColour': 'd50000', 'house': 'Commons', 'memberPhoto': 'https://members-api.parliament.uk/api/Members/400/Thumbnail', 'memberPage': 'https://members.parliament.uk/member/400/contact', 'memberFrom': 'Rawmarsh and Conisbrough'}, 'organisation': {'name': 'Ministry of Defence', 'url': 'https://www.gov.uk/government/organisations/ministry-of-defence'}, 'sortOrder': 1}, {'member': {'memberId': 360, 'name': 'Lord Coaker', 'party': 'Labour', 'partyColour': 'd50000', 'house': 'Lords', 'memberPhoto': 'https://members-api.parliament.uk/api/Members/360/Thumbnail', 'memberPage': 'https://members.parliament.uk/member/360/contact', 'memberFrom': 'Life peer'}, 'organisation': {'name': 'Ministry of Defence', 'url': 'https://www.gov.uk/government/organisations/ministry-of-defence'}, 'sortOrder': 2}], 
+        # 'promoters': [], 'petitioningPeriod': None, 'petitionInformation': None, 'agent': None, 
+        # 'billId': 4065, 
+        # 'shortTitle': 'Armed Forces Bill', 'formerShortTitle': None, 
+        # 'currentHouse': 'Lords', 'originatingHouse': 'Commons', 
+        # 'lastUpdate': '2026-07-17T18:03:14.5516835', 
+        # 'billWithdrawn': None, 'isDefeated': False, 
+        # 'billTypeId': 1, 'introducedSessionId': 39, 'includedSessionIds': [39, 40], 
+        # 'isAct': False, 
+        # 'currentStage': {'id': 21073, 'stageId': 3, 'sessionId': 40, 'description': 'Committee stage', 'abbreviation': 'CS', 'house': 'Lords', 'stageSittings': [{'id': 18474, 'stageId': 3, 'billStageId': 21073, 'billId': 4065, 'date': '2026-09-02T00:00:00'}, {'id': 18475, 'stageId': 3, 'billStageId': 21073, 'billId': 4065, 'date': '2026-09-08T00:00:00'}], 'sortOrder': 15}}
+
+        r = requests.get(bill_api)
+        new_bill_data = json.loads(r.content)
+        longTitle = new_bill_data['longTitle']
+        summary = new_bill_data['summary']
+        originChamber = new_bill_data['originChamber']
+        shortTitle = new_bill_data['shortTitle']
+        sponsors = new_bill_data['sponsors']
+        for sponsor in sponsors:
+            member = sponsor['member']
+            memberId = member['memberId']
+            name = member['name']
+            party = member['party']
+            partyColour = member['partyColour']
+            house = member['house']
+            if not bill.Person_obj:
+                bill.SponsorPersonName = name
+                bill.SponsorCode = memberId
+                person = Person.objects.filter(Region_obj=country, GovIden=memberId, Validator_obj__is_valid=True).first()
+                bill.Person_obj = person
+
+                try:
+                    bill.Party_obj = Party.objects.filter(id=person.get_field('Party_id'), gov_level='Federal', Region_obj=country, Validator_obj__is_valid=True).first()
+                except:
+                    pass
+                try:
+                    bill.District_obj = District.objects.filter(id=person.get_field('District_id'), gov_level='Federal', Region_obj=country, Validator_obj__is_valid=True).first()
+                except:
+                    pass
+
+
+        # {
+        # "longTitle": "A Bill to continue the Armed Forces Act 2006; to amend that Act and other enactments relating to the armed forces; to make provision about the reserve forces; to make provision about visiting forces; to make provision about the Ministry of Defence Police; to make provision about the defence functions of the Oil and Pipelines Agency; to make provision about the protection of military remains; and for connected purposes.",
+        # "summary": null,
+        # "sponsors": [
+        #     {
+        #     "member": {
+        #         "memberId": 400,
+        #         "name": "John Healey",
+        #         "party": "Labour",
+        #         "partyColour": "d50000",
+        #         "house": "Commons",
+        #         "memberPhoto": "https://members-api.parliament.uk/api/Members/400/Thumbnail",
+        #         "memberPage": "https://members.parliament.uk/member/400/contact",
+        #         "memberFrom": "Rawmarsh and Conisbrough"
+        #     },
+        #     "organisation": {
+        #         "name": "Ministry of Defence",
+        #         "url": "https://www.gov.uk/government/organisations/ministry-of-defence"
+        #     },
+        #     "sortOrder": 1
+        #     },
+        #     {
+        #     "member": {
+        #         "memberId": 360,
+        #         "name": "Lord Coaker",
+        #         "party": "Labour",
+        #         "partyColour": "d50000",
+        #         "house": "Lords",
+        #         "memberPhoto": "https://members-api.parliament.uk/api/Members/360/Thumbnail",
+        #         "memberPage": "https://members.parliament.uk/member/360/contact",
+        #         "memberFrom": "Life peer"
+        #     },
+        #     "organisation": {
+        #         "name": "Ministry of Defence",
+        #         "url": "https://www.gov.uk/government/organisations/ministry-of-defence"
+        #     },
+        #     "sortOrder": 2
+        #     }
+        # ],
+        # "promoters": [],
+        # "petitioningPeriod": null,
+        # "petitionInformation": null,
+        # "agent": null,
+        # "billId": 4065,
+        # "shortTitle": "Armed Forces Bill",
+        # "formerShortTitle": null,
+        # "currentHouse": "Lords",
+        # "originatingHouse": "Commons",
+        # "lastUpdate": "2026-07-23T17:44:57.2584365",
+        # "billWithdrawn": null,
+        # "isDefeated": false,
+        # "billTypeId": 1,
+        # "introducedSessionId": 39,
+        # "includedSessionIds": [
+        #     39,
+        #     40
+        # ],
+        # "isAct": false,
+        # "currentStage": {
+        #     "id": 21073,
+        #     "stageId": 3,
+        #     "sessionId": 40,
+        #     "description": "Committee stage",
+        #     "abbreviation": "CS",
+        #     "house": "Lords",
+        #     "stageSittings": [
+        #     {
+        #         "id": 18474,
+        #         "stageId": 3,
+        #         "billStageId": 21073,
+        #         "billId": 4065,
+        #         "date": "2026-09-02T00:00:00"
+        #     },
+        #     {
+        #         "id": 18475,
+        #         "stageId": 3,
+        #         "billStageId": 21073,
+        #         "billId": 4065,
+        #         "date": "2026-09-08T00:00:00"
+        #     }
+        #     ],
+        #     "sortOrder": 15
+        # }
+        # }
+        # Person_obj = models.ForeignKey('legis.Person', blank=True, null=True, on_delete=models.PROTECT) #sponsor
+        # GovIden = models.IntegerField(default=0, blank=True, null=True)
+        # LegisLink = models.URLField(null=True, blank=True) #official link to text of bill
+        # Started = models.DateTimeField(auto_now=False, auto_now_add=False, blank=True, null=True)
+        # Party_obj = models.ForeignKey('legis.Party', blank=True, null=True, on_delete=models.PROTECT)
+        # District_obj = models.ForeignKey('legis.District', related_name='%(class)s_district_obj', blank=True, null=True, on_delete=models.PROTECT)
+        # BillText_obj = models.ForeignKey('legis.BillText', related_name='%(class)s_billtext_obj', blank=True, null=True, on_delete=models.SET_NULL)
+        # NumberCode = models.CharField(max_length=20, default="", blank=True, null=True)
+        # amendedNumberCode = models.CharField(max_length=20, default="", blank=True, null=True) #removes dash for search
+        # NumberPrefix = models.CharField(max_length=20, default="", blank=True, null=True)
+        # Number = models.IntegerField(blank=True, null=True)
+        # Subjects = models.CharField(max_length=1000, default="", blank=True, null=True)
+        # # Title = models.CharField(max_length=1000, default="", blank=True, null=True)
+        # # ShortTitle = models.CharField(max_length=1000, default="", blank=True, null=True)
+        # BillDocumentTypeName = models.CharField(max_length=56, default="", blank=True, null=True) # bill / resolution / ...
+        # IsGovernmentBill = models.CharField(max_length=10, default="", blank=True, null=True)
+        # # SponsorPersonName = models.CharField(max_length=100, default="", blank=True, null=True)
+        # # SponsorCode = models.CharField(max_length=100, default="", blank=True, null=True)
+
+        bill.LegisLink = bill_url
+
+        bill.ShortTitle = shortTitle
+        bill.Title = longTitle
+        bill.Chamber = originChamber
+
+        
+        bill.save()
+
+
+    if 'billVersions' not in billU.data or not billU.data['billVersions']:
+        versions = []
+
+        if originChamber == 'Lords':
+            for i in lords_list:
+                versions.append({'version':i, 'current':None, 'status':None, 'started_dt':None, 'completed_dt':None})
+            for i in commons_list:
+                versions.append({'version':i, 'current':None, 'status':None, 'started_dt':None, 'completed_dt':None})
+            for i in royal_list:
+                versions.append({'version':i, 'current':None, 'status':None, 'started_dt':None, 'completed_dt':None})
+            billU.data['Status'] = 'Lords 1/3'
+            for v in versions:
+                if v['version'] == 'Lords 1/3':
+                    v['current'] = True
+                    v['status'] = 'current'
+
+        elif originChamber == 'Commons':
+            for i in commons_list:
+                versions.append({'version':i, 'current':None, 'status':None, 'started_dt':None, 'completed_dt':None})
+            for i in lords_list:
+                versions.append({'version':i, 'current':None, 'status':None, 'started_dt':None, 'completed_dt':None})
+            for i in royal_list:
+                versions.append({'version':i, 'current':None, 'status':None, 'started_dt':None, 'completed_dt':None})
+            billU.data['Status'] = 'Commons 1/3'
+            for v in versions:
+                if v['version'] == 'Commons 1/3':
+                    v['current'] = True
+                    v['status'] = 'current'
+
+        billU.data['billVersions'] = versions
+        
+
+    bill, billU = get_stages(bill, billU)
+    bill, billU = get_text(bill, billU) # needs work here
+    bill, billU, bill_is_new, log = save_and_return(bill, billU, log)
+    return log

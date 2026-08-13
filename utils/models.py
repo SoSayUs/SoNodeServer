@@ -1638,7 +1638,7 @@ def data_sort_priority(entry, version=None):
     # needs to be reworked to handle by plugin, not hardcoded like this
     type_order = {'UserPubKey': 0, 'User': 1, 'Validator': 2, 'Node':3, 'NodeReview': 4, 'Sonet':4, 'Wallet':5, 'Transaction':6, 'Block':7, 'Region':8,
                 'District':9, 'Government':10, 'Person':11, 'Party':12, 
-                'Bill':13, 'Committee':14, 'Meeting':15, 'Statement':16, 'Motion':17, 'Vote':18, 'Agenda':19, 'BillText':20, 'Update':21,'Spren':22,'Notification':23,'UserVote':24}
+                'Bill':13, 'Committee':14, 'Meeting':15, 'Statement':16, 'Motion':17, 'RepVote':18, 'Agenda':19, 'BillText':20, 'Update':21,'Spren':22,'Notification':23,'UserVote':24}
     
     def parse_datetime(value):
         if isinstance(value, str) and value.lower() != 'none':
@@ -2160,10 +2160,10 @@ def resolve_target_keys(data, signature=None):
 def get_model_fields(obj=None):
     # prnt('-get_model_fields')
     # for use when updating model fields
-    model_list = get_app_name(return_model_list=True)
+    model_list = get_app_name(return_model_list=True, all_models=True)
     for key in model_list:
         if key != 'apps':
-            model = get_model(key)
+            model = get_model(key, all_models=True)
             obj = model() 
             objFields = {'objType':obj._meta.object_name} # latestVer not included
             if has_field(model,'is_modifiable'):
@@ -2195,6 +2195,10 @@ def get_model_fields(obj=None):
                 prnt(key)
                 prnt(f' return {objFields}')
                 prnt()
+            elif fields:
+                prnt(key, 'matches')
+            else:
+                prnt('else')
 
 def hash_upk_id(pubKey):
     from utils.locked import generate_id
@@ -2203,7 +2207,7 @@ def hash_upk_id(pubKey):
 
 _appInfo = None
 
-def get_app_info(rerun=False):
+def get_app_info(rerun=False, all_models=False):
     # prnt('-get_app_info')
     global _appInfo
     if _appInfo is None or rerun:
@@ -2212,7 +2216,7 @@ def get_app_info(rerun=False):
         from network.models import Plugin
         app_dict = {'apps':{}}
         plugins = Plugin.objects.exclude(Block_obj=None)
-        if plugins:
+        if plugins and not all_models:
             # prnt('plugins',plugins)
             for plug in plugins:
                 app = plug.app_name
@@ -2232,7 +2236,7 @@ def get_app_info(rerun=False):
             plugin_prefixes = {}
             for app in settings.INSTALLED_APPS:
                 try:
-                    if app in supported_apps or app == 'transactions':
+                    if app in supported_apps or app == 'transactions' or all_models:
                         models_module = importlib.import_module(f"{app}.models")
                         if hasattr(models_module, "model_prefixes"):
                             prefixes = getattr(models_module, "model_prefixes")
@@ -2261,9 +2265,9 @@ def get_app_info(rerun=False):
     return _appInfo
 
 
-def get_app_name(model_name=None, prefix=None, return_prefix=False, return_model_list=False, am_i_model=False):
+def get_app_name(model_name=None, prefix=None, return_prefix=False, return_model_list=False, am_i_model=False, all_models=False):
     # prnt('-get_app_name',model_name,prefix,return_prefix)
-    models = get_app_info()
+    models = get_app_info(all_models=all_models)
     # prnt('models:',models)
     if model_name and not return_prefix and not am_i_model:
         for app_name in models['apps']:
@@ -2282,14 +2286,14 @@ def get_app_name(model_name=None, prefix=None, return_prefix=False, return_model
         return model_name
     return ''
 
-def get_model(obj_type):
+def get_model(obj_type, all_models=False):
     # prnt('-get_model', obj_type)
     if not obj_type or not isinstance(obj_type, str):
         return None
     if is_id(obj_type):
         obj_type = get_pointer_type(obj_type)
     # prnt('obj_type',obj_type)
-    app_name = get_app_name(obj_type)
+    app_name = get_app_name(obj_type, all_models=all_models)
     # prnt('app_name',app_name)
     if app_name and obj_type:
         from django.apps import apps
@@ -4066,7 +4070,7 @@ def super_share(log=None, gov=None, func=None, val_type='super', job_id=None, ad
                 objs = [i for i in items if i.id and not i.id.startswith(get_model_prefix('Update')) and not i.id.startswith(get_model_prefix('Notification'))]
                 for i in objs:
                     i.refresh_from_db()
-                    if validate_obj(obj=i, pointer=i, validators=[validator], save_obj=True, update_pointer=True):
+                    if has_field(i, 'Validator_obj') and validate_obj(obj=i, pointer=i, validators=[validator], save_obj=True, update_pointer=True):
                         try:
                             if has_method(i, 'upon_validation'):
                                 i.upon_validation()
@@ -4360,147 +4364,6 @@ def save_mutable_fields(obj, sig=None, *args, **kwargs):
     prntDebug('saving...',obj)
     model = get_model(obj._meta.object_name)
     return compensate_save(obj, model, *args, **kwargs)
-
-
-def get_most_common_hashes(lists):
-    if not lists:
-        return []
-
-    # Count occurrences weighted by length past the hash
-    results = {}
-    for lst in lists:
-        for idx, h in enumerate(lst):
-            weight = len(lst) - idx  # only count blocks after this one
-            results[h] = results.get(h, 0) + weight
-
-    if not results:
-        return []
-    prnt('results:',results)
-    max_weight = max(results.values())
-    prnt('max_weight',max_weight)
-    top_hashes = [h for h, w in results.items() if w == max_weight]
-    return top_hashes
-
-def find_most_occuring_paths(most_common_hash, lists):
-    results = {}
-    for lst in lists:
-        get_next = False
-        for candidate_hash in lst:
-            if get_next:
-                results[candidate_hash] = results.get(candidate_hash, 0) + 1
-                break
-            elif candidate_hash == most_common_hash:
-                get_next = True
-
-    if not results:
-        return []
-
-    MIN_QUORUM = max(2, len(lists) // 3)
-    max_count = max(results.values())
-    if max_count < MIN_QUORUM:
-        return []
-    return {h:c for h, c in results.items() if c == max_count}
-
-
-def resolve_chain_fork(chainId, request_count=50, node_count=50, starting_hash=None):
-    prnt('--resolve_chain_fork', chainId, 'starting_hash', starting_hash)
-    from utils.locked import get_relevant_nodes_from_block
-
-    self_node = get_self_node()
-    operatorData = get_operatorData()
-    node_data = get_relevant_nodes_from_block(blockchain=chainId, exclude_list=[self_node.id], strings_only=False)
-
-    k = min(node_count * 2, len(node_data['relevant_nodes']))
-    node_list = dict(
-        random.sample(list(node_data['relevant_nodes'].items()), k)
-    )
-
-    anchored_paths = []
-    for node_id, node in node_list.items():
-        success, response = connect_to_node(node,'network/request_chain_path',data={'blockchainId': chainId,'count': request_count,'start': starting_hash},self_node=self_node,operatorData=operatorData)
-        if success:
-            data = response.json()
-            if data.get('message') == 'Success':
-                path = json.loads(data['result'])
-                if starting_hash: # enforce anchoring
-                    if starting_hash not in path:
-                        continue
-
-                anchored_paths.append(path)
-                if len(anchored_paths) >= node_count:
-                    break
-
-    if not anchored_paths:
-        prnt('no anchored_paths')
-        return {}, []
-
-    if starting_hash:
-        most_common_hashes = [starting_hash]
-        winning_path_hashes = find_most_occuring_paths(starting_hash, anchored_paths)
-        hash_map = {starting_hash:winning_path_hashes}
-    else:
-        most_common_hashes = get_most_common_hashes(anchored_paths)
-        hash_map = {}
-        for common_hash in most_common_hashes:
-            winning_path_hashes = find_most_occuring_paths(common_hash, anchored_paths)
-            hash_map[common_hash] = winning_path_hashes
-    prnt('returning hash_map:',hash_map)
-    return hash_map, anchored_paths
-
-def discover_chain_divergence(chainId, local_hash_list=None, request_count=100, node_count=50, node_list=None, peer_hash_lists=None):
-    prnt('--discover_chain_divergence', chainId)
-    from network.models import Block
-    from utils.locked import get_relevant_nodes_from_block
-
-    if not local_hash_list:
-        blocks = Block.objects.filter(networkChain=chainId, validated=True).values('hash').order_by('-index')[:request_count]
-        local_hash_list = [b['hash'] for b in reversed(blocks)]
-
-    if not peer_hash_lists:
-        self_node = get_self_node()
-        operatorData = get_operatorData()
-        if not node_list:
-            node_data = get_relevant_nodes_from_block(blockchain=chainId, exclude_list=[self_node.id], strings_only=False)
-
-            k = min(node_count * 2, len(node_data['relevant_nodes']))
-            node_list = dict(
-                random.sample(list(node_data['relevant_nodes'].items()), k)
-            )
-        
-        peer_hash_lists = []
-        for node in node_list:
-            try:
-                resp = connect_to_node(node, 'network/request_chain_path', data={'blockchainId': chainId, 'count': request_count, 'hash_history':local_hash_list}, self_node=self_node, operatorData=operatorData)
-                success, response = resp
-                if success:
-                    received = response.json()
-                    if received.get('message') == 'Success':
-                        peer_list = json.loads(received['result'])
-                        prnt('peer_list',peer_list)
-                        peer_hash_lists.append(peer_list)
-                        if len(peer_hash_lists) >= node_count:
-                            break
-            except Exception as e:
-                prnt('Peer request failed:', node.id, str(e))
-                continue
-
-    if not peer_hash_lists:
-        prnt('No peer responses received')
-        return {}
-
-    blocks = Block.objects.filter(networkChain=chainId, validated=True, hash__in=[h for h in [lst for lst in peer_hash_lists]]).values('hash').order_by('-index')[:request_count]
-    local_hash_list = [b['hash'] for b in reversed(blocks)]
-    all_hash_lists = peer_hash_lists + [local_hash_list]
-
-    most_common_hashes = get_most_common_hashes(all_hash_lists)
-    prnt('most_common_hashes',most_common_hashes)
-
-    hash_map = {}
-    for common_hash in most_common_hashes:
-        winning_path_hashes = find_most_occuring_paths(common_hash, all_hash_lists)
-        hash_map[common_hash] = winning_path_hashes
-    prnt('returned hash_map:',hash_map)
-    return hash_map
 
 
 
@@ -5579,6 +5442,7 @@ def request_items(requested_items=[], nodes=None, supported_chain_list=None, req
                                 if not dp:
                                     dp = DataPacket(id=iden, func='process_received_blocks', created = now_utc(), data=received_json)
                                     dp.save()
+                                from network.utils import process_received_blocks
                                 update_response = process_received_blocks(dp, get_missing_blocks=get_missing_blocks, resend_missing_blocks=False, return_result=True, force_check=True, rebroadcast=False)
                             
                             else:
@@ -5760,13 +5624,13 @@ def tasker(dt, test=False):
     #     prnt('DateTime',b.DateTime)
     #     prnt('validated',b.validated)
     #     prnt()
-    chains = Blockchain.objects.all()
-    prnt('Blockchain::',chains)
-    for c in chains:
-        prnt('c',c,c.genesisId,c.id,c.chain_length, c.queuedData)
-    b = Block.objects.filter(id='blcSo3iF62djr89CvBywJpaa',validated=True).first()
-    if b:
-        b.is_not_valid()
+    # chains = Blockchain.objects.all()
+    # prnt('Blockchain::',chains)
+    # for c in chains:
+    #     prnt('c',c,c.genesisId,c.id,c.chain_length, c.queuedData)
+    # b = Block.objects.filter(id='blcSo3iF62djr89CvBywJpaa',validated=True).first()
+    # if b:
+    #     b.is_not_valid()
     result = {'dt':dt_to_string(dt),'now_utc':dt_to_string(now_utc())}
     # skip if start time is excessively delayed
     difference = now_utc() - dt
@@ -6267,9 +6131,9 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
     from accounts.models import User, Notification, UserPubKey
     from transactions.models import Transaction
     from posts.models import scoreMe, Update, Post
-    from utils.locked import verify_data, check_commit_data, get_signing_data, convert_to_dict, sign_obj, validate_obj, get_relevant_nodes_from_block, get_node_assignment, get_commit_data, check_block_contents, check_validation_consensus
+    from utils.locked import verify_data, check_commit_data, get_signing_data, convert_to_dict, sign_obj, validate_obj, get_relevant_nodes, get_node_assignment, get_commit_data, check_block_contents, check_validation_consensus
     from network.models import Plugin, DataPacket, Block, Blockchain, _OperationsChain_genesisId, _block_creation_times, mandatoryChains, block_time_delay, share_to_all, script_created_modifiable_models
-    
+    from network.utils import retrieve_missing_blocks
     result = process_received_dp(received_data, 'process_received_data', skip_log_check=skip_log_check, override_completed=override_completed)
     prnt('reslut:',str(result)[:1000])
     if result and 'dp' in result:
@@ -6718,6 +6582,12 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
             validated_idens = [i for i in validIds if not i.startswith(get_model_prefix('Update')) and not i.startswith(get_model_prefix('Notification'))]
             prnt('vals step2a',len(validated_idens))
 
+            # masterData = get_relevant_nodes(dt=job_dt, blockchain=validator.networkChain, plugin_id=plugin_id, sublist='maintainer')
+            # def get_opData(networkChain, data):
+            #     if not networkChain in data:
+            #         data[networkChain] = get_relevant_nodes(dt=job_dt, blockchain=networkChain, plugin_id=plugin_id, sublist='maintainer')
+            #     return data[networkChain], data
+            
             if validated_idens:
                 q = 13
                 for model_name, id_list in seperate_by_type(validated_idens).items():
@@ -6750,7 +6620,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                                             #     # pos = opBlock_dict['index'][obj.id]
                                             #     target_opBlock = opBlock_dict[pos]
                                             # elif has_field(obj, 'created') and has_field(obj, 'blockchainId') and obj.blockchainId:
-                                            #     opBlock_data = get_relevant_nodes_from_block(dt=string_to_dt(obj.created), blockchain=obj.blockchainId)
+                                            #     opBlock_data = get_relevant_nodes(dt=string_to_dt(obj.created), blockchain=obj.blockchainId)
                                             #     opBlock_dict[pos] = {'node_ids':[n for n in opBlock_data['relevant_nodes']],'number_of_peers':opBlock_data['opData']['number_of_peers'],'relevant_nodes':opBlock_data['relevant_nodes']}
                                             #     opBlock_dict['index'][obj.id] = pos
                                             #     target_opBlock = opBlock_dict[pos]
@@ -6900,7 +6770,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                         #     # pos = opBlock_dict['index'][n.id]
                         #     target_opBlock = opBlock_dict[pos]
                         # elif has_field(n, 'created'):
-                        #     opBlock_data = get_relevant_nodes_from_block(dt=string_to_dt(n.created), genesisId=_OperationsChain_genesisId)
+                        #     opBlock_data = get_relevant_nodes(dt=string_to_dt(n.created), genesisId=_OperationsChain_genesisId)
                         #     opBlock_dict[pos] = {'node_ids':[n for n in opBlock_data['relevant_nodes']],'number_of_peers':opBlock_data['opData']['number_of_peers'],'relevant_nodes':opBlock_data['relevant_nodes']}
                         #     opBlock_dict['index'][n.id] = pos
                         #     target_opBlock = opBlock_dict[pos]
@@ -7114,1253 +6984,13 @@ def process_data_packet(received_json):
                 updated = process_received_data(received_json, return_updated_count=True, skip_log_check=True)
         prnt('done process datapacket, updated:',updated)
 
-def rebroadcast_dp(dp_id, override_completed=False):
-    prnt('-rebroadcast_dp',dp_id)
-    if e_brake(2):
-        return 
-    
-    from network.models import Node, DataPacket, universalChains
-    dp = DataPacket.objects.filter(id=dp_id).first()
-
-    if ('completed' in dp.func or 'chunked' in dp.func) and not override_completed:
-        prnt('dp.func',dp.func)
-        return
-
-    queue = django_rq.get_queue("main")
-    if not exists_in_worker('process_data_packet', queue=queue, id=dp_id):
-        prnt('add to main worker')
-        queue.enqueue(process_data_packet, dp_id, job_timeout=240, result_ttl=3600)
-
-    if dp.rebroadcast_dt and dp.rebroadcast_dt > now_utc() - datetime.timedelta(hours=2):
-        prnt('already broadcast')
-        return
-
-    if dp.headers['Senderid'] != get_operator_obj('self_nodeId'):
-        if 'chainId' not in dp.headers or dp.headers['chainId'] != get_operator_obj('self_nodeId'):
-            result = process_received_dp(dp, 'process_data_packet', override_completed=True)
-            prnt('reslut:',str(result)[:1000])
-            if result and 'dp' in result:
-                received_json = result['data']
-            elif result and 'data' in result:
-                received_json = result['data']
-            else:
-                received_json = []
-            if received_json:
-
-
-                from utils.locked import get_broadcast_list
-                if 'Seedid' in dp.headers and dp.headers['Seedid'] != get_operator_obj('self_nodeId'):
-                    prnt('dp.headers',dp.headers)
-                    include_relays = False
-                    if 'chainId' in dp.headers and dp.headers['chainId'] in universalChains:
-                        include_relays = True
-                    broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], all_nodes=True, dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Chainid'], seed_nodes=[dp.headers['Seedid']], include_relays=include_relays)
-                    downstream_broadcast(broadcast_list, 'network/receive_data_packet', received_json, headers=dp.headers, skip_self=True)
-                    dp.rebroadcast_dt = now_utc()
-                    dp.save()
-
-                else: # shouldnt ever be used
-                    prnt('rebroadcast_dp_Packet-Id',dp.headers['Packet-Id'])
-                    # broadcast_list = get_broadcast_list(packet_id, dt=now, region_id=self.chainId, seed_nodes=[self_node_id])
-                    broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Chainid'], seed_nodes=[dp.headers['Senderid']])
-                    downstream_broadcast(broadcast_list, 'network/receive_data_packet', received_json, headers=dp.headers, exclude=[dp.headers['Senderid']], skip_self=True)
-                    dp.rebroadcast_dt = now_utc()
-                    dp.save()
-
-def rebroadcast_block(dp_id):
-    prnt('-rebroadcast_block',dp_id)
-    if e_brake(2):
-        return 
-    
-    from network.models import Node, DataPacket, Block, Blockchain, _OperationsChain_genesisId, universalChains
-    dp = DataPacket.objects.filter(id=dp_id).first()
-
-    if 'completed' in dp.func or 'chunked' in dp.func:
-        prnt('dp.func',dp.func)
-        return
-        
-    def process_blocks(dp):
-        prnt('-process_blocks',dp.headers['Index'])
-        if dp.headers.get("Genesisid") == _OperationsChain_genesisId:
-            queue = django_rq.get_queue('high')
-            worker = 'high'
-        else:
-            queue = django_rq.get_queue('main')
-            worker = 'main'
-        if not exists_in_worker('process_received_blocks', queue=queue, id=dp.id):
-            prnt(f'add worker job {worker}')
-            queue.enqueue(process_received_blocks, dp.id, job_timeout=500, result_ttl=3600)
-            
-    if dp.rebroadcast_dt and dp.rebroadcast_dt > now_utc() - datetime.timedelta(hours=2):
-        prnt('already broadcast')
-        process_blocks(dp)
-        return
-    
-    if 'Rebroadcast' in dp.headers and str(dp.headers['Rebroadcast']) == 'True':
-        broadcast_list = {}
-        from utils.locked import get_broadcast_list, get_relevant_nodes_from_block, get_node_assignment
-        prnt("dp.headers",dp.headers)
-        prnt('Rebroadcast...')
-
-        result = process_received_dp(dp, 'process_blocks', override_completed=True)
-        if result and 'dp' in result:
-            prnt('dp in result')
-            received_json = dp.data
-        elif result and 'data' in result:
-            prnt('data in result')
-            received_json = result['data']
-            # dp = None
-        else:
-            prnt('no dp or data in result')
-            received_json = []
-            # dp = None
-        if received_json:
-            prnt('received_json')
-            if dp.headers['Genesisid'] == _OperationsChain_genesisId:
-                # check if already received latest opBlock, if so, consult get_node_assignment and keep lowest on list. rebroadcast lowest block on current packet_id
-                current_blocks = Block.objects.filter(networkChain=dp.headers['Blockchainid'], index=int(dp.headers['Index'])).exclude(validated=False).defer('data','extraData','notes')
-                prnt('current_blocksxxx',current_blocks)
-                if current_blocks:
-                    prnt('block.CreatorNode_obj.id,',[block.CreatorNode_obj.id for block in current_blocks])
-                
-                if string_to_dt(dp.headers['Blockdt']) > now_utc():
-                    is_good = False
-                    prev_block = Block.objects.filter(networkChain=dp.headers['Blockchainid'], hash=dp.headers['Prevhash'], validated=True).values('id').first()
-                    latest_block = Block.objects.filter(networkChain=dp.headers['Blockchainid'], validated=True).values('id').order_by('-index').first()
-                    prnt('prev_block x',prev_block)
-                    if prev_block and latest_block:
-                        if prev_block['id'] == latest_block['id']:
-                            is_good = True
-                    if not is_good:
-                        if 'hash_history' in received_json:
-                            prnt("received_json['hash_history']",len(received_json['hash_history']))
-                            hash_list = received_json['hash_history'].copy()
-
-                            prnt('hash_list len:',len(hash_list))
-                            local_hash_history = [i['hash'] for i in Block.objects.filter(Blockchain_obj=dp.headers['Blockchainid'], hash__in=hash_list).exclude(validated=False).values('hash')]
-                            prnt('local_hash_history len:',len(local_hash_history))
-                            missing_hashes = [i for i in hash_list if i not in local_hash_history]
-                            prnt('missing_hashes hashes',missing_hashes)
-                            if missing_hashes:
-                                if not retrieve_missing_blocks(genesisId=dp.headers['Genesisid'], target_node=dp.headers['Packet-Creator'], starting_point=missing_hashes[0], items_to_get=len(missing_hashes)):
-                                    prnt('failed to retrieve prior blocks 9434',missing_hashes)
-                                    note = 'missing_prior_blocks1'
-                                    for block in current_blocks:
-                                        block.is_not_valid(note=note, mark_strike=False)
-                                        creator_nodes, validator_list, broadcast_list = block.get_assigned_nodes(fetch_broadcast_list=False)
-                                        if get_operator_obj('self_nodeId') in validator_list:
-                                            from utils.locked import validate_block
-                                            is_valid, validator, is_new_validation = validate_block(block, creator_nodes=creator_nodes, fail_reason=note)
-                                    if dp:
-                                        dp.completed(note)
-                                    return False
-
-
-                prnt("dp.headers['Seedid']",dp.headers['Seedid'])
-                if current_blocks and 'Seedid' in dp.headers and any(block.CreatorNode_obj.id != dp.headers['Seedid'] for block in current_blocks):
-                    prnt('pz1')
-                    new_block = None
-                    for block in current_blocks:
-                        block_dt = block.DateTime
-                        opBlock_data = get_relevant_nodes_from_block(dt=(block.DateTime-datetime.timedelta(minutes=20)), genesisId=block.Blockchain_obj.genesisId, include_relays=True)
-                        creator_nodes, validator_nodes = get_node_assignment(block, opBlock_data=opBlock_data, full_creator_list=True)
-                        prnt('creator_nodes',creator_nodes)
-                        new_index = 1
-                        current_index = 0
-                        try:
-                            new_index = creator_nodes.index(dp.headers['Seedid'])
-                            current_index = creator_nodes.index(block.CreatorNode_obj.id)
-                        except Exception as e:
-                            prnt('err xa',str(e))
-                            if block.CreatorNode_obj.id in creator_nodes and dp.headers['Seedid'] not in creator_nodes:
-                                new_index = 1
-                                current_index = 0
-                            elif dp.headers['Seedid'] in creator_nodes and block.CreatorNode_obj.id not in creator_nodes:
-                                new_index = 0
-                                current_index = 1
-                            elif dp.headers['Seedid'] not in creator_nodes and block.CreatorNode_obj.id not in creator_nodes:
-                                node = Node.objects.filter(id=dp.headers['Seedid'], expelled_dt=None).first()
-                                if node and node.activated_dt < block.CreatorNode_obj.activated_dt:
-                                    new_index = 0
-                                    current_index = 1
-                                else:
-                                    new_index = 1
-                                    current_index = 0
-                            prnt('current_index',current_index)
-                            prnt('new_index',new_index)
-                        if new_index < current_index:
-                            prnt('replace current block')
-                            # keep new block, delete current
-                            block.delete()
-                            if not new_block:
-                                if 'block_list' in received_json:
-                                    block_list = decompress_data(received_json['block_list'])
-                                    try:
-                                        block_list = json.loads(block_list)
-                                    except:
-                                        pass
-                                    for b in block_list:
-                                        try:
-                                            block_dict = json.loads(b['block_dict'])
-                                        except:
-                                            block_dict = b['block_dict']
-                                        if block_dict['id'] in dp.headers['Blockid']:
-                                            blockchain = Blockchain.objects.filter(genesisId=dp.headers['Genesisid']).first()
-                                            new_block = blockchain.create_block(block_dict=block_dict)
-                            
-                            broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], seed_nodes=[dp.headers['Seedid']], include_relays=True, peer_count=10, loop=False, all_nodes=True)
-                            received_data = received_json.copy()
-                            headers = dp.headers
-                            # del received_data['headers']
-                        elif current_index < new_index:
-                            prnt('keep current block')
-                            # keep current block
-                            competing_dp = DataPacket.objects.filter(Node_obj__id=block.CreatorNode_obj.id, func__contains=f"received_blocks:{block.id}").first()
-                            result = process_received_dp(competing_dp, 'process_blocks', override_completed=True, skip_log_check=True)
-                            if result and 'dp' in result:
-                                prnt('rebroadcast')
-                                log = result['dp']
-                                received_data = log.data.copy()
-                                headers = dp.headers
-                                broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], seed_nodes=[dp.headers['Seedid']], include_relays=True, peer_count=10, loop=False, all_nodes=True)
-                                # del received_data['headers']
-                            else:
-                                prnt('no dp')
-                                if dp:
-                                    dp.completed('received_blocks_non_winner2')
-                                return False
-                            received_json = {}
-                        
-                    if not block or now_utc() < (string_to_dt(block_dt) - datetime.timedelta(minutes=10)):
-                        prnt('wait to process block')
-                        received_json = {} # do not begin validations until 10 minutes from block.DateTime
-                    else:
-                        process_blocks(dp)
-                    if dp.headers['Seedid'] != get_operator_obj('self_nodeId'):
-                        downstream_broadcast(broadcast_list, 'network/receive_blocks', received_data, headers=headers, skip_self=True)
-                    dp.rebroadcast_dt = now_utc()
-                    dp.save()
-                elif 'Seedid' in dp.headers:
-                    prnt('pz2')
-                    received_data = received_json.copy()
-                    headers = dp.headers
-                    include_relays = False
-                    if 'Genesisid' in headers and headers['Genesisid'] in universalChains:
-                        include_relays = True
-                    if 'Validators-Only' in dp.headers and dp.headers['Validators-Only'] == 'True':
-                        prnt('validators only')
-                        broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], loop=True, all_nodes=False, dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], seed_nodes=[dp.headers['Seedid']], include_relays=include_relays)
-                    else:
-                        prnt('not validators only')
-                        broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], seed_nodes=[dp.headers['Seedid']], include_relays=include_relays, peer_count=10, loop=False, all_nodes=True)
-                    # del received_data['headers']
-                    
-                    prnt('now_utc() < (block.DateTime + datetime.timedelta(minutes=1))')
-                    prnt(now_utc())
-                    if current_blocks:
-                        prnt((current_blocks[0].DateTime + datetime.timedelta(minutes=1)))
-                    if current_blocks and now_utc() < (current_blocks[0].DateTime - datetime.timedelta(minutes=10)):
-                        prnt('pz3')
-                        received_json = {} # do not begin validations until 10 minutes from block.DateTime
-                    else:
-                        process_blocks(dp)
-                    downstream_broadcast(broadcast_list, 'network/receive_blocks', received_data, headers=headers)
-                    dp.rebroadcast_dt = now_utc()
-                    dp.save()
-                    prnt('blockblocks,',current_blocks)
-            elif 'Seedid' in dp.headers and dp.headers['Seedid'] != get_operator_obj('self_nodeId'):
-                process_blocks(dp)
-                include_relays = False
-                if 'Genesisid' in dp.headers and dp.headers['Genesisid'] in universalChains:
-                    include_relays = True
-                prnt('dp.headers',dp.headers)
-                if 'Validators-Only' in dp.headers and dp.headers['Validators-Only'] == 'True':
-                    prnt('validators only')
-                    opBlock_data = get_relevant_nodes_from_block(dt=string_to_dt(dp.headers['Dt']), blockchain=dp.headers['Blockchainid'], strings_only=True, first_block_override=True)
-
-                    creator_nodes, validator_list = get_node_assignment(func=dp.headers['Packet-Id'],dt=string_to_dt(dp.headers['Dt']), chainId=dp.headers['Blockchainid'], opBlock_data=opBlock_data)
-                    broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], relevant_nodes=validator_list, loop=True, all_nodes=False, dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], seed_nodes=[dp.headers['Seedid']], include_relays=include_relays, opBlock_data=opBlock_data)
-                else:
-                    prnt('not validators only')
-                    broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], seed_nodes=[dp.headers['Seedid']], include_relays=include_relays)
-                downstream_broadcast(broadcast_list, 'network/receive_blocks', received_json, headers=dp.headers, skip_self=True)
-                dp.rebroadcast_dt = now_utc()
-                dp.save()
-            else:
-                prnt('else1')
-                process_blocks(dp)
-    else:
-        prnt('else2')
-        process_blocks(dp)
-
-
-
-
-def process_received_blocks(received_json, get_missing_blocks=True, resend_missing_blocks=True, return_result=False, force_check=False, rebroadcast=True, downstream_worker=True, override_completed=False):
-    prntn('--process_received_blocks now_utc:',now_utc())
-    from network.models import Node, DataPacket, Block, Blockchain, _OperationsChain_genesisId, _block_creation_times, mandatoryChains, block_time_delay, universalChains
-    from utils.locked import get_broadcast_list, check_validation_consensus, get_relevant_nodes_from_block, get_node_assignment, hash_obj_id, get_signing_data
-    prnt()
-    if e_brake(2):
-        return 
-    
-    result = process_received_dp(received_json, 'process_blocks', override_completed=override_completed)
-    if result and 'dp' in result:
-        prnt('x1')
-        log = result['dp']
-        received_json = result['data']
-        if 'senderId' in received_json:
-            node = Node.objects.filter(id=received_json['senderId']).first()
-        elif 'headers' in received_json and 'Senderid' in received_json['headers']:
-            node = Node.objects.filter(id=received_json['headers']['Senderid']).first()
-        else:
-            node = None
-        if node:
-            node.accessed()
-    elif result and 'data' in result:
-        prnt('x2')
-        received_json = result['data']
-        log = None
-    else:
-        prnt('x3')
-        received_json = []
-        log = None
-    completed = False
-    prntn('received_json snippet:',str(received_json)[:4000])
-    if not received_json or 'genesisId' not in received_json:
-        if log:
-            log.completed('no_data')
-        return completed
-
-    if 'headers'in received_json and 'Packet-Creator' in received_json['headers']:
-        if received_json['headers']['Packet-Creator'] == get_operator_obj('self_nodeId') and Node.objects.filter(activeNode=True).count() > 1:
-            if log:
-                log.completed('self_seeded')
-            return completed
-    packet_creator = None
-    if 'headers'in received_json and 'Packet-Creator' in received_json['headers']:
-        packet_creator = received_json['headers']['Packet-Creator']
-    sender_node = received_json['senderId']
-    if 'opBlock' in received_json and received_json['opBlock']:
-        if 'opBlock_hash' in received_json:
-            opBlock = Block.objects.filter(hash=received_json['opBlock_hash']).first()
-        else:
-            opBlock = Block.objects.filter(id=received_json['opBlock']).first()
-        prnt('opBlock??',opBlock)
-        if not opBlock:
-            retrieve_missing_blocks(genesisId=_OperationsChain_genesisId, target_node=packet_creator if packet_creator else sender_node, starting_point=received_json['opBlock'])
-            opBlock = Block.objects.filter(id=received_json['opBlock']).first()
-            if not opBlock:
-                if log:
-                    log.completed('missing_opBlock')
-                return completed
-        elif not opBlock.validated and opBlock.hash == received_json['opBlock_hash']:
-            block_is_valid, consensus_found, validations = check_validation_consensus(opBlock, block_id=opBlock.id, backcheck=force_check, get_missing_blocks=True)
-            if not block_is_valid and consensus_found and resend_missing_blocks:
-                create_job(send_missing_blocks, job_timeout=60, worker='high', blockchain=opBlock.Blockchain_obj, starting_index=opBlock.index, send_to=packet_creator if packet_creator else sender_node)
-        elif not opBlock.validated or opBlock.hash != received_json['opBlock_hash'] and opBlock.validated:
-            if resend_missing_blocks:
-                create_job(send_missing_blocks, job_timeout=60, worker='high', blockchain=opBlock.Blockchain_obj, starting_index=opBlock.index, send_to=packet_creator if packet_creator else sender_node)
-        elif 'opBlock_not_latest' in received_json:
-            pass
-        elif opBlock and opBlock.index != opBlock.Blockchain_obj.chain_length:
-            sent_dt = string_to_dt(received_json['dt'])
-            latest_opBlock = Block.objects.filter(Blockchain_obj__genesisId=_OperationsChain_genesisId, DateTime__lte=sent_dt, validated=True).order_by('-index', 'created').first()
-            if latest_opBlock and latest_opBlock != opBlock and resend_missing_blocks:
-                create_job(send_missing_blocks, job_timeout=60, worker='high', blockchain=latest_opBlock.Blockchain_obj, starting_index=opBlock.index, send_to=packet_creator if packet_creator else sender_node)
-    else:
-        prnt('opBlock not included')
-
-    if 'headers' in received_json and 'Genesisid' in received_json['headers']:
-        blockchain = Blockchain.objects.filter(genesisId=received_json['headers']['Genesisid']).defer('queuedData').first()
-        prntDebug('blockchain',blockchain)
-    elif 'blockchainId' in received_json:
-        blockchain = Blockchain.objects.filter(id=received_json['blockchainId']).defer('queuedData').first()
-        prntDebug('blockchain',blockchain)
-
-    if 'force_check' in received_json:
-        force_check = received_json['force_check']
-    blocks = {}
-    if 'block_list' in received_json:
-        block_list = decompress_data(received_json['block_list'])
-        try:
-            block_list = json.loads(block_list)
-        except:
-            pass
-        for b in block_list:
-            try:
-                block_dict = json.loads(b['block_dict'])
-            except:
-                block_dict = b['block_dict']
-            blocks[block_dict['index']] = b
-    elif 'block_dict' in received_json:
-        blocks[received_json['block_dict']['index']] = received_json
-    prnt('number of blocks',len(blocks))
-
-    from utils.locked import calculate_reward, verify_obj_to_data, convert_to_dict
-    from accounts.models import UserPubKey
-    from network.models import Validator, _OperationsChain_genesisId
-    import operator
-    for index, b in sorted(blocks.items(), key=operator.itemgetter(0)):
-        try:
-            new_block_dict = json.loads(b['block_dict'])
-        except:
-            new_block_dict = b['block_dict']
-        prnt('process:',new_block_dict['index'],new_block_dict['id'])
-
-    try:
-        prnt('process block into database')
-        added_blocks = []
-        received_hashes = []
-        full_nodeData = None
-        for index, b in sorted(blocks.items(), key=operator.itemgetter(0)):
-            try:
-                new_block_dict = json.loads(b['block_dict'])
-            except:
-                new_block_dict = b['block_dict']
-            if verify_obj_to_data(Block(), new_block_dict):
-                prntDebugn('new_block',new_block_dict['id'])
-                block_transaction = b['block_transaction']
-                prntDebug('block_transaction',block_transaction)
-                try:
-                    block_transaction = json.loads(block_transaction)
-                except:
-                    pass
-                if new_block_dict['networkChain'] == _OperationsChain_genesisId:
-                    specific_data = {'objType':'Block','networkChain':new_block_dict['networkChain'],'DateTime':new_block_dict['DateTime'],'CreatorNode_obj':new_block_dict['CreatorNode_obj']}
-                else:
-                    specific_data = {'objType':'Block','networkChain':new_block_dict['networkChain'],'DateTime':new_block_dict['DateTime']}
-                if True:
-                    if 'opBlockId' in new_block_dict and not value_is_none(new_block_dict['opBlockId']):
-                        opBlock = Block.objects.filter(id=new_block_dict['opBlockId']).exists()
-                        if not opBlock:
-                            updated_objs = request_items([new_block_dict['opBlockId']], return_updated_objs=True, downstream_worker=False, get_missing_blocks=get_missing_blocks, override_completed=get_missing_blocks)
-                    transaction_signature_verified = False
-                    if not block_transaction:
-                        prntDebug('no reward')
-                        proceed_to_check_consensus = True
-                        transaction = None
-                    else:
-                        prntDebug('process reward')
-                        proceed_to_check_consensus = False
-                        # if block_transaction['token_value'] == calculate_reward(block_transaction['created']):
-                        sig_data = get_sigData(block_transaction, first_key=True)
-                        pkey = sig_data['pk']
-                        if is_id(pkey):
-                            iden = pkey
-                        else:
-                            iden = hash_upk_id(pkey)
-                        upk = UserPubKey.objects.filter(id=iden, keyType='node').only('publicKey','end_life_dt').first()
-                        if upk:
-                            transaction_signature_verified = upk.verify(get_signing_data(block_transaction), sig_data['sig'], publicKey=block_transaction['signed'])
-                        prntDebug('transaction_signature_verified',transaction_signature_verified)
-                        if transaction_signature_verified:
-                            transaction = get_or_create_model('Transaction', id=block_transaction['id'])
-                            transaction, sigs, proceed_to_check_consensus, transaction_updatedDB = sync_model(transaction, block_transaction, get_missing_blocks=get_missing_blocks)
-                                
-                    prnt('proceed_to_check_consensus',proceed_to_check_consensus)
-                    if proceed_to_check_consensus:
-                        block = Block.objects.filter(hash=new_block_dict['hash']).defer('data','extraData').first()
-                        if not block or block.signed != new_block_dict['signed']:
-                            block = blockchain.create_block(block_dict=b, dummy_block=block)
-                        prnt('transactionx',transaction)
-                        if block and block.signed:
-                            prnt('block.Transaction_obj',block.Transaction_obj)
-                            if transaction and transaction_signature_verified and transaction == block.Transaction_obj:
-                                prnt('py1')
-                                if block.id == transaction.senderBlockId:
-                                    prnt('py2a')
-                                    if transaction.SenderBlock_obj != block:
-                                        prnt('py2b')
-                                        transaction.SenderBlock_obj = block
-                                        transaction.save()
-                                elif transaction.ReceiverBlock_obj != block:
-                                    prnt('py3')
-                                    transaction.ReceiverBlock_obj = block
-                                    transaction.save()
-                            prnt('py4')
-                            received_hashes.append(block.hash)
-                            added_blocks.append(b)
-                            if b['validations']:
-                                if isinstance(b['validations'], str):
-                                    vals_dict = json.loads(b['validations'])
-                                else:
-                                    vals_dict = b['validations']
-                                val_ids = [v['id'] for v in vals_dict if v['objType'] == 'Validator' and v['jobId'] == new_block_dict['id']]
-                                prnt('CHECK VALIDATIONS HERE3',val_ids)
-                                current_vals = Validator.objects.filter(id__in=val_ids).exclude(signed={}).values('id')
-                                prnt('current_vals G',len(current_vals),len(val_ids))
-                                if len(current_vals) < len(val_ids):
-                                    process_received_data([v for v in vals_dict if v['id'] in val_ids+[i['id'] for i in current_vals]], check_consensus=False, get_missing_blocks=get_missing_blocks)
-                
-        if 'hash_history' in received_json:
-            prnt("received_json['hash_history']",len(received_json['hash_history']))
-            hash_list = received_json['hash_history'].copy()
-
-            prnt('hash_list len:',len(hash_list))
-            local_hash_history = [i['hash'] for i in Block.objects.filter(Blockchain_obj=blockchain, hash__in=hash_list).exclude(validated=False).values('hash')]
-            prnt('local_hash_history len:',len(local_hash_history))
-            missing_hashes = [i for i in hash_list if i not in local_hash_history and i not in received_hashes]
-            prnt('missing_hashes hashes',missing_hashes)
-            if missing_hashes:
-                if not retrieve_missing_blocks(genesisId=blockchain.genesisId, target_node=packet_creator if packet_creator else sender_node, starting_point=missing_hashes[0], items_to_get=len(missing_hashes), downstream_worker=downstream_worker):
-                    prnt('failed to retrieve prior blocks 9432',missing_hashes)
-                    note = 'missing_prior_blocks2'
-                    block.is_not_valid(note=note, mark_strike=False)
-                    creator_nodes, validator_list, broadcast_list = block.get_assigned_nodes(fetch_broadcast_list=False)
-                    if get_operator_obj('self_nodeId') in validator_list:
-                        from utils.locked import validate_block
-                        is_valid, validator, is_new_validation = validate_block(block, creator_nodes=creator_nodes, fail_reason=note)
-                    if log:
-                        log.completed(note)
-                    return False
-                
-        prnt('check block validity')
-        block_num = 0
-        for b in added_blocks:
-            prnt('b:',b)
-            block_num += 1
-            if block_num < len(added_blocks) or downstream_worker == False:
-                downstream_worker = False
-            else:
-                downstream_worker = True
-            completed = False
-            try:
-                new_block_dict = json.loads(b['block_dict'])
-            except:
-                new_block_dict = b['block_dict']
-            block_transaction = b['block_transaction']
-            prntDebug('block_transaction',block_transaction)
-            try:
-                block_transaction = json.loads(block_transaction)
-            except:
-                pass
-            block = Block.objects.filter(id=new_block_dict['id']).defer('data','extraData').first()
-            if block and block.validated != None and 'block_is_valid' in b and b['block_is_valid'] != block.validated: # block.validation result does not match received block.validation
-                prnt('block recheck: received.is_valid:',block.id,b['block_is_valid'],'block.validated:',block.validated)
-                if b['validations']:
-                    vals = [v['id'] for v in b['validations'] if v['objType'] == 'Validator' and v['jobId'] == block.id]
-                    prnt('CHECK VALIDATIONS HERE3',vals)
-                    current_vals = Validator.objects.filter(id__in=vals).exclude(signed={}).count()
-                    prnt('current_vals B',current_vals,len(vals))
-                    if current_vals < len(vals):
-                        process_received_data(vals, check_consensus=False, get_missing_blocks=get_missing_blocks, downstream_worker=downstream_worker)
-                    block_is_valid, consensus_found, validations = check_validation_consensus(block, block_id=block.id, backcheck=True, get_missing_blocks=get_missing_blocks, downstream_worker=downstream_worker)
-            elif block and block.validated != None and not force_check:
-                prnt('block already processed and validated',block.id)
-                if b['validations']:
-                    if isinstance(b['validations'], str):
-                        vals_dict = json.loads(b['validations'])
-                    else:
-                        vals_dict = b['validations']
-                    val_ids = [v['id'] for v in vals_dict if v['objType'] == 'Validator' and v['jobId'] == new_block_dict['id']]
-                    prnt('CHECK VALIDATIONS HERE',val_ids)
-                    current_vals = Validator.objects.filter(id__in=val_ids).exclude(signed={}).values('id')
-                    prnt('current_vals C',len(current_vals),len(val_ids))
-                    if len(current_vals) < len(val_ids):
-                        process_received_data([v for v in vals_dict if v['id'] in val_ids+[i['id'] for i in current_vals]], check_consensus=True, get_missing_blocks=get_missing_blocks)
-
-            else:
-                prnt('block not validated or force check:',new_block_dict['id'],block,force_check) # force_check if datapacket is send_missing_block or self_node ran block retrieval
-                
-                signature_verified = False
-                if b['validations']:
-                    if isinstance(b['validations'], str):
-                        vals_dict = json.loads(b['validations'])
-                    else:
-                        vals_dict = b['validations']
-                    val_ids = [v['id'] for v in vals_dict if v['objType'] == 'Validator' and v['jobId'] == new_block_dict['id']]
-                    prnt('CHECK VALIDATIONS HERE2',val_ids)
-                    current_vals = Validator.objects.filter(id__in=val_ids).exclude(signed={}).values('id')
-                    prnt('current_vals C',len(current_vals),len(val_ids))
-                    if len(current_vals) < len(val_ids):
-                        process_received_data([v for v in vals_dict if v['id'] in val_ids+[i['id'] for i in current_vals]], check_consensus=False, get_missing_blocks=get_missing_blocks)
-                        signature_verified = True
-                        
-                def handle_competitions(competing_blocks):
-                    winning_block, validations = resolve_block_differences(block, competing_blocks=competing_blocks)
-                    prnt('winning_blockxxw',convert_to_dict(winning_block))
-                    prnt('blockxxw',convert_to_dict(block))
-                    if winning_block and not winning_block.validated:
-                        block_is_valid, consensus_found, validations = check_validation_consensus(winning_block, block_id=winning_block.id, backcheck=force_check, get_missing_blocks=get_missing_blocks, downstream_worker=downstream_worker)
-
-                    if winning_block and winning_block.hash == block.hash:
-                        prnt('pd continue')
-                        return True
-                    else:
-                        prnt('pd1')
-                        if winning_block and resend_missing_blocks:
-                            prnt('pd3')
-                            create_job(send_missing_blocks, job_timeout=60, worker='high', blockchain=blockchain, missing_blocks=[winning_block], send_to=packet_creator if packet_creator else sender_node)
-                        if winning_block and winning_block.hash != block.hash and block.validated != False :
-                            note = f'lost_competition1_{winning_block.id}'
-                            block.is_not_valid(note=note, mark_strike=False)
-                            prntDebug(f'invalidatey1:',block.id)
-                            creator_nodes, validator_list, broadcast_list = block.get_assigned_nodes(fetch_broadcast_list=False)
-                            if get_operator_obj('self_nodeId') in validator_list:
-                                from utils.locked import validate_block
-                                is_valid, validator, is_new_validation = validate_block(block, creator_nodes=creator_nodes, fail_reason=note)
-                        return False
-                
-                if block:
-                    prnt('new_block_dict',new_block_dict)
-                    prev_block = Block.objects.filter(networkChain=new_block_dict['networkChain'], hash=new_block_dict['prv_hash'], validated=True).defer('data','extraData').first()
-                    latest_block = blockchain.get_last_block(is_validated=True, do_not_return_self=True)
-                    prnt('prev_block x',prev_block)
-                    if prev_block and prev_block.index+1 == int(new_block_dict['index']) or int(new_block_dict['index']) == 1 and new_block_dict['prv_hash'] == '0000000': # if block has expected index or is first on chain
-                        competing_blocks = Block.objects.filter(networkChain=new_block_dict['networkChain'], prv_hash=new_block_dict['prv_hash']).exclude(validated=False).exclude(hash=new_block_dict['hash']).defer('data','extraData')
-                        
-                        if competing_blocks:
-                            block_is_winner = handle_competitions(competing_blocks)
-                            if not block_is_winner:
-                                prnt('ret 3')
-                                if log:
-                                    log.completed('received_blocks_non_winner')
-                                return False
-                                
-                        elif latest_block and prev_block:
-                            if prev_block.hash == latest_block.hash or prev_block.hash == latest_block.prv_hash:
-                                signature_verified = True
-                        elif int(new_block_dict['index']) == 1 and not latest_block and not prev_block:
-                            signature_verified = True
-
-                    else:
-                        prnt('Block index not as expected')
-                        if not prev_block:
-                            block_is_winner = block.validated
-                            if not block_is_winner:
-                                competing_blocks = Block.objects.filter(networkChain=new_block_dict['networkChain'], prv_hash=new_block_dict['prv_hash']).exclude(hash=new_block_dict['hash']).defer('data','extraData')      
-                                if competing_blocks:
-                                    block_is_winner = handle_competitions(competing_blocks)
-                            if not block_is_winner:
-                                # missing blocks
-                                prnt(f'prev_block not found11-- blockchain.chain_length:{blockchain.chain_length}, new_block_index:{new_block_dict["index"]}, get_missing_blocks:{get_missing_blocks}')
-                                prnt('latest_block',latest_block, 'index',latest_block.index if latest_block else 0)
-                                if not latest_block:
-                                    if get_missing_blocks:
-                                        if downstream_worker:
-                                            create_job(retrieve_missing_blocks, job_timeout=200, worker='high', blockchain=blockchain, target_node=packet_creator if packet_creator else sender_node, starting_point=blockchain.chain_length)
-                                        else:
-                                            retrieve_missing_blocks(blockchain=blockchain, target_node=packet_creator if packet_creator else sender_node, starting_point=blockchain.chain_length, downstream_worker=downstream_worker)
-                                elif latest_block.index < int(new_block_dict['index']) - 1:
-                                    if get_missing_blocks:
-                                        if downstream_worker:
-                                            create_job(retrieve_missing_blocks, job_timeout=200, worker='high', blockchain=blockchain, target_node=packet_creator if packet_creator else sender_node, starting_point=latest_block.index)
-                                        else:
-                                            retrieve_missing_blocks(blockchain=blockchain, target_node=packet_creator if packet_creator else sender_node, starting_point=latest_block.index, downstream_worker=downstream_worker)
-                                elif latest_block.index >= int(new_block_dict['index']) and resend_missing_blocks:
-                                    create_job(send_missing_blocks, job_timeout=60, worker='main', blockchain=blockchain, starting_index=int(new_block_dict['index']), send_to=packet_creator if packet_creator else sender_node)
-                                elif resend_missing_blocks:
-                                    create_job(send_missing_blocks, job_timeout=60, worker='main', blockchain=blockchain, starting_index=int(new_block_dict['index'])-1, send_to=packet_creator if packet_creator else sender_node)
-                                if log:
-                                    log.completed('received_blocks_missing_prev_block')
-                                return False
-                        
-                        elif prev_block and prev_block.index < int(new_block_dict['index']) - 1:
-                            # missing blocks
-                            if get_missing_blocks:
-                                if downstream_worker:
-                                    create_job(retrieve_missing_blocks, job_timeout=200, worker='high', blockchain=blockchain, target_node=packet_creator if packet_creator else sender_node, starting_point=prev_block.hash)
-                                else:
-                                    retrieve_missing_blocks(blockchain=blockchain, target_node=packet_creator if packet_creator else sender_node, starting_point=prev_block.hash, downstream_worker=downstream_worker)
-                            if log:
-                                log.completed('received_blocks_retrieve_missing')
-                            return False
-                        
-                        elif prev_block and prev_block.index >= int(new_block_dict['index']):
-                            # sender node is missing blocks
-                            if resend_missing_blocks:
-                                create_job(send_missing_blocks, job_timeout=60, worker='high', blockchain=blockchain, starting_index=int(new_block_dict['index']), send_to=packet_creator if packet_creator else sender_node)
-                            if log:
-                                log.completed('received_blocks_send_missing')
-                            return False
-                        
-                        elif prev_block and prev_block.index == int(new_block_dict['index']):
-                            # block index discrepancy
-                            prntDebug('sort out competeing blocks')
-                            winning_block, validations = resolve_block_differences(block)
-                            if not winning_block:
-                                if log:
-                                    log.completed('competing_block_p2')
-                                return False 
-                            if winning_block.hash != block.hash:
-                                if resend_missing_blocks:
-                                    block = winning_block
-                                    create_job(send_missing_blocks, job_timeout=60, worker='high', blockchain=blockchain, starting_index=int(new_block_dict['index']), send_to=packet_creator if packet_creator else sender_node)
-                            else:
-                                # if block:
-                                signature_verified = True
-                                prntDebug('signature_verified22',signature_verified)
-                        else:
-                            prnt('not signature_verified')    
-                    
-                    prnt('signature_verified',signature_verified)
-                    if signature_verified:
-                        block_is_valid, consensus_found, validations = check_validation_consensus(block, block_id=block.id, backcheck=force_check, get_missing_blocks=get_missing_blocks, downstream_worker=downstream_worker)
-                        prntDebug('-a-a-block_is_valid',block_is_valid,'consensus_found',consensus_found,'block.id',block.id)
-                        if not block_is_valid and consensus_found:
-                            if resend_missing_blocks:
-                                prntDebug('send_missing_blocks path 1')
-                                if not send_missing_blocks(blockchain=blockchain, starting_index=block.index-1, send_to=packet_creator if packet_creator else sender_node):
-                                    send_missing_blocks(blockchain=blockchain, genesisId=None, missing_blocks=[block], starting_index=block.index, send_to=packet_creator if packet_creator else sender_node, force_check=True)
-                            if log:
-                                log.completed('invalid')
-                            return False
-                        else:
-                            if block_is_valid and consensus_found and block_num == len(blocks): # if last item in received list
-                                next_block = Block.objects.filter(networkChain=blockchain.id, prv_hash=block.hash, validated=True).first()
-                                prntDebug('next_block',next_block)  
-                                if next_block:
-                                    next_block_is_valid, next_block_consensus_found, validations = check_validation_consensus(next_block, block_id=next_block.id, backcheck=True, get_missing_blocks=get_missing_blocks)
-                                    prntDebug('-a-a-next_block_is_valid-222',next_block_is_valid,'next_block_consensus_found',next_block_consensus_found)
-                            if block_is_valid and consensus_found:
-                                completed = True
-                    if block_num == len(added_blocks) and get_missing_blocks:
-                        if 'future_block_count' in b and b['future_block_count']:
-                            if (block.index + 1) not in blocks:
-                                future_blocks = Block.objects.filter(networkChain=blockchain.id, index__gt=block.index, validated=True).count()
-                                # next_block = Block.objects.filter(blockchainId=blockchain.id, prv_hash=block.hash).exclude(validated=False).exists()
-                                # if not next_block:
-                                if future_blocks < b['future_block_count']:
-                                    if downstream_worker:
-                                        create_job(retrieve_missing_blocks, job_timeout=300, worker='main', blockchain=block.Blockchain_obj, starting_point=block.index + 1)
-                                    else:
-                                        retrieve_missing_blocks(blockchain=block.Blockchain_obj, starting_point=block.index + 1, downstream_worker=downstream_worker)
-                                
-    except Exception as e:
-        prnt('process block fail1', str(e))
-        if log:
-            log.completed(fail=str(e))
-        return False
-    if log:
-        log.completed()
-    return completed
-
-
-def resolve_block_differences(starting_block, competing_blocks=None, validated_blocks=True, allow_divergence_discovery=True):
-    prnt('\n--resolve_block_differences', starting_block)
-    from network.models import Node, DataPacket, Block, Blockchain, _OperationsChain_genesisId, _block_creation_times, mandatoryChains, block_time_delay
-    from utils.locked import get_broadcast_list, check_validation_consensus, get_relevant_nodes_from_block, get_node_assignment
-
-    if e_brake(2):
-        return 
-    common_hashes_map = {}
-    discover_divergence = False
-    if not competing_blocks:
-        qs = Block.objects.filter(networkChain=starting_block.networkChain, index=starting_block.index).exclude(id=starting_block.id)
-        if validated_blocks:
-            qs = qs.filter(validated=True)
-        else:
-            qs = qs.exclude(validated=False)
-        competing_blocks = list(qs.defer('data', 'extraData').order_by('DateTime', 'created'))
-
-    unique_hashes = {b.hash for b in competing_blocks}
-    if not unique_hashes or unique_hashes == {starting_block.hash}:
-        return starting_block, []
-    prnt('competing_blocks',competing_blocks)
-
-    validation_cache = {}
-
-    def get_validation_state(block):
-        prnt('-get_validation_state')
-        if block.id not in validation_cache:
-            is_valid, consensus_found, validations = check_validation_consensus(block, block_id=block.id, do_mark_valid=False, create_val=False, handle_discrepancies=False)
-            prnt('get_validation_state', is_valid, consensus_found)
-            validation_cache[block.id] = {'is_valid': is_valid, 'consensus_found': consensus_found, 'validations': [v for v in validations if v.is_valid]}
-        return validation_cache[block.id]
-
-    def invalidate_losers(winning_block, competing_blocks):
-        if winning_block:
-            for block in competing_blocks:
-                if block.id != winning_block.id:
-                    note = f'lost_resolve_bd_{winning_block.id}'
-                    block.is_not_valid(note=note, mark_strike=False)
-                    prntDebug(f'invalidatex2:',block.id)
-                    creator_nodes, validator_list, broadcast_list = block.get_assigned_nodes(fetch_broadcast_list=False)
-                    if get_operator_obj('self_nodeId') in validator_list:
-                        from utils.locked import validate_block
-                        is_valid, validator, is_new_validation = validate_block(block, creator_nodes=creator_nodes, fail_reason=note)
-    # Precedence:
-    # 1. Heuristic chain agreement
-    # 2. Validator consensus
-    # 3. Deterministic tie-breaks
-    # 4. Timestamp
-    major_candidate = None
-    candidate, candidate_state = None, {}
-    competing_blocks = [starting_block] + [b for b in competing_blocks]
-
-    for block in competing_blocks:
-        prnt('resolve block',block)
-        if 'won_competition' in block.notes:
-            if string_to_dt(block.notes['won_competition']) > now_utc() - datetime.timedelta(minutes=7):
-                prnt('resolve_bd1')
-                return block, get_validation_state(block)
-
-        if candidate and block.hash == candidate.hash:
-            prnt('resolve_bd2',block.id)
-            continue
-
-        state = get_validation_state(block)
-
-        if block.DateTime > now_utc() and starting_block.Blockchain_obj.genesisId == _OperationsChain_genesisId:
-            creators, _ = get_node_assignment(block, full_creator_list=True)
-            try:
-                if creators.index(block.CreatorNode_obj.id) < creators.index(candidate.CreatorNode_obj.id):
-                    candidate, candidate_state = block, state
-                    continue
-            except Exception:
-                pass
-            
-        if not state['is_valid']:
-            if state['consensus_found'] and block.validated:
-                prntDebug(f'invalidatex3:',block.id)
-                block.is_not_valid(note='bd_diff2', mark_strike=False)
-            prnt('resolve_bd3',block.id)
-            continue
-
-        if not common_hashes_map:
-            common_hashes_map, fetched_hashes = resolve_chain_fork(starting_block.networkChain, starting_hash=starting_block.prv_hash)
-
-        if common_hashes_map:
-            if block.prv_hash in common_hashes_map and block.hash in common_hashes_map[block.prv_hash]:
-                if candidate and candidate.prv_hash in common_hashes_map and candidate.hash in common_hashes_map[candidate.prv_hash]:
-                    prnt('resolve_bd4',block.id)
-                    if common_hashes_map[block.prv_hash][block.hash] > common_hashes_map[candidate.prv_hash][candidate.hash]:
-                        candidate, candidate_state = block, state
-                        major_candidate = block
-                        continue
-                else:
-                    prnt('resolve_bd5',block.id)
-                    candidate, candidate_state = block, state
-                    major_candidate = block
-                    continue
-            elif block == competing_blocks[-1]:
-                if not candidate or candidate.prv_hash not in common_hashes_map or candidate.hash not in common_hashes_map[candidate.prv_hash]:
-                    prnt('resolve_bd6',block.id)
-                    discover_divergence = True
-        
-        if not major_candidate:
-            if state['consensus_found'] and candidate is None or state['consensus_found'] and candidate and not candidate_state['consensus_found']:
-                prnt('resolve_bd7',block.id)
-                candidate, candidate_state = block, state
-                continue
-
-            if candidate and len(state['validations']) > len(candidate_state['validations']):
-                prnt('resolve_bd8',block.id)
-                candidate, candidate_state = block, state
-                continue
-
-            if candidate and len(state['validations']) < len(candidate_state['validations']):
-                prnt('resolve_bd9',block.id)
-                continue
-
-            if candidate and string_to_dt(block.DateTime) < string_to_dt(candidate.DateTime):
-                prnt('resolve_bd11',block.id)
-                candidate, candidate_state = block, state
-                continue
-
-    if allow_divergence_discovery and discover_divergence:
-        prnt('resolve_bd12',block.id)
-        hash_map = discover_chain_divergence(starting_block.networkChain)
-        fetch_blocks = []
-        check_consensus = []
-        for hash in hash_map:
-            path_block = Block.objects.filter(networkChain=starting_block.networkChain, hash=hash).values('id','validated').first()
-            if not path_block:
-                fetch_blocks.append(hash)
-            elif not path_block['validated']:
-                check_consensus.append(path_block['id'])
-        if starting_block.Blockchain_obj.genesisId == _OperationsChain_genesisId:
-            queue = django_rq.get_queue('high')
-        else:
-            queue = django_rq.get_queue('main')
-        if fetch_blocks:
-            prnt('resolve_bd13',block.id)
-            if not exists_in_worker('retrieve_missing_blocks', queue_name=['main','high'], blockchain=starting_block.networkChain, starting_point=fetch_blocks, items_to_get=len(fetch_blocks)):
-                queue.enqueue(retrieve_missing_blocks, blockchain=starting_block.networkChain, starting_point=fetch_blocks, items_to_get=len(fetch_blocks), job_timeout=300, result_ttl=7200)
-        if check_consensus:
-            prnt('resolve_bd14',block.id)
-            for block in check_consensus:
-                if not exists_in_worker('check_validation_consensus', queue_name=['main','high'], block_id=block.id):
-                    queue.enqueue(check_validation_consensus, block, block_id=block.id, job_timeout=420, result_ttl=7200)
-        if not fetch_blocks and not check_consensus:
-            for block in competing_blocks:
-                if state['consensus_found'] and candidate is None or state['consensus_found'] and candidate and not candidate_state['consensus_found']:
-                    prnt('resolve_bd72',block.id)
-                    candidate, candidate_state = block, state
-                    continue
-
-                if candidate and len(state['validations']) > len(candidate_state['validations']):
-                    prnt('resolve_bd82',block.id)
-                    candidate, candidate_state = block, state
-                    continue
-
-                if candidate and string_to_dt(block.DateTime) < string_to_dt(candidate.DateTime):
-                    prnt('resolve_bd112',block.id)
-                    candidate, candidate_state = block, state
-                    continue
-            if candidate:
-                invalidate_losers(candidate, competing_blocks)
-                prnt('resolve_bd152 Final',candidate.id)
-                return candidate, candidate_state['validations']
-        prnt('resolve_bd15',block.id)
-        return None, {}
-
-    winning_block = candidate
-    if not winning_block:
-        prnt('resolve_bd16',block.id)
-        return None, {}
-
-    winning_state = get_validation_state(winning_block)
-    for block in [starting_block] + competing_blocks:
-        if block.id == winning_block.id:
-            prnt('resolve_bd17',block.id)
-            continue
-
-        if winning_state['consensus_found'] and block.validated is not False:
-            block.is_not_valid(mark_strike=False, note=f'resolved_differences:{winning_block.id}')
-        elif block.validated is True:
-            block.notes['removed_validation'] = f'{dt_to_string(now_utc())}-{winning_block.id}'
-            block.validated = None
-            block.save(update_fields=['validated', 'notes'])
-
-    winning_block.notes['won_competition'] = dt_to_string(now_utc())
-    winning_block.save()
-
-    invalidate_losers(winning_block, competing_blocks)
-    prnt('resolve_bd Final', winning_block)
-    prnt()
-    return winning_block, winning_state['validations']
-
-def retrieve_missing_blocks(blockchain=None, genesisId=None, target_node=None, starting_point=0, items_to_get=3, retrieve_following=True, downstream_worker=True):
-    prntDebugn('--retrieve_missing_blocks- chainid:', blockchain,'starting_point:',starting_point)
-    if e_brake(2):
-        return 
-    from network.models import Node, DataPacket, Block, Blockchain, _OperationsChain_genesisId, _block_creation_times, mandatoryChains, block_time_delay
-    from utils.locked import get_broadcast_list, check_validation_consensus, get_relevant_nodes_from_block, get_node_assignment, sign_for_sending, hash_obj_id
-    if items_to_get < 3:
-        items_to_get = 3
-    if not blockchain and genesisId:
-        blockchain = Blockchain.objects.filter(genesisId=genesisId).first()
-    opBlock_data = get_relevant_nodes_from_block(genesisId=blockchain.genesisId)
-    if target_node and not target_node in opBlock_data['relevant_nodes']:
-        n = Node.objects.filter(id=target_node).defer('chain_array','Block_obj','User_obj','abilities','region_data').first()
-        if n and n.activated_dt:
-            opBlock_data['relevant_nodes'][target_node] = n.return_address()
-        else:
-            target_node = random.choice([n for n in opBlock_data['relevant_nodes']])
-    elif not target_node:
-        target_node = random.choice([n for n in opBlock_data['relevant_nodes']])
-
-    value = opBlock_data['relevant_nodes'][target_node]
-    opBlock_data['relevant_nodes'].pop(target_node)
-    relevant_nodes = {target_node: value, **opBlock_data['relevant_nodes']}
-
-    operatorData = get_operatorData()
-    self_node = get_self_node(operatorData=operatorData)
-
-    if not starting_point:
-        starting_point = blockchain.chain_length
-    elif is_id(starting_point):
-        start_block = Block.objects.filter(networkChain=blockchain.id, id=starting_point, validated=True).first()
-        if start_block:
-            starting_point = start_block.index
-    elif not isinstance(starting_point, int):
-        start_block = Block.objects.filter(networkChain=blockchain.id, hash=starting_point, validated=True).first()
-        if start_block:
-            starting_point = start_block.index
-    if isinstance(starting_point, int):
-        prev_blocks = Block.objects.filter(networkChain=blockchain.id, index__lte=starting_point, index__gt=starting_point-50, validated=True).order_by('index').values('hash')
-        hash_history = []
-        if prev_blocks:
-            hash_history = [b['hash'] for b in prev_blocks]
-    else:
-        hash_history = [b['hash'] for b in reversed(Block.objects.filter(networkChain=blockchain.id, validated=True).order_by('-index').values('hash')[:50])]
-    prnt('starting_pointxxz',starting_point)
-    signedRequest = json.dumps(sign_for_sending({'type':'Block', 'blockchainId' : blockchain.id, 'genesisId':blockchain.genesisId, 'include_content' : False, 'force_check':True, 'include_validators':True, 'item_count': items_to_get, 'hash_history':hash_history, 'index':starting_point}))
-    prntn('signedRequest',signedRequest)
-    sendingData = {'request':signedRequest, 'senderId':get_operator_obj('self_nodeId')}
-
-    
-    successes = 0
-    for nodeId, addr in relevant_nodes.items():
-        if nodeId != self_node.id:
-            received_data = None
-            content = sign_post_header(data=sendingData, operatorData=operatorData, self_node=self_node.id, post='post', target_node=nodeId)
-            success, response = connect_to_node(addr, 'network/request_data', self_node=self_node, content=content, operatorData=operatorData)
-
-            prnt('connect success',success)
-            if success and response.status_code == 200:
-                response_json = response.json()
-                prntn('response_json666',str(response_json)[:3000])    
-                if response_json['message'] == 'Success' and 'block_obj' in response_json:
-                    block_list = json.dumps([{'block_dict' : response_json['block_obj'], 'block_transaction':response_json['transaction_obj'], 'block_data' : [], 'validations' : response_json['content']}])
-                    received_data = {'type' : 'Blocks', 'blockchainId' : blockchain.id, 'genesisId':blockchain.genesisId, 'block_list' : block_list, 'force_check':True, 'end_of_chain' : response_json['end_of_chain']}
-                elif response_json['message'] == 'Success' and 'block_list' in response_json:
-                    received_data = response_json
-
-                if received_data:
-                    received_data['senderId'] = nodeId
-                    received_data = sign_for_sending(received_data, operatorData=operatorData)
-                    if not isinstance(starting_point, int):
-                        try:
-                            block_json = json.loads(response_json['block_obj'])
-                            starting_point = block_json['index']
-                        except Exception as e:
-                            prnt('err0828', str(e))
-                            block_list = json.loads(response_json['block_list'])
-                            block_json = block_list[0]['block_dict']
-                            starting_point = block_json['index']
-
-                    iden = hash_obj_id('DataPacket', specific_data=str(received_data)+dt_to_string(now_utc()))
-                    dp = DataPacket.objects.filter(id=iden).first()
-                    if not dp:
-                        dp = DataPacket(id=iden, func='process_received_blocks', created = now_utc(), data=received_data)
-                        dp.save()
-
-                    def wrong_blocks_returned(dp):
-                        prnt('wrong_blocks_returned1?')
-                        result = process_received_dp(dp, 'process_blocks', override_completed=True)
-                        if result and 'dp' in result:
-                            log = result['dp']
-                            received_json = log.data
-                        elif result and 'data' in result:
-                            received_json = result['data']
-                        else:
-                            received_json = []
-                        blocks = {}
-                        if 'block_list' in received_json:
-                            block_list = decompress_data(received_json['block_list'])
-                            try:
-                                block_list = json.loads(block_list)
-                            except:
-                                pass
-                            for b in block_list:
-                                try:
-                                    block_dict = json.loads(b['block_dict'])
-                                except:
-                                    block_dict = b['block_dict']
-                                blocks[block_dict['index']] = b
-                        else:
-                            blocks[received_json['block_dict']['index']] = received_json
-                        import operator
-                        for index, b in sorted(blocks.items(), key=operator.itemgetter(0)):
-                            try:
-                                new_block_dict = json.loads(b['block_dict'])
-                            except:
-                                new_block_dict = b['block_dict']
-                            block = Block.objects.filter(id=new_block_dict['id']).first()
-                            if block and block.validated == False:
-                                create_job(send_missing_blocks, job_timeout=60, worker='high', blockchain=blockchain, starting_index=int(block.index), send_to=nodeId, force_check=True)
-                                prnt('true')
-                                return True
-                        prnt('false')
-                        return False
-
-                    if process_received_blocks(dp, get_missing_blocks=False, resend_missing_blocks=False, return_result=True, force_check=True, rebroadcast=False, downstream_worker=downstream_worker):
-                        if not wrong_blocks_returned(dp):
-                            successes += 1
-                            try:
-                                prnt("str(response_json['end_of_chain'])",str(response_json['end_of_chain']))
-                            except Exception as e:
-                                prnt('err9621',str(e))
-                            if retrieve_following and str(response_json['end_of_chain']) == 'False':
-                                create_job(retrieve_missing_blocks, job_timeout=300, worker='high', blockchain=blockchain, starting_point=int(starting_point)+successes)
-                    else:
-                        wrong_blocks_returned(dp)
-                    prnt('retreived_blocks successes',successes)
-                    break
-
-                else:
-                    prnt('pass node, retrieve_missing_blocks 23595', response_json)
-    return successes
-
-def send_missing_blocks(blockchain=None, genesisId=None, missing_blocks=None, starting_index=1, send_to='', force_check=True):
-    prntn('-send_missing_blocks',starting_index,'send_to:',send_to,'missing_blocks',missing_blocks,'blockchain',blockchain,'genesisId',genesisId)
-    if e_brake(2):
-        return 
-    from network.models import Block, Blockchain, DataPacket, Validator, _OperationsChain_genesisId
-    from utils.locked import verify_obj_to_data, sort_for_sign, hash_obj_id, convert_to_dict, get_relevant_nodes_from_block, get_node_assignment, sign_for_sending
-    if not blockchain and genesisId:
-        blockchain = Blockchain.objects.filter(genesisId=genesisId).defer('queuedData').first()
-    operatorData = get_operatorData()
-    self_node_id = get_operator_obj('self_nodeId')
-    success = False
-    if send_to and send_to != self_node_id:
-        hash_history = []
-        opBlock = None
-        json_data = {'type' : 'Block', 'senderId':self_node_id, 'broadcast_list': [], 'blockchainId' : blockchain.id, 'genesisId':blockchain.genesisId, 'block_list' : [], 'force_check':force_check}
-        sending_blocks = []
-        if not missing_blocks:
-            if isinstance(starting_index, int):
-                missing_blocks = Block.objects.filter(networkChain=blockchain.id, index__gte=starting_index-1, validated=True).defer("data").order_by('index')[:3]
-            elif is_id(starting_index):
-                block = Block.objects.filter(id=starting_index).first()
-                if not block:
-                    prnt(f'block not found at: {starting_index}')
-                    return False
-                missing_blocks = Block.objects.filter(networkChain=blockchain.id, index__gte=block.index-1, validated=True).defer("data").order_by('index')[:3]
-
-        for return_block in missing_blocks:
-            if verify_obj_to_data(return_block, return_block):
-                if not hash_history:
-                    hash_history = [i['hash'] for i in reversed(Block.objects.filter(networkChain=blockchain.id, index__lte=return_block.index, validated=True).exclude(id__in=[i.hash for i in missing_blocks]).values("hash").order_by('-index')[:50])]
-
-                if return_block.index == starting_index or return_block.id == starting_index:
-                    opBlock = Block.objects.filter(Blockchain_obj__genesisId=_OperationsChain_genesisId, DateTime__lte=return_block.DateTime, validated=True).order_by('-index', 'created').first() 
-
-                validations = Validator.objects.filter(validatorType='Block', networkChain=return_block.networkChain, data__has_key=return_block.id)
-                validator_list = [sort_for_sign(convert_to_dict(v)) for v in validations if verify_obj_to_data(v, v)]
-                prnt('validator_list',validator_list)
-                future_block_count = Block.objects.filter(networkChain=blockchain.id, index__gt=return_block.index, validated=True).count()
-                sending_blocks.append({'block_dict' : sort_for_sign(convert_to_dict(return_block, exclude=['notes','validators'])), 'block_transaction':return_block.get_transaction_data(), 'block_data' : [], 'validations' : validator_list, 'future_block_count':future_block_count, 'block_is_valid':return_block.validated, 'opBlock':return_block.opBlockId})
-        
-        if sending_blocks:
-
-            sending_blocks = json.dumps(sending_blocks)
-            packet_id = hash_obj_id('DataPacket', specific_data=str(sending_blocks)+send_to)
-            prnt('packet_id',packet_id)
-            dp = DataPacket.objects.filter(id=packet_id).values('id','updated_on_node').first()
-            if dp and dp['updated_on_node'] > now_utc() - datetime.timedelta(minutes=20):
-                prnt('recently sent')
-                return True
-            elif not dp:
-                dp = DataPacket(id=packet_id, Node_obj_id=self_node_id, func='completed_sendmissingblocks', networkChain=blockchain.id)
-                dp.save()
-            if len(sending_blocks) > 1:
-                sending_blocks = compress_data(sending_blocks)
-            json_data['block_list'] = sending_blocks
-            json_data['hash_history'] = hash_history
-            if not opBlock:
-                opBlock = Block.objects.filter(Blockchain_obj__genesisId=_OperationsChain_genesisId, validated=True).order_by('-index', 'created').first() 
-            if opBlock:
-                json_data['opBlock_id'] = opBlock.id
-                json_data['opBlock_hash'] = opBlock.hash
-                if opBlock.index != opBlock.Blockchain_obj.chain_length:
-                    json_data['opBlock_not_latest'] = True
-            json_data = sign_for_sending(json_data, operatorData=operatorData)
-            headers = {'packet-id':packet_id, 'packet-origin-dt':dt_to_string(now_utc()), 'senderId':self_node_id, 'func':'sendmissingblocks', 'packet-creator':get_operator_obj('self_nodeId'), 'dt':dt_to_string(now_utc()), 'blockchainId' : return_block.networkChain, 'Genesisid':return_block.Blockchain_obj.genesisId, 'blockId':return_block.id, 'index':str(return_block.index)}
-            success, response = connect_to_node(get_node(id=send_to), 'network/receive_blocks', json_data, headers=headers, operatorData=operatorData)
-            if success:
-                dp = DataPacket.objects.filter(id=packet_id).values('id','notes').first()
-                if 'history' not in dp['notes']:
-                    dp['notes']['history'] = []
-                dp['notes']['history'].append({'sendMissing':dt_to_string(now_utc()), 'send_to':send_to})
-                DataPacket.objects.filter(id=dp['id']).update(updated_on_node=now_utc(), notes=dp['notes'])
-    return success
-
-def retrieve_transaction(tx=None, block_type='all', target_node=None):
-    prntDebugn('--retrieve_transaction- tx:', tx,'target_node:',target_node)
-    if e_brake(2):
-        return 
-    if not tx:
-        return
-    elif isinstance(tx, models.Model):
-        tx = tx.id
-    from network.models import DataPacket, Node, Block
-    from transactions.models import Transaction
-    from utils.locked import get_relevant_nodes_from_block, get_node_assignment, sign_for_sending, hash_obj_id
-    opBlock_data = get_relevant_nodes_from_block()
-    if target_node and not target_node in opBlock_data['relevant_nodes']:
-        n = Node.objects.filter(id=target_node).defer('chain_array','Block_obj','User_obj','abilities','region_data').first()
-        if n and n.activated_dt:
-            opBlock_data['relevant_nodes'][target_node] = n.return_address()
-        else:
-            target_node = random.choice([n for n in opBlock_data['relevant_nodes']])
-    elif not target_node:
-        target_node = random.choice([n for n in opBlock_data['relevant_nodes']])
-
-    value = opBlock_data['relevant_nodes'][target_node]
-    opBlock_data['relevant_nodes'].pop(target_node)
-    relevant_nodes = {target_node: value, **opBlock_data['relevant_nodes']}
-
-    operatorData = get_operatorData()
-    self_node = get_self_node(operatorData=operatorData)
-
-
-    signedRequest = json.dumps(sign_for_sending({'type':'Transaction', 'iden':tx, 'block_type':block_type}))
-    prntn('signedRequest',signedRequest)
-    sendingData = {'request':signedRequest, 'senderId':get_operator_obj('self_nodeId')}
-
-    
-    successes = 0
-    for nodeId, addr in relevant_nodes.items():
-        if nodeId != self_node.id:
-            received_data = None
-            content = sign_post_header(data=sendingData, operatorData=operatorData, self_node=self_node.id, post='post', target_node=nodeId)
-            success, response = connect_to_node(addr, 'network/request_data', self_node=self_node, content=content, operatorData=operatorData)
-
-            prnt('connect success',success)
-            if success and response.status_code == 200:
-                response_json = response.json()
-                prntn('response_json666777',str(response_json)[:3000])    
-                if response_json['message'] == 'Success' and 'block_list' in response_json:
-                    received_data = response_json
-
-                if received_data:
-                    received_data['senderId'] = nodeId
-                    iden = hash_obj_id('DataPacket', specific_data=str(received_data)+dt_to_string(now_utc()))
-                    dp = DataPacket.objects.filter(id=iden).first()
-                    if not dp:
-                        dp = DataPacket(id=iden, func='process_received_blocks', created = now_utc(), data=received_data)
-                        dp.save()
-
-                    def wrong_blocks_returned(dp):
-                        prnt('wrong_blocks_returned2?')
-                        result = process_received_dp(dp, 'process_blocks', override_completed=True)
-                        if result and 'dp' in result:
-                            log = result['dp']
-                            received_json = log.data
-                        elif result and 'data' in result:
-                            received_json = result['data']
-                        else:
-                            received_json = []
-                        blocks = {}
-                        if 'block_list' in received_json:
-                            block_list = decompress_data(received_json['block_list'])
-                            try:
-                                block_list = json.loads(block_list)
-                            except:
-                                pass
-                            for b in block_list:
-                                try:
-                                    block_dict = json.loads(b['block_dict'])
-                                except:
-                                    block_dict = b['block_dict']
-                                blocks[block_dict['index']] = b
-                        else:
-                            blocks[received_json['block_dict']['index']] = received_json
-                        import operator
-                        for index, b in sorted(blocks.items(), key=operator.itemgetter(0)):
-                            try:
-                                new_block_dict = json.loads(b['block_dict'])
-                            except:
-                                new_block_dict = b['block_dict']
-                            block = Block.objects.filter(id=new_block_dict['id']).first()
-                            if block and block.validated == False:
-                                prnt('true')
-                                return True
-                        prnt('false')
-                        return False
-
-                    if process_received_blocks(dp, get_missing_blocks=True, resend_missing_blocks=False, return_result=True, force_check=True, rebroadcast=False):
-                        if not wrong_blocks_returned(dp):
-                            successes += 1
-                    else:
-                        wrong_blocks_returned(dp)
-                    prnt('retreived_tx_blocks successes',successes)
-                    break
-
-                else:
-                    prnt('pass node, retrieve_missing_blocks 5921', response_json)
-    return successes
 
 
 
 def send_for_validation(log=None, gov=None, force_send=False):
     prnt('--send_for_validation() now_utc:',now_utc(), gov, log)
     from network.models import DataPacket, intelligence_funcs
-    from utils.locked import get_node_assignment, convert_to_dict, sign_for_sending, hash_obj_id, get_relevant_nodes_from_block, sign_obj
+    from utils.locked import get_node_assignment, convert_to_dict, sign_for_sending, hash_obj_id, get_relevant_nodes, sign_obj
     job_time = None
     job_started = None
     job_finished = None

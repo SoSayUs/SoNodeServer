@@ -69,11 +69,11 @@ def get_current_node_list_view(request):
     try:
         if not get_self_node().activated_dt:
             return JsonResponse({'message' : 'deactivated_node'})
-        from utils.locked import get_relevant_nodes_from_block
+        from utils.locked import get_relevant_nodes
         from network.models import NodeRecord, _EarthChain_genesisId
         dt = now_utc()
         record = NodeRecord.objects.filter(chainId=_EarthChain_genesisId, DateTime__lte=dt, is_valid=True).first()
-        node_data = get_relevant_nodes_from_block(include_relays=True, strings_only=True)
+        node_data = get_relevant_nodes(include_relays=True, strings_only=True)
         addresses = {}
         for key, value in node_data['relevant_nodes'].items():
             addresses[key] = value
@@ -1367,7 +1367,7 @@ def receive_blocks_view(request):
                     if not dp.rebroadcast_dt or dp.rebroadcast_dt < now_utc() - datetime.timedelta(hours=1):
                         chat_queue = django_rq.get_queue("chat")
                         if not exists_in_worker('rebroadcast_block', queue=chat_queue, id=dp.id):
-                            from utils.models import rebroadcast_block
+                            from network.utils import rebroadcast_block
                             prnt('add to chat worker')
                             chat_queue.enqueue(rebroadcast_block, dp.id, job_timeout=240, result_ttl=3600)
 
@@ -1416,7 +1416,7 @@ def receive_data_packet_view(request):
                     
                         chat_queue = django_rq.get_queue("chat")
                         if not exists_in_worker('rebroadcast_dp', queue=chat_queue, id=dp.id):
-                            from utils.models import rebroadcast_dp
+                            from network.utils import rebroadcast_dp
                             prnt('add to chat worker')
                             chat_queue.enqueue(rebroadcast_dp, dp.id, job_timeout=240, result_ttl=3600)
 

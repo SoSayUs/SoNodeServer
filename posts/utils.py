@@ -915,7 +915,7 @@ def get_matches(user, person, govs):
     matched = []
     def match_vote(m, person, votes, bill, vote_matches, total_matches, return_votes):
         try:
-            v = Vote.objects.filter(Motion_obj=m, Person_obj=person).order_by('-Motion_obj__DateTime').first()
+            v = RepVote.objects.filter(Motion_obj=m, Person_obj=person).order_by('-Motion_obj__DateTime').first()
             total_matches += 1
             return_votes.append(v)
             if v.VoteValueName == votes[bill]:

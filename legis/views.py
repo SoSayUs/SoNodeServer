@@ -9,7 +9,7 @@ from posts.utils import (
     )
 from posts.models import Region, Post, Spren
 from utils.models import get_operator_obj, skipwords
-from legis.models import BillText,Meeting,Statement,Motion,Vote,Election,Person
+from legis.models import BillText,Meeting,Statement,Motion,RepVote,Election,Person
 from utils.models import prnt, now_utc, is_id
 
 from django.db.models import Q
@@ -1446,7 +1446,7 @@ def representative_view(request, region, name, iden):
                 posts = Post.objects.filter(pointerType='Person', Person_obj=person).order_by('-DateTime')
 
             elif view == 'Votes':
-                posts = Vote.objects.filter(Person_obj=person).order_by('-Motion_obj__DateTime')
+                posts = RepVote.objects.filter(Person_obj=person).order_by('-Motion_obj__DateTime')
             elif view == 'Debates':
                 posts = Post.objects.filter(Q(Statement_obj__Person_obj=person)|Q(Statement_obj__PersonName__icontains=personPost.Update_obj['FullName'])).order_by(ordering)
             elif topic:

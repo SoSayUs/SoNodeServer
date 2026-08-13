@@ -119,14 +119,14 @@ class MotionAdmin(AutoForeignKeyAdmin):
         model = Motion
 
 
-class VoteAdmin(AutoForeignKeyAdmin):
+class RepVoteAdmin(AutoForeignKeyAdmin):
     list_display = [full_utc('created'), "PersonFullName", 'Motion_obj',full_utc('updated_on_node')]
     list_display_links = []
     list_editable = []
     list_filter = []
     search_fields = AutoForeignKeyAdmin.search_fields + ['id','Motion_obj__id']
     class Meta:
-        model = Vote
+        model = RepVote
 
 
 class ActionAdmin(AutoForeignKeyAdmin):
@@ -199,7 +199,7 @@ admin.site.register(District, DistrictAdmin)
 admin.site.register(Bill, BillAdmin)
 admin.site.register(BillText, BillTextAdmin)
 admin.site.register(Motion, MotionAdmin)
-admin.site.register(Vote, VoteAdmin)
+admin.site.register(RepVote, RepVoteAdmin)
 admin.site.register(Action, ActionAdmin)
 admin.site.register(Meeting, MeetingAdmin)
 admin.site.register(Statement, StatementAdmin)

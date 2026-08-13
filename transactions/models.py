@@ -170,7 +170,7 @@ class Transaction(models.Model):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Transaction', 'networkChain': 'Wallet', 'modlVer': 1, 'id': None, 'created': None, 'validations': {}, 'senderChainGenId': None, 'senderBlockId': None, 'SenderBlock_obj': None, 'ReceiverBlock_obj': None, 'ReceiverWallet_obj': None, 'SenderWallet_obj': None, 'token_value': '0', 'regarding': None, 'validated': None, 'enact_dt': None, 'enacted': None, 'iden_length': 20, 'signed': {}}
+            return {'objType': 'Transaction', 'networkChain': 'Wallet', 'modlVer': 1, 'id': None, 'created': None, 'validations': {}, 'senderChainGenId': None, 'senderBlockId': None, 'SenderBlock_obj': None, 'ReceiverBlock_obj': None, 'ReceiverWallet_obj': None, 'SenderWallet_obj': None, 'token_value': 0, 'regarding': None, 'validated': None, 'enact_dt': None, 'enacted': None, 'iden_length': 20, 'signed': {}}
         
     def commit_data(self, version=None):
         if not version:
@@ -301,7 +301,7 @@ class Transaction(models.Model):
                 prnt('done send_for_block_creation5')
                 return receiverBlock
             if self.created < now_utc() - datetime.timedelta(days=3):
-                from network.models import retrieve_transaction
+                from network.utils import retrieve_transaction
                 if retrieve_transaction(tx=self.id, block_type='receiver'):
                     prnt('done send_for_block_creation6')
                     return

@@ -5,7 +5,7 @@ import django_rq
 from django.contrib.contenttypes.models import ContentType
 
 from accounts.models import UserData
-from legis.models import Government,Agenda,Action,Bill,Meeting,Statement,Motion,Vote,Election,Party,Person,District
+from legis.models import Government,Agenda,Action,Bill,Meeting,Statement,Motion,RepVote,Election,Party,Person,District
 from legis.utils import get_gov, get_region, modify_gov, add_gov_menu_item, remove_accents
 from posts.models import Post, Update, ImageFile, Region
 from posts.views import get_ordinal
@@ -128,8 +128,8 @@ approved_models = {
             'get_bills_us' : ['Bill', 'BillText', 'Committee', 'Meeting', 'Action', 'Government', 'Notification'],
             'get_house_debates_us' : ['Meeting', 'Statement', 'Agenda', 'Bill', 'BillText', 'Action', 'Government', 'Committee', 'Notification'],
             'get_senate_debates_us' : ['Meeting', 'Statement', 'Agenda', 'Bill', 'BillText', 'Action', 'Government', 'Committee', 'Notification'],
-            'get_house_rollcalls_us' : ['Government', 'Motion', 'Vote', 'Bill', 'BillText', 'Committee', 'Meeting', 'Action', 'Notification'],
-            'get_senate_rollcalls_us' : ['Motion', 'Vote', 'Bill', 'BillText', 'Government', 'Committee', 'Meeting', 'Action', 'Notification'],
+            'get_house_rollcalls_us' : ['Government', 'Motion', 'RepVote', 'Bill', 'BillText', 'Committee', 'Meeting', 'Action', 'Notification'],
+            'get_senate_rollcalls_us' : ['Motion', 'RepVote', 'Bill', 'BillText', 'Government', 'Committee', 'Meeting', 'Action', 'Notification'],
             'get_general_election_candidates' : ['Election', 'Person', 'Party', 'Notification'],
             'get_general_elections_results' : ['Election', 'Person', 'Party', 'Notification'],
             'get_user_region' : ['District', 'Region', 'Party', 'Person'],
@@ -2448,11 +2448,11 @@ def add_house_rollcall(motion, motionU, motion_is_new, bill, country, log):
                         person, personU, person_is_new = get_model_and_update('Person', obj=p)
                         if person and personU:
                             prnt('person,', person)
-                            vote, voteU, vote_is_new = get_model_and_update('Vote', Motion_obj=motion, Person_obj=person, PersonFullName=f'{personU.data["LastName"]}, {personU.data["FirstName"]}', ConstituencyProvStateName=stateName, CaucusName=partyName, Chamber='House', Country_obj=country, Government_obj=motion.Government_obj, Region_obj=country)
+                            vote, voteU, vote_is_new = get_model_and_update('RepVote', Motion_obj=motion, Person_obj=person, PersonFullName=f'{personU.data["LastName"]}, {personU.data["FirstName"]}', ConstituencyProvStateName=stateName, CaucusName=partyName, Chamber='House', Country_obj=country, Government_obj=motion.Government_obj, Region_obj=country)
                             if 'District_id' in personU.data:
                                 vote.District_obj = District.objects.filter(id=personU.data['District_id'], Validator_obj__is_valid=True).first()
                         else:
-                            vote, voteU, vote_is_new = get_model_and_update('Vote', Motion_obj=motion, PersonFullName=memberName, ConstituencyProvStateName=stateName, CaucusName=partyName, Chamber='House', Country_obj=country, Government_obj=motion.Government_obj, Region_obj=country)
+                            vote, voteU, vote_is_new = get_model_and_update('RepVote', Motion_obj=motion, PersonFullName=memberName, ConstituencyProvStateName=stateName, CaucusName=partyName, Chamber='House', Country_obj=country, Government_obj=motion.Government_obj, Region_obj=country)
                         prnt('vote:',vote)
                         vote.Party_obj = Party.objects.filter(Q(Name=partyName)|Q(AltName=partyName)|Q(ShortName=partyName), Validator_obj__is_valid=True).first()
                         vote.Chamber = 'House'
@@ -2571,7 +2571,7 @@ def get_house_rollcalls_us(special=None, dt=None, iden=None, target={}, job_dt=N
 
         motion = Motion.objects.filter(Country_obj=country, Chamber='House', DateTime__gte=dt-datetime.timedelta(hours=24), Validator_obj__is_valid=True).exclude(TotalVotes=0).values('id', 'TotalVotes').first()
 
-        if special or not motion or motion['TotalVotes'] > Vote.objects.filter(Motion_obj__id=motion['id'], Validator_obj__is_valid=True).count():
+        if special or not motion or motion['TotalVotes'] > RepVote.objects.filter(Motion_obj__id=motion['id'], Validator_obj__is_valid=True).count():
             starting_url = 'https://clerk.house.gov/Votes'
             try:
                 driver = open_browser(starting_url)
@@ -2716,7 +2716,7 @@ def get_house_rollcalls_us(special=None, dt=None, iden=None, target={}, job_dt=N
                         target['bill_id'] = bill.id
                     
                     motion = Motion.objects.filter(VoteNumber=target['motion_num'], GovUrl=target['url'], Government_obj=gov, Region_obj=country, Validator_obj__is_valid=True).values('id', 'TotalVotes').first()
-                    if not motion or motion['TotalVotes'] > Vote.objects.filter(Motion_obj__id=motion['id'], Validator_obj__is_valid=True).count():
+                    if not motion or motion['TotalVotes'] > RepVote.objects.filter(Motion_obj__id=motion['id'], Validator_obj__is_valid=True).count():
                         queue = django_rq.get_queue('low')
                         queue.enqueue(get_house_rollcalls_us, special=special, target=target, job_dt=job_dt, task=task, job_timeout=runTimes[func], result_ttl=7200)
                         
@@ -3502,7 +3502,7 @@ def get_senate_rollcalls_us(special=None, dt=None, iden=None, target={}, driver=
         gov = Government.objects.filter(Country_obj=country, gov_level='Federal').first()
         motion = Motion.objects.filter(Country_obj=country, Chamber='Senate', DateTime__gte=dt-datetime.timedelta(hours=24), Validator_obj__is_valid=True).exclude(TotalVotes=0).values('id', 'TotalVotes').first()
         
-        if special or not motion or motion['TotalVotes'] > Vote.objects.filter(Motion_obj__id=motion['id'], Validator_obj__is_valid=True).count():
+        if special or not motion or motion['TotalVotes'] > RepVote.objects.filter(Motion_obj__id=motion['id'], Validator_obj__is_valid=True).count():
             grouping, driver, driver_service = get_senate_activity('motions')
             if True == False:
                 for link in motionLinks[:1]:
@@ -3517,7 +3517,7 @@ def get_senate_rollcalls_us(special=None, dt=None, iden=None, target={}, driver=
                     if motionLinks:
                         motions = Motion.objects.filter(Country_obj=country, GovUrl__in=motionLinks, Validator_obj__is_valid=True).exclude(TotalVotes=0).values('id', 'TotalVotes', 'GovUrl')
                         for motion in motions:
-                            if motion['GovUrl'] in motionLinks and motion['TotalVotes'] <= Vote.objects.filter(Motion_obj__id=motion['id'], Validator_obj__is_valid=True).count():
+                            if motion['GovUrl'] in motionLinks and motion['TotalVotes'] <= RepVote.objects.filter(Motion_obj__id=motion['id'], Validator_obj__is_valid=True).count():
                                 motionLinks.remove(motion['GovUrl'])
 
                     for link in motionLinks:
@@ -3744,11 +3744,11 @@ def add_senate_rollcall(country, gov, log, url):
 
             if personU:
                 p = personU.Pointer_obj
-                vote, voteU, vote_is_new = get_model_and_update('Vote', Motion_obj=motion, Person_obj=p, PersonFullName=f'{personU.data["LastName"]}, {personU.data["FirstName"]}', Chamber='Senate', ConstituencyProvStateName=stateName, CaucusName=party_name, Country_obj=country, Government_obj=motion.Government_obj, Region_obj=country)
+                vote, voteU, vote_is_new = get_model_and_update('RepVote', Motion_obj=motion, Person_obj=p, PersonFullName=f'{personU.data["LastName"]}, {personU.data["FirstName"]}', Chamber='Senate', ConstituencyProvStateName=stateName, CaucusName=party_name, Country_obj=country, Government_obj=motion.Government_obj, Region_obj=country)
             else:
                 p = None
                 memberName = last_name + ', ' + first_name
-                vote, voteU, vote_is_new = get_model_and_update('Vote', Motion_obj=motion, PersonFullName=memberName, Chamber='Senate', ConstituencyProvStateName=stateName, CaucusName=party_name, Country_obj=country, Government_obj=motion.Government_obj, Region_obj=country)
+                vote, voteU, vote_is_new = get_model_and_update('RepVote', Motion_obj=motion, PersonFullName=memberName, Chamber='Senate', ConstituencyProvStateName=stateName, CaucusName=party_name, Country_obj=country, Government_obj=motion.Government_obj, Region_obj=country)
             prnt('person:',p)
 
             vote.Party_obj = Party.objects.filter(ShortName=party_short, Validator_obj__is_valid=True).first()

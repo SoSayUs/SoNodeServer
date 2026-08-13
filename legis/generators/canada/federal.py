@@ -97,8 +97,8 @@ approved_models = {
     'get_senate_bills' : ['Bill', 'BillVersion', 'Role', 'Person', 'Notification'],
     'get_house_debates' : ['Meeting', 'Statement', 'Agenda', 'Government', 'Person', 'Bill'],
     'get_senate_debates' : ['Meeting', 'Statement', 'Bill'],
-    'get_house_motions' : ['Government', 'Motion', 'Vote', 'Interaction', 'Person'],
-    'get_senate_motions' : ['Government', 'Motion', 'Vote', 'Interaction'],
+    'get_house_motions' : ['Government', 'Motion', 'RepVote', 'Interaction', 'Person'],
+    'get_senate_motions' : ['Government', 'Motion', 'RepVote', 'Interaction'],
     'get_user_region' : ['District', 'Region', 'Role', 'Party', 'Person'],
 }
 
@@ -2157,7 +2157,7 @@ def add_house_motion(motion, country, log):
             IsVotePaired = vote.find('IsVotePaired').text
             DecisionResultName = vote.find('DecisionResultName').text
             PersonId = vote.find('PersonId').text
-            vote, voteU, vote_is_new = get_model_and_update('Vote', Motion_obj=motion, PersonId=PersonId, Country_obj=country, Government_obj=gov, Region_obj=country)
+            vote, voteU, vote_is_new = get_model_and_update('RepVote', Motion_obj=motion, PersonId=PersonId, Country_obj=country, Government_obj=gov, Region_obj=country)
 
             person, personU, person_is_new = get_model_and_update('Person', GovIden=PersonId, Country_obj=country)
             if person_is_new:
@@ -2679,7 +2679,7 @@ def add_senate_motion(tr, country, log):
                         personU.data['GovIden'] = iden
                         person, personU, person_is_new, log = save_and_return(person, personU, log)
 
-            vote, voteU, vote_is_new = get_model_and_update('Vote', Motion_obj=motion, Person_obj=person, Country_obj=country, Government_obj=gov, Region_obj=country)
+            vote, voteU, vote_is_new = get_model_and_update('RepVote', Motion_obj=motion, Person_obj=person, Country_obj=country, Government_obj=gov, Region_obj=country)
             if person:
                 vote.Person_obj = person
             
@@ -4422,7 +4422,7 @@ def get_federal_match(request, person):
     matched = []
     def match_vote(m, person, votes, bill, vote_matches, total_matches, return_votes):
         try:
-            v = Vote.objects.filter(motion=m, person=person).order_by('-motion__date_time').first()
+            v = RepVote.objects.filter(motion=m, person=person).order_by('-motion__date_time').first()
             total_matches += 1
             return_votes.append(v)
             if v.VoteValueName == votes[bill]:

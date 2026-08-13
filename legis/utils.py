@@ -863,11 +863,11 @@ def run_assigned_duties(receivedDt=None, result=None):
         from posts.models import Post, Spren, Region
         seed_input = f"intelligence_{dt_to_string(receivedDt)}"
         prnt('seed_input',seed_input)
-        regions = shuffle_list(seed_input, Region.objects.filter(is_supported=True).values('id','networkChain'))
+        regions = shuffle_list(seed_input, list(Region.objects.filter(is_supported=True).values('id','networkChain')))
         supported_regions = {i['id']:i['networkChain'] for i in regions}
 
         for job in intelligence_funcs:
-            prnt(job)
+            prnt('job',job)
             if job_assigned:
                 break
             else:
