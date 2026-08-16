@@ -3558,8 +3558,9 @@ class Blockchain(models.Model):
 
     def commit_to_chain(self, dummy_block=None, dt=None, updated_nodes=None, validator_nodes=[], testing=False):
         prnt('--commit_to_chain', self.genesisType, self.genesisId, dummy_block)
-        from utils.models import get_data, has_field, value_is_none, is_id, get_plugin
+        from utils.utils import has_field, value_is_none, is_id, get_plugin
         from utils.locked import verify_obj_to_data
+        from utils.models import get_data
         from pathlib import Path
         import importlib.util
         if e_brake(1):
