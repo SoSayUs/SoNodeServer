@@ -3179,7 +3179,7 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                         prnt("str(getattr(obj, f.name))",str(getattr(obj, f.name)))
                         if str(getattr(obj, f.name)) != data[f.name]:
                             prnt('p0')
-                            if data[f.name] == 'Nodes' and data['objType'] != 'Block':
+                            if data[f.name] == 'Nodes' and obj._meta.object_name != 'network':
                                 pass
                                 prnt('p1')
                             elif data[f.name] == 'Sonet':
