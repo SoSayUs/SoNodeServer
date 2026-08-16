@@ -1254,8 +1254,10 @@ class Update(BaseModel):
             except:
                 pass
             network_chain, item, commit_chain = find_or_create_chain_from_object(pointer)
-            if network_chain:
-                self.networkChain = network_chain.id
+            if commit_chain:
+                self.networkChain = commit_chain.genesisId
+            elif network_chain:
+                self.networkChain = network_chain.genesisId
             self = initial_save(self)
         elif not is_locked(self) and save_mutable_fields(self, sig=sig, *args, **kwargs):
             prnt('done save u')

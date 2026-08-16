@@ -1,0 +1,132 @@
+
+{% load static %}
+<body>
+
+
+
+{% if cards %}
+    <meta class='pageNum' id='Page: {{feed_list.number }}'>
+
+    {% if nav_bar %}
+    {% include 'utils/nav_bar.html' %}
+    {% endif %}
+    {% if feed_title %}
+    <div id="feedTitle">
+        {% if title_link %}
+            <a href='{{ title_link }}'><span class="banner" style="{% static 'img/regions/usa/banner_flag.jpg' %};">{{ feed_title }}</span></a>
+            
+        {% else %}
+            {{ feed_title }}
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    {% if style and style == 'feed' and page and page|to_int > 1 %}
+        {% with adjust='-1' %}
+            {% include 'utils/paginator.html' %}
+        {% endwith %}
+    {% endif %}
+
+    {% if cards == 'sopay_list' %}
+
+        {% for post in feed_list %}
+            <div class='card' id='{{ post.id }}'>
+                <div class='cardContent'>
+                    <div class='Info'>
+                        <div class='Details'>
+                            <div class='title shorten2'><a href='wallet/{{ post.id }}' >Wallet: {{ post.Name }}</a></div>
+                            <div class='title'><a href='' >ID: {{ post.id }}</a></div>
+                        </div>
+                    </div>
+
+                    <div class='TextContent'>
+                        <ul class='Text'>
+                            <li style='margin-top:15px;'>{{ post.value }}</li>
+                            <li style='margin-top:15px;'>{{ post.lastUpdate }}</li>
+                        </ul>
+                    </div>
+                </div>
+            
+            <div class="miniMore", title='More' onclick="react('more','{{post.id}}')"><span class="material-icons">more_horiz</span></div>
+            </div>
+            <div class='bottomDivider'></div>
+        {% endfor %}
+
+    {% elif cards == 'wallet_txs' %}
+
+        {% for post in feed_list %}
+            <div class='card' id='{{ post.id }}'>
+                <div class='cardContent'>
+                    <div class='Info'>
+                        <div class='Details'>
+                            <div class='title shorten2'><a href='' >Sender: {{ post.SenderWallet_obj }}</a></div>
+                            <div class='title shorten2'><a href='' >Receiver: {{ post.ReceiverWallet_obj }}</a></div>
+                            <div class='title'><a href='' >ID: {{ post.id }}</a></div>
+                        </div>
+                    </div>
+
+                    <div class='TextContent'>
+                        <ul class='Text'>
+                            <li style='margin-top:15px;'>value: {{ post.token_value }}</li>
+                            <li style='margin-top:15px;'>re: {{ post.regarding }}</li>
+                            <li style='margin-top:15px;'>enacted: {{ post.enacted }}</li>
+                        </ul>
+                    </div>
+                </div>
+            
+            <div class="miniMore", title='More' onclick="react('more','{{post.id}}')"><span class="material-icons">more_horiz</span></div>
+            </div>
+            <div class='bottomDivider'></div>
+        {% endfor %}
+
+    {% elif cards == 'wallet_blocks' %}
+
+        {% for post in feed_list %}
+            <div class='card' id='{{ post.id }}'>
+                <div class='cardContent'>
+                    <div class='Info'>
+                        <div class='Details'>
+                            <div class='title shorten2'><a href='' >index: {{ post.index }} - {{ post.DateTime }}</a></div>
+                            <div class='title'><a href='' >validated: {{ post.validated }}</a></div>
+                        </div>
+                    </div>
+
+                    <div class='TextContent'>
+                        <ul class='Text'>
+                            <li style='margin-top:15px;'>{{ post.id }}</li>
+                        </ul>
+                    </div>
+                </div>
+            
+            <div class="miniMore", title='More' onclick="react('more','{{post.id}}')"><span class="material-icons">more_horiz</span></div>
+            </div>
+            <div class='bottomDivider'></div>
+        {% endfor %}
+
+    {% endif %}
+
+
+    {% endif %}
+
+{% if style == 'preload' %}
+
+    <div id='bottomCard'>
+        <div class="lds-dual-ring"></div>
+    </div>
+
+{% elif not style or style == 'feed' and feed_list %}
+    {% include 'utils/paginator.html' %}
+
+    <div id='bottomCard'>
+    {% if feed_list.has_next %}
+        {% include 'utils/bottomFeed.html' %}
+    {% endif %}
+    </div>
+{% else %}
+
+<div id='bottomCard'>
+    <div style="margin:auto;"></div>
+</div>
+    
+{% endif %}
+</body>

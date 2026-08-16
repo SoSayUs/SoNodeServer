@@ -1221,6 +1221,32 @@ def request_data_view(request):
 
 
 @csrf_exempt
+def request_obj_view(request):
+    prnt('-request_obj_view')
+    if not get_self_node().activated_dt:
+        return JsonResponse({'message' : 'deactivated_node'})
+    if request.method == 'POST':
+        try:
+            if assess_received_header(request.headers, if_self_active=True, allow_inactive=True):
+                raw_data = request.body.decode('utf-8')
+                received_data = json.loads(raw_data)
+                
+                requested_data = json.loads(received_data.get('request'))
+                received_dt = string_to_dt(request.headers.get('Signed-Dt'))
+                if received_dt < now_utc() + datetime.timedelta(minutes=1) and received_dt >= now_utc() - datetime.timedelta(minutes=4):
+                    item_id = requested_data['itemId']
+                    prnt('item_id',item_id)
+                    obj = get_dynamic_model(item_id, id=item_id)
+                    if obj:
+                        return JsonResponse({'message' : 'Success', 'data':convert_to_dict(obj)})
+                
+                    prnt('not found', item_id)
+                    return JsonResponse({'message' : 'Not Found', 'itemId':item_id})
+        except Exception as e:
+            return JsonResponse({'message' : 'Fail', 'err' : str(e)})
+
+
+@csrf_exempt
 def receive_posts_for_validating_view(request):
     prnt('-receive_posts_for_validating_view')
     if request.method != "POST":

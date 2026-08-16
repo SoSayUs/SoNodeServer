@@ -20,6 +20,7 @@ urlpatterns = [
 
     path('receive_data', chain_views.receive_data_view),
     path('request_data', chain_views.request_data_view),
+    path('request_obj', chain_views.request_obj_view),
     path('receive_blocks', chain_views.receive_blocks_view),
 
     re_path('request_dp/(?P<packet_id>[\w-]+)', chain_views.request_dp_view),

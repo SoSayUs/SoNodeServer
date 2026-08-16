@@ -46,7 +46,7 @@
 
     {% elif cards == 'bills_list' %}
         {% for post in feed_list %} 
-            {% with bill=post.Bill_obj %}
+            {% with bill=post.Pointer_obj %}
             {% with billUpdate=post.Update_obj %}
                 {% include 'cards/bill_card.html' %}
             {% endwith %}
@@ -136,10 +136,8 @@
             {% with r=useractions|get_item:post.id %}
             {% if post.pointerType == 'Meeting' %}
                 {% with meetingUpdate=post.Update_obj %}
-                {% with meeting=post.Meeting_obj %}
-                {% with agenda=meeting.Agenda_obj %}
+                {% with meeting=post.Pointer_obj %}
                     {% include 'cards/meeting_card.html' %}
-                {% endwith %}
                 {% endwith %}
                 {% endwith %}
             {% elif post.pointerType == 'Statement' %}

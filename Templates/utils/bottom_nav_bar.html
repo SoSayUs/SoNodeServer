@@ -4,11 +4,11 @@
 <div id='bottomNavBar'>
     <ul>
         <div class='shadow'></div>
-        <li class='bNavIcon' onclick='mobileSwitch("menu")'><span class="material-icons">menu_open</span><span class='label'>menu</span></li>
-        <li class='bNavIcon' onclick='mobileSwitch("poupons")'><span class="material-icons">payments</span><span class='label'>poupons</span></li>
+        <li class='bNavIcon' onclick='mobileSwitch("drawer1")'><span class="material-icons">menu_open</span><span class='label' id="drawer1">menu</span></li>
+        <li class='bNavIcon' onclick='mobileSwitch("drawer2")'><span class="material-icons">toll</span><span class='label' id="drawer2">plays</span></li>
         <li class='bNavIcon' onclick='mobileSwitch("so")'></li>
-        <li class='bNavIcon' onclick='mobileSwitch("notifications")'><span class="material-icons">notifications</span><span class='label'>notifications</span></li>
-        <li class='bNavIcon' onclick='mobileSwitch("search")'><span class="material-icons">search</span><span class='label'>search</span></li>
+        <li class='bNavIcon' onclick='mobileSwitch("drawer3")'><span class="material-icons">notifications_none</span><span class='label' id="drawer3">alerts</span></li>
+        <li class='bNavIcon' onclick='mobileSwitch("drawer4")'><span class="material-icons">search</span><span class='label' id="drawer4">search</span></li>
     </ul>
     <li class='bNavIcon bNavLogo'><img src={% static sonet.LogoLink %} onclick='mobileSwitch("so")'></li>
 </div>

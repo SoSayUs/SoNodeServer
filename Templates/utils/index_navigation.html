@@ -9,9 +9,15 @@
 
 <ul>
     <li style="font-style: italic;"><a href='/{{ country.Name|lower }}/search'>Search</a></li>
+
+    {% if index_template %}
+        {% include index_template %}
+    {% endif %}
     
 
     <li style="margin-top: 30px;"></li>
+    <li style="font-style: italic; cursor: pointer;" onclick="modalPopUp('So...', 'so_modal')">So...</li>
+    <br>
     <li style="font-style: italic;"><a href='/'>What is Us</a></li>
     {% comment %}
     <li style="font-style: italic;"><a href='/someta'>SoMeta</a></li>
@@ -28,8 +34,8 @@
     <li  id='theme' onclick='themer()'>Day Theme</a></li>
     {% endif %}
     {% if user.id %}
-    <li id="settingsLink"><a href='/backend'>Backend</a></li>
     <li id="settingsLink"><a href='/user/settings'>Settings</a></li>
+    <li id="settingsLink"><a href='/backend'>Backend</a></li>
     <li id="logoutLink"><a onclick='logout("/accounts/logout")'>Log Out</a></li>
     {% else %}
     <li id="settingsLink"></li>

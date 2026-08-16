@@ -106,7 +106,7 @@ async function direct_to(url) {
 
 
 function getItem(key) {
-  // console.log("-Retrieving item:", key);
+  console.log("-getItem", key);
   return openDatabase().then((db) => {
     return new Promise((resolve, reject) => {
       const tx = db.transaction('keys', 'readonly');
@@ -116,11 +116,12 @@ function getItem(key) {
     });
   });
 }
-function storeItem(value, key) {
+function storeItem(item, key) {
+  console.log('-storeItem', key);
   return openDatabase().then((db) => {
     return new Promise((resolve, reject) => {
       const tx = db.transaction('keys', 'readwrite');
-      tx.objectStore('keys').put(value, key);
+      tx.objectStore('keys').put(item, key);
       tx.oncomplete = resolve;
       tx.onerror = () => reject(tx.error);
     });
@@ -1238,7 +1239,7 @@ function sidebarSort(head) {
     };
   
   }else{
-    // clear notifications
+    // clear notificationss
   };
 
 };
@@ -1287,7 +1288,7 @@ function tocNav(item) {
   searchelement(item);
   var isMobile = document.getElementById('isMobile').name;
   if (isMobile == 'True') {
-    mobileSwitch('search');
+    mobileSwitch('drawer4');
   };
 };
 function continue_reading(iden, direction) {
@@ -1419,17 +1420,21 @@ function modalPopPointer(value){
   modalPopUp(items[0].replace(/"/g, ''), items[1].replace(/"/g, ''))
 }
 async function modalPopUp(title, target=null, content=null) {
-  console.log('-modalPopUp',target)
+  console.log('-modalPopUp',target);
   mobileSwitch(null);
   var isMobile = document.getElementById('isMobile').name;
   // console.log('ismobile:',isMobile);
   showDarkenOverlay();
   m = document.getElementsByClassName('modalWidget')[0];
   modal = $('.modalWidget');
+  if (target == 'so_modal') {
+    content = await getItem(target);
+  }
   if (content != null) {
     m.querySelector("#modalContent").innerHTML = sanitize(content);
   } else if (target != null) {
     code = '<div class="lds-dual-ring"></div>';
+    console.log('code',code);
     m.querySelector("#modalContent").innerHTML = sanitize(code);
   };
   
@@ -1461,7 +1466,11 @@ async function modalPopUp(title, target=null, content=null) {
         var new_title = html.find('title').text();
         m.querySelector("#modalTitle").innerHTML = sanitize(new_title);
         var instruction = html.find('#instruction').attr('value');
-        m.querySelector("#modalContent").innerHTML = sanitizeWithException(data, ['loginRequest','modifyKey','generatePassword','displayPassword','modalPopUp','onFormSubmit','react','mobileShare']);
+        content = sanitizeWithException(data, ['loginRequest','modifyKey','generatePassword','displayPassword','modalPopUp','onFormSubmit','react','mobileShare']);
+        m.querySelector("#modalContent").innerHTML = content;
+          if (target.includes('so_modal')) {
+            storeItem(content, 'so_modal');
+          }
         enact_user_instruction(instruction, {});
       const usernameInput = document.getElementById("username");
       const statusSpan = document.getElementById("username-status");
@@ -2212,31 +2221,32 @@ async function clearLocalUserData(pass) {
   };
 };
 function storeNavigation() {
-  // console.log('-storeNavigation');
+  console.log('-storeNavigation');
   var navHtml = document.querySelector("#navigation");
   if (navHtml && navHtml.innerHTML.includes('dual-ring')) {
     return
   } else if (navHtml && navHtml.innerHTML) {
     if (!navHtml.innerHTML.includes('dual-ring')) {
-      const cleaned = sanitizeWithException(navHtml.innerHTML, ["modalPopUp", "logout", "themer", "select_node", "direct_to"]);
+      const cleaned = sanitizeWithException(navHtml.innerHTML, ["modalPopUp", "logout", "themer", "select_node", "direct_to", "mobileSwitch"]);
       storeItem(cleaned,"navigationHtml");
     };
   } else {
-    var navHtml = document.querySelector(".indexMobile");
+    var navHtml = document.querySelector(".drawer1");
     if (navHtml && navHtml.innerHTML.includes('dual-ring')) {
       return
     } else if (navHtml && navHtml.innerHTML) {
       if (!navHtml.innerHTML.includes('dual-ring')) {
-        const cleaned = sanitizeWithException(navHtml.innerHTML, ["modalPopUp", "logout", "themer", "select_node", "direct_to"]);
+        const cleaned = sanitizeWithException(navHtml.innerHTML, ["modalPopUp", "logout", "themer", "select_node", "direct_to", "mobileSwitch"]);
+        console.log('cleaned',cleaned)
         storeItem(cleaned,"navigationHtml");
       };
     };
   };
 };
 async function displayStoredNavigation(fadeIn=true, savedNav=null) {
-  // console.log('-displayStoredNavigation');
+  console.log('-displayStoredNavigation', savedNav);
   if (savedNav) {
-    var savedNav = sanitizeWithException(savedNav, ["modalPopUp", "logout", "themer", "select_node"]);
+    var savedNav = sanitizeWithException(savedNav, ["modalPopUp", "logout", "themer", "select_node", "mobileSwitch"]);
   } else {
     var savedNav = await getItem("navigationHtml");
   };  
@@ -2246,17 +2256,22 @@ async function displayStoredNavigation(fadeIn=true, savedNav=null) {
   if (savedNav) {
     const $currentNav = $("#navigation");
     if ($currentNav.length === 0) {
-      if (savedNav.includes("indexMobile")) {
-        document.querySelector(".indexMobile").outerHTML = savedNav;
-      } else {
-        document.querySelector(".indexMobile").innerHTML = savedNav;
-      };
+      if (savedNav.includes("mobileNavContent")) {
+        if (savedNav.includes("drawer1")) {
+            console.log('savedNav1',savedNav);
+            document.querySelector(".drawer1").outerHTML = savedNav;
+        } else {
+          console.log('savedNav2',savedNav);
+          document.querySelector(".drawer1").innerHTML = savedNav;
+        };
+      };  
     } else {
       if (fadeIn) {
         $currentNav.fadeOut(200, function () {
             $currentNav.html(savedNav).fadeIn(500);
         });
       } else {
+        console.log('savedNav3',savedNav)
         document.querySelector("#navigation").innerHTML = savedNav;
       };
     };
@@ -3174,14 +3189,19 @@ async function load_queue() {
               let data = await index_result.text();
               const $response = $(data);
               const $newNav = $response.find("#navigation");
+              // console.log('$newNav.length',$newNav.length)
               if ($newNav.length) {
-                $("#navigation").html($newNav.html());
+                // console.log('$newNav.html()1',$newNav.html())
+                var nav = sanitizeWithException($newNav.html(), ["modalPopUp", "logout", "themer", "select_node", "mobileSwitch"]);
+                $("#navigation").html(nav);
                 storeNavigation();
               } else {
-                const $newMobileNav = $response.find(".mobile_navigation");
+                const $newMobileNav = $response.find(".mobileNavContent");
                 console.log('newMobileNav',$newMobileNav.html());
                 if ($newMobileNav.length) {
-                  $(".mobile_navigation").html($newMobileNav.html());
+                  var nav = sanitizeWithException($newMobileNav.html(), ["modalPopUp", "logout", "themer", "select_node", "mobileSwitch"]);
+                  $(".mobileNavContent").html(nav);
+                  console.log('new mobile nav',nav)
                   storeNavigation();
                 };
               };
@@ -3192,9 +3212,9 @@ async function load_queue() {
                 $currentSidebar.empty().append($newSidebarContent);
                 $newSidebarContent.fadeIn(500);
               };
-              const $newMobileSidebar = $response.find(".searchMobile");
+              const $newMobileSidebar = $response.find(".drawer4");
               if ($newMobileSidebar.length) {
-                const $currentMobileSidebar = $(".searchMobile");
+                const $currentMobileSidebar = $(".drawer4");
                 const $newMobileSidebarContent = $newMobileSidebar.contents().clone().hide();
                 $currentMobileSidebar.empty().append($newMobileSidebarContent);
                 $newMobileSidebarContent.fadeIn(500);
@@ -3305,96 +3325,96 @@ function mobileSwitch(screen){
   // console.log('-mobileSwitch',screen);
     labels = document.getElementsByClassName('label');
     for (i=0;i<labels.length;i++) {
-      if (labels[i].innerHTML == 'menu') {
+      if (labels[i].id == 'drawer1') {
         var menu_label = labels[i];
-      } else if (labels[i].innerHTML == 'notifications') {
+      } else if (labels[i].id == 'drawer3') {
         var notifications_label = labels[i];
-      } else if (labels[i].innerHTML == 'poupons') {
+      } else if (labels[i].id == 'drawer2') {
         var poupons_label = labels[i];
-      } else if (labels[i].innerHTML == 'search') {
+      } else if (labels[i].id == 'drawer4') {
         var search_label = labels[i];
       };
     };
-    var menu = $('.indexMobile');
-    var search = $('.searchMobile');
-    var notifications = $('.notificationsMobile');
-    var poupons = $('.pouponsMobile');
-    if (screen == 'menu') {
-      if (menu.attr('class').includes('show_window')) {
-        menu.removeClass('show_window');
+    var drawer1 = $('.drawer1');
+    var drawer4 = $('.drawer4');
+    var drawer3 = $('.drawer3');
+    var drawer2 = $('.drawer2');
+    if (screen == 'drawer1') {
+      if (drawer1.attr('class').includes('show_window')) {
+        drawer1.removeClass('show_window');
         menu_label.classList.remove("show_label");
         hideDarkenOverlay();
       } else {
-        menu.addClass('show_window');
+        drawer1.addClass('show_window');
         menu_label.classList.add("show_label");
         showDarkenOverlay();
-        search.removeClass('show_window');
+        drawer4.removeClass('show_window');
         search_label.classList.remove("show_label");
-        notifications.removeClass('show_window');
+        drawer3.removeClass('show_window');
         notifications_label.classList.remove("show_label");
-        poupons.removeClass('show_window');
+        drawer2.removeClass('show_window');
         poupons_label.classList.remove("show_label");
       };
-    } else if (screen == 'search') {
-      if (search.attr('class').includes('show_window')) {
-        search.removeClass('show_window');
+    } else if (screen == 'drawer4') {
+      if (drawer4.attr('class').includes('show_window')) {
+        drawer4.removeClass('show_window');
         search_label.classList.remove("show_label");
         hideDarkenOverlay();
       } else {
-        search.addClass('show_window');
+        drawer4.addClass('show_window');
         search_label.classList.add("show_label");
         showDarkenOverlay();
-        menu.removeClass('show_window');
+        drawer1.removeClass('show_window');
         menu_label.classList.remove("show_label");
-        notifications.removeClass('show_window');
+        drawer3.removeClass('show_window');
         notifications_label.classList.remove("show_label");
-        poupons.removeClass('show_window');
+        drawer2.removeClass('show_window');
         poupons_label.classList.remove("show_label");
       };
     } else if (screen == 'feed') {      
-      if (menu.attr('class').includes('display') || search.attr('class').includes('display') || notifications.attr('class').includes('display')) {
-        menu.removeClass('display');
+      if (drawer1.attr('class').includes('display') || drawer4.attr('class').includes('display') || drawer3.attr('class').includes('display')) {
+        drawer1.removeClass('display');
         menu_label.classList.remove("show_label");
-        search.removeClass('display');
+        drawer4.removeClass('display');
         search_label.classList.remove("show_label");
-        notifications.removeClass('display');
+        drawer3.removeClass('display');
         notifications_label.classList.remove("show_label");
-        poupons.removeClass('display');
+        drawer2.removeClass('display');
         poupons_label.classList.remove("show_label");
         hideDarkenOverlay();
       } else {
         window.location.href = '/';
       };
-    } else if (screen == 'notifications') {
-      if (notifications.attr('class').includes('show_window')) {
-        notifications.removeClass('show_window');
+    } else if (screen == 'drawer3') {
+      if (drawer3.attr('class').includes('show_window')) {
+        drawer3.removeClass('show_window');
         notifications_label.classList.remove("show_label");
         hideDarkenOverlay();
       } else {
-        notifications.addClass('show_window');
+        drawer3.addClass('show_window');
         notifications_label.classList.add("show_label");
         showDarkenOverlay();
-        menu.removeClass('show_window');
+        drawer1.removeClass('show_window');
         menu_label.classList.remove("show_label");
-        search.removeClass('show_window');
+        drawer4.removeClass('show_window');
         search_label.classList.remove("show_label");
-        poupons.removeClass('show_window');
+        drawer2.removeClass('show_window');
         poupons_label.classList.remove("show_label");
       };
-    } else if (screen == 'poupons') {
-      if (poupons.attr('class').includes('show_window')) {
-        poupons.removeClass('show_window');
+    } else if (screen == 'drawer2') {
+      if (drawer2.attr('class').includes('show_window')) {
+        drawer2.removeClass('show_window');
         poupons_label.classList.remove("show_label");
         hideDarkenOverlay();
       } else {
-        poupons.addClass('show_window');
+        drawer2.addClass('show_window');
         poupons_label.classList.add("show_label");
         showDarkenOverlay();
-        menu.removeClass('show_window');
+        drawer1.removeClass('show_window');
         menu_label.classList.remove("show_label");
-        search.removeClass('show_window');
+        drawer4.removeClass('show_window');
         search_label.classList.remove("show_label");
-        notifications.removeClass('show_window');
+        drawer3.removeClass('show_window');
         notifications_label.classList.remove("show_label");
       };
     }else if (screen == 'so') {  
@@ -3402,30 +3422,30 @@ function mobileSwitch(screen){
       if (modal.hasClass('show')) {
         closeModal();
         try {
-          if (menu.attr('class').includes('show_window') || search.attr('class').includes('show_window') || notifications.attr('class').includes('show_window')) {
+          if (drawer1.attr('class').includes('show_window') || drawer4.attr('class').includes('show_window') || drawer3.attr('class').includes('show_window')) {
             hideDarkenOverlay();
-            menu.removeClass('show_window');
+            drawer1.removeClass('show_window');
             menu_label.classList.remove("show_label");
-            search.removeClass('show_window');
+            drawer4.removeClass('show_window');
             search_label.classList.remove("show_label");
-            notifications.removeClass('show_window');
+            drawer3.removeClass('show_window');
             notifications_label.classList.remove("show_label");
-            poupons.removeClass('show_window');
+            drawer2.removeClass('show_window');
             poupons_label.classList.remove("show_label");
           };
         } catch {
         };
       } else {
         try {
-          if (menu.attr('class').includes('show_window') || search.attr('class').includes('show_window') || notifications.attr('class').includes('show_window')) {
+          if (drawer1.attr('class').includes('show_window') || drawer4.attr('class').includes('show_window') || drawer3.attr('class').includes('show_window')) {
             hideDarkenOverlay();
-            menu.removeClass('show_window');
+            drawer1.removeClass('show_window');
             menu_label.classList.remove("show_label");
-            search.removeClass('show_window');
+            drawer4.removeClass('show_window');
             search_label.classList.remove("show_label");
-            notifications.removeClass('show_window');
+            drawer3.removeClass('show_window');
             notifications_label.classList.remove("show_label");
-            poupons.removeClass('show_window');
+            drawer2.removeClass('show_window');
             poupons_label.classList.remove("show_label");
           } else {
             modalPopUp('So...', 'so_modal');
@@ -3436,15 +3456,15 @@ function mobileSwitch(screen){
       };
     } else {
         try {
-          if (menu.attr('class').includes('show_window') || search.attr('class').includes('show_window') || notifications.attr('class').includes('show_window')) {
+          if (drawer1.attr('class').includes('show_window') || drawer4.attr('class').includes('show_window') || drawer3.attr('class').includes('show_window')) {
             hideDarkenOverlay();
-            menu.removeClass('show_window');
+            drawer1.removeClass('show_window');
             menu_label.classList.remove("show_label");
             search.removeClass('show_window');
             search_label.classList.remove("show_label");
-            notifications.removeClass('show_window');
+            drawer3.removeClass('show_window');
             notifications_label.classList.remove("show_label");
-            poupons.removeClass('show_window');
+            drawer2.removeClass('show_window');
             poupons_label.classList.remove("show_label");
           };
         } catch {

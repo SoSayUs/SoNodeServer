@@ -508,7 +508,7 @@ def home_view(request):
             if posts.count() == 0:
                 posts, view = algorithim(None, include_list, current_chamber, country_dict, view, page)
                 cards = 'home_view'
-        setlist = paginate(posts, page, request)
+        setlist = paginater(posts, page, request)
         prnt('view',view)
         user = None
         if view == 'Recommended' and user and user.UserData_obj:
@@ -586,7 +586,7 @@ def following_view(request):
             getList.append(p)
             topicList.append(p)
         posts = Post.objects.filter(Country_obj=country).filter(keyword_array__overlap=getList).filter(date_time__lte=datetime.datetime.strftime(datetime.datetime.now() + datetime.timedelta(days=1), '%Y-%m-%d')).select_related('Meeting', 'Statement','Bill').order_by('-date_time')
-        setlist = paginate(posts, page, request)
+        setlist = paginater(posts, page, request)
         try:
             isApp = request.COOKIES['fcmDeviceId']
         except:
@@ -670,10 +670,10 @@ def topic_view(request, region, keyword):
         posts = Post.objects.filter(Country_obj=country, Chamber__in=chambers).filter(keyword_array__overlap=getList).order_by(ordering,'-DateTime')
         
         try:
-            setlist = paginate(posts, page, request)
+            setlist = paginater(posts, page, request)
         except:
             setlist = []
-        setlist = paginate(posts, page, request)
+        setlist = paginater(posts, page, request)
         context = {
             'isApp': isApp,
             'view': view,
@@ -742,7 +742,7 @@ def search_view(request, keyword):
     else:
         posts = {}
     try:
-        setlist = paginate(posts, page, request)
+        setlist = paginater(posts, page, request)
     except:
         setlist = []
     try:
@@ -908,7 +908,7 @@ def chains_view(request):
     subtitle = ''
     posts = Blockchain.objects.all().defer('queuedData').order_by('-updated_on_node')
     
-    setlist = paginate(posts, page, request)
+    setlist = paginater(posts, page, request)
     context = {
         'title': title,
         'subtitle': subtitle,
@@ -951,7 +951,7 @@ def chain_view(request, chain_id):
         posts = Block.objects.filter(Blockchain_obj__id=chain_id, validated=False).order_by('-DateTime')
     elif view == 'Pending':
         posts = Block.objects.filter(Blockchain_obj__id=chain_id, validated=None).order_by('-DateTime')
-    setlist = paginate(posts, page, request)
+    setlist = paginater(posts, page, request)
     context = {
         'title': title,
         'subtitle': subtitle,

@@ -712,6 +712,11 @@ def get_chain_id(genesisId):
     from utils.locked import hash_obj_id
     return hash_obj_id(Blockchain, specific_data={'genesisId': genesisId, 'objType': 'Blockchain'})
 
+def get_post_id(pointerId):
+    prnt('-get_post_id',{'objType': 'Post', 'pointerId': pointerId})
+    from posts.models import Post
+    from utils.locked import hash_obj_id
+    return hash_obj_id(Post, specific_data={'objType': 'Post', 'pointerId': pointerId})
 
 # only used one in accounts.views - i think not used anymore
 def check_dataPacket(obj):
@@ -1240,15 +1245,22 @@ def get_model(obj_type):
         return apps.get_model(app_name, obj_type)
     return None
 
-def get_plugin(obj, name=False):
+def get_plugin(obj, name=False, id=False):
     try:
+        if isinstance(obj, str):
+            obj = get_model(obj)
         if name:
             return obj._meta.app_label
         from network.models import Plugin
-        return Plugin.objects.filter(app_name=obj._meta.app_label).first()
+        if id:
+            plugin = Plugin.objects.filter(app_name=obj._meta.app_label).values('id').first()
+            if plugin:
+                return plugin['id']
+        else:
+            return Plugin.objects.filter(app_name=obj._meta.app_label).first()
     except Exception as e:
         prnt('get_plugin err',str(e))
-        return None
+    return None
 
 def get_objType(obj):
     try:
@@ -1716,3 +1728,31 @@ def downscale_to_size(image_bytes, max_bytes=(0.25 * 1024 * 1024)):
 
         quality -= 10
 
+
+def fetch_obj_data(iden):
+    prnt('-fetch_obj_data',iden)
+    from utils.locked import convert_to_dict, sign_for_sending
+    obj = get_dynamic_model(iden, id=iden)
+    if obj:
+        return convert_to_dict(obj)
+    else:
+
+        self_node_id = get_operator_obj("self_nodeId")
+        keys = get_operator_obj('keyPair')
+        signedRequest = json.dumps(sign_for_sending({'itemId' : iden, 'dt':dt_to_string(now_utc())}, keys=keys))
+        data = {'senderId':self_node_id, 'request':signedRequest}
+
+        from network.models import Node
+        nodes = Node.objects.filter(activeNode=True).exclude(chain_array=[])
+
+        for node in nodes:
+            prnt('fetch node',node)
+            if node.id != self_node_id:
+                try:
+                    success, response = connect_to_node(node, 'network/request_obj', data=data, timeout=(7,25), log_reponse_time=False)
+                    if success and response.status_code == 200:
+                        received_json = response.json()
+                        if received_json['message'].lower() == 'success':
+                            return received_json['data']
+                except Exception as e:
+                    prnt('fetch err 7',str(e))

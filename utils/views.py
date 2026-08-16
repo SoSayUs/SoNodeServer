@@ -1044,7 +1044,7 @@ def remove_false_blocks_view(request):
                 requested_data = json.loads(received_data.get('request'))
                 prntDebug('requested_data',requested_data)
             except Exception as e:
-                prnt('err 2',str(e))
+                prnt('err 21a',str(e))
             if 'signed' in requested_data:
                 sig = requested_data['signed']
                 del requested_data['signed']
@@ -1342,11 +1342,12 @@ def tester_queue_view(request):
             queue = django_rq.get_queue('low')
             # queue.enqueue(tester_queue, job_timeout=1200)
             # queue.enqueue(tester_queue, job_timeout=3600)
-            from network.models import Plugin, _AccountChain_genesisId, _OperationsChain_genesisId
+            from network.models import Blockchain, reward_models, _OperationsChain_genesisId
             # from posts.models import Region
             from transactions.models import Wallet
             # from utils.locked import check_commit_data
             from utils.models import get_data
+            from utils.utils import get_plugin
             self_node = get_self_node()
 
 

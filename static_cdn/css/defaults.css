@@ -139,9 +139,15 @@ body a:hover{
   margin: auto;
 }
 .modalWidget #modalContent{
-  display: block;
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  /* height: 300px; */
+
+  /* display: block; */
   position: relative;
-  text-align: center;
+  /* margin: auto; */
+  /* text-align: center; */
   width: 100%;
   left: 50%;
   transform: translate(-50%, 0);
@@ -762,7 +768,7 @@ body a:hover{
   color: #848484;
 }
 .card{
-  background-color: rgba(249, 249, 249,1);
+  /* background-color: rgba(249, 249, 249,1); */
   position: relative;
   display:flex;
   flex-flow:row;
@@ -773,7 +779,7 @@ body a:hover{
   z-index: 100;
 }
 .cardCover {
-  background-color: rgba(249, 249, 249,1);
+  /* background-color: rgba(249, 249, 249,1); */
   z-index: 101;
   position: absolute;
   top: 0;
@@ -865,13 +871,10 @@ body a:hover{
   padding: 5px;
   width: 110px;
   vertical-align: top;
-}
-.card .sponsor{
-  position:relative;
   height: 3px;
-  width: 100%;
+  /* width: 100%; */
   border-radius: 2px;
-  margin: -15px 20px;
+  margin: 10px 10px;
 }
 .card .sponsor h3{
   position:relative;
@@ -949,8 +952,10 @@ body a:hover{
 .card .Code .Parl{
   position: relative;
   display: inline-block;
-  top: 0px;
+  top: -2px;
   margin:0px 0px;
+  float: right;
+  right: 10px;
 }
 .card .Details{
   position: relative;

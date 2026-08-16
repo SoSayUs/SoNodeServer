@@ -42,10 +42,9 @@ else:
 def check_super_commands():
     ...
 
-check_super_commands() # dont run this here, should run at system startup, find the right way - gunicorn startup?
 
 _e_brake_end_dt = None
-_e_brake = 0
+_e_brake = 4
 # 0 = run all
 # 1 = run nothing
 # 2 = resolve blocks
@@ -64,13 +63,6 @@ def e_brake(priority):
         # raise Exception('E_BREAK')
     return False
 
-
-def _already_prefixed(value: bytes, max_byte_length: int) -> bool:
-    if len(value) < 2:
-        return False
-    declared_length = int.from_bytes(value[:2], 'big')
-    # total stored = 2 (prefix) + max_byte_length (padded data)
-    return len(value) == max_byte_length + 2 and declared_length <= max_byte_length
 
 class BinaryBase62Field(models.BinaryField):
     def __init__(self, max_byte_length, *args, **kwargs):
@@ -262,6 +254,13 @@ class CompressedJSONField(models.JSONField):
 
 
 ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+def _already_prefixed(value: bytes, max_byte_length: int) -> bool:
+    if len(value) < 2:
+        return False
+    declared_length = int.from_bytes(value[:2], 'big')
+    # total stored = 2 (prefix) + max_byte_length (padded data)
+    return len(value) == max_byte_length + 2 and declared_length <= max_byte_length
 
 def to_base62(hash_bytes):
     num = int.from_bytes(hash_bytes, "big")
@@ -3430,7 +3429,12 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                         if get_pointer_type(networkChain) == 'Blockchain':
                             commit_chain = Blockchain(id=obj.commitChain)
                         else:
-                            commit_chain = Blockchain(genesisId=obj.commitChain)
+                            rewardsData = {}
+                            from network.models import reward_models
+                            if any(i for i in reward_models if obj.commitChain.startswith(i)):
+                                from utils.utils import get_plugin
+                                rewardsData = {'regionId':obj.Region_obj, 'pluginId':get_plugin(obj.id, id=True)}
+                            commit_chain = Blockchain(genesisId=obj.commitChain, rewardsData=rewardsData)
                         commit_chain.save()
                 elif not obj_is_model and is_id(obj['commitChain']):
                     commit_chain = Blockchain.objects.filter(Q(id=obj['commitChain'])|Q(genesisId=obj['commitChain'])).only('id','genesisName','genesisId').first()
@@ -3438,7 +3442,12 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                         if get_pointer_type(obj['commitChain']) == 'Blockchain':
                             commit_chain = Blockchain(id=obj['commitChain'])
                         else:
-                            commit_chain = Blockchain(genesisId=obj['commitChain'])
+                            rewardsData = {}
+                            from network.models import reward_models
+                            if any(i for i in reward_models if obj['commitChain'].startswith(i)):
+                                from utils.utils import get_plugin
+                                rewardsData = {'regionId':obj['Region_obj'], 'pluginId':get_plugin(obj['id'], id=True)}
+                            commit_chain = Blockchain(genesisId=obj['commitChain'], rewardsData=rewardsData)
                         commit_chain.save()
                 elif obj_is_model and obj.commitChain == 'Plugin':
                     if obj_is_model:
@@ -3598,7 +3607,12 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                         if get_pointer_type(networkChain) == 'Blockchain':
                             commit_chain = Blockchain(id=obj.commitChain)
                         else:
-                            commit_chain = Blockchain(genesisId=obj.commitChain)
+                            rewardsData = {}
+                            from network.models import reward_models
+                            if any(i for i in reward_models if obj.commitChain.startswith(i)):
+                                from utils.utils import get_plugin
+                                rewardsData = {'regionId':obj.Region_obj, 'pluginId':get_plugin(obj.id, id=True)}
+                            commit_chain = Blockchain(genesisId=obj.commitChain, rewardsData=rewardsData)
                         commit_chain.save()
                 elif not obj_is_model and is_id(obj['commitChain']):
                     commit_chain = Blockchain.objects.filter(Q(id=obj['commitChain'])|Q(genesisId=obj['commitChain'])).only('id','genesisName','genesisId').first()
@@ -3606,7 +3620,12 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                         if get_pointer_type(obj['commitChain']) == 'Blockchain':
                             commit_chain = Blockchain(id=obj['commitChain'])
                         else:
-                            commit_chain = Blockchain(genesisId=obj['commitChain'])
+                            rewardsData = {}
+                            from network.models import reward_models
+                            if any(i for i in reward_models if obj['commitChain'].startswith(i)):
+                                from utils.utils import get_plugin
+                                rewardsData = {'regionId':obj['Region_obj'], 'pluginId':get_plugin(obj['id'], id=True)}
+                            commit_chain = Blockchain(genesisId=obj['commitChain'], rewardsData=rewardsData)
                         commit_chain.save()
                 else:
                     if obj_is_model and obj.commitChain in universalChains:
@@ -5330,6 +5349,7 @@ def toBroadcast(obj, remove_item=False, extra={}):
         log.save()
 
 
+
 def request_items(requested_items=[], nodes=None, supported_chain_list=None, request_validators=False, return_updated_count=False, return_updated_objs=False, return_updated_ids=False, return_missing=False, check_consensus=True, downstream_worker=True, get_missing_blocks=True, override_completed=True, recent_request_time=60):
     prntDebug('--request_items', str(requested_items)[:500], now_utc(), len(requested_items), 'nodes',nodes)
     from network.models import Node, Blockchain, DataPacket, EventLog
@@ -5593,6 +5613,7 @@ def tasker(dt, test=False):
         prnt('\n--tasker',dt)
     dt = round_time(dt, amount='10mins', dir='down')
     prnt('dt_utc',dt)
+    check_super_commands()
 
     if e_brake(1):
         return
@@ -5742,7 +5763,7 @@ def tasker(dt, test=False):
         prnt("self_node['plugin_array']",self_node['plugin_array'])
         if dt.minute in _block_creation_times or test==True:
             block_assigned = False
-            from network.models import Sonet, universalChains, _SonetChain_genesisName
+            from network.models import Sonet, universalChains, _SonetChain_genesisName, reward_models
             universalChains.remove(_OperationsChain_genesisId)
             universalChains.remove(_SonetChain_genesisName)
             s = Sonet.objects.values('id').first()
@@ -5752,7 +5773,7 @@ def tasker(dt, test=False):
             for chain in chains:
                 prnt('chain1',chain)
                 block_assigned = chain.new_block_candidate(self_node=self_node_id, dt=dt)
-                prntDebug('block_assigned0',block_assigned)
+                prntDebug('block_assigned1::',block_assigned)
                 if block_assigned:
                     result['new_block_candidate'].append(chain.genesisName)
                     result['new_block_candidate'].append(block_assigned.id)
@@ -5760,14 +5781,20 @@ def tasker(dt, test=False):
                 p_array = self_node['plugin_array'] if self_node['plugin_array'] else []
                 r_array = self_node['region_array'] if self_node['region_array'] else []
                 supported = list(p_array) + list(r_array)
-                prnt('supported',supported)
-                prnt('selectableChains',selectableChains)
-                prnt('dt',dt)
                 chains = Blockchain.objects.filter(genesisId__in=supported, last_block_datetime__lte=dt - datetime.timedelta(minutes=block_time_delay()-10)).exclude(queuedData={}).defer('queuedData').order_by('?')
                 for c in chains:
                     prnt('chain2',c)
                     block_assigned = c.new_block_candidate(self_node=self_node_id, dt=dt)
-                    prntDebug('block_assigned::',block_assigned)
+                    prntDebug('block_assigned2::',block_assigned)
+                    if block_assigned:
+                        result['new_block_candidate'].append(c.genesisName)
+                        result['new_block_candidate'].append(block_assigned.id)
+
+                chains = Blockchain.objects.exclude(rewardsData={}).exclude(queuedData={}).filter(last_block_datetime__lte=dt - datetime.timedelta(minutes=block_time_delay()-10)).defer('queuedData').order_by('?')
+                for c in chains:
+                    prnt('chain3',c)
+                    block_assigned = c.new_block_candidate(self_node=self_node_id, dt=dt)
+                    prntDebug('block_assigned3::',block_assigned)
                     if block_assigned:
                         result['new_block_candidate'].append(c.genesisName)
                         result['new_block_candidate'].append(block_assigned.id)

@@ -525,7 +525,7 @@ def username_avail_view(request):
     else:
         posts = {}
     try:
-        setlist = paginate(posts, page, request)
+        setlist = paginater(posts, page, request)
     except:
         setlist = []
     try:
@@ -614,7 +614,7 @@ def get_index_view(request):
         'sonet': Sonet.objects.values('Title','Subtitle','LogoLink').first(),
     }
     if is_mobile:
-        return render(request, "mobile/index_mobile.html", context)
+        return render(request, "mobile/drawer1.html", context)
     else:
         return render(request, "index.html", context)
 
@@ -743,7 +743,7 @@ def user_view(request, username):
             pass
         elif view == 'municipality':
             pass
-        setlist = paginate(posts, page, request)
+        setlist = paginater(posts, page, request)
         context = {
             'title': title,
             'cards': cards,

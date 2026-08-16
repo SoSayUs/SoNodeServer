@@ -138,7 +138,10 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(PROJECT_ROOT, 'Templates'), PROJECT_ROOT],
+        'DIRS': [
+            os.path.join(PROJECT_ROOT, 'Templates'),
+            PROJECT_ROOT,
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

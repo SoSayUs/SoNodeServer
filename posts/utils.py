@@ -26,9 +26,10 @@ def render_view(request, context, country=None, feed=False):
     style = request.GET.get('style', 'index')
     if style == 'feed' or feed:
         if feed:
-            template = f"{feed}/utils/feed.html"
+            template = f"{feed}/templates/utils/feed.html"
         else:
             template = "utils/feed.html"
+        prnt('template',template)
         return render(request, template, get_paginator_url(request, context))
     else:
         fcmDeviceId = None
@@ -61,6 +62,7 @@ def render_view(request, context, country=None, feed=False):
         return response
     
 def default_setup(request, title=None, region=None, plugin=None):
+    # prnt('-default_setup')
     style = request.GET.get('style', 'preload')
     if style == 'preload':
         context = {
@@ -77,12 +79,31 @@ def default_setup(request, title=None, region=None, plugin=None):
         context = get_user_sending_data(user_id, context)
         request = set_session_data(request, country_dict, gov_dict, subRegions, subGovernments, current_chamber_name)
         if plugin:
-            template = f"{plugin}/utils/index.html"
+            context['index_template'] = f"{plugin}/templates/utils/index.html"
         else:
-            template = "utils/fetch_index.html"
-        return render(request, template, context)
+            context['index_template'] = ""
+        prnt("context['index_template']",context['index_template'])
+        
+        return render(request, "utils/index.html", context)
     else:
         return False
+    
+def default_context(request, setlist, cards='', nav_options=None, sort='Latest', view='Latest', paginate=True):
+    if paginate:
+        setlist = paginater(setlist, request.GET.get('page', 1), request)
+    context = {
+        'view': request.GET.get('view', view),
+        'sort': request.GET.get('sort', sort),
+        'page': request.GET.get('page', 1),
+        'style': request.GET.get('style', 'preload'),
+        'nav_bar': nav_options,
+        'cards': cards,
+        'feed_list': setlist,
+        'useractions': get_useractions(request, setlist),
+        'isMobile': get_isMobile(request),
+        'self_node': get_operator_obj('self_nodeId'),
+    }
+    return context
     
 def getTrendingTop(Chamber, country):
     if Chamber and country:
@@ -354,7 +375,7 @@ def get_user_sending_data(user, context):
     if user:
         context['user'] = user
         x = get_signing_data(user, include_sig=True, sort_data=False)
-        u = User()
+        u = User
         user_json = json.loads(x)
         user_json['latestVer'] = u.latestVer
         user_json['signed'] = user.signed
@@ -799,13 +820,17 @@ def fetch_updated_objs(setlist, requestList):
     return data
 
 def get_useractions(user, setlist):
-    prnt('-get_useractions')
+    # prnt('-get_useractions')
     from accounts.models import UserAction
+    try:
+        user = user.GET.get('user', None)
+    except:
+        pass
     if user and setlist:
         id_list = []
         actions = {}
         id_list = [p.id for p in setlist if p]
-        if isinstance(user, str):
+        if is_id(user):
             action_list = UserAction.objects.filter(User_obj__id=user, postId__in=id_list).order_by('postId').distinct('postId')
         else:
             action_list = UserAction.objects.filter(User_obj=user, postId__in=id_list).order_by('postId').distinct('postId')
@@ -814,7 +839,7 @@ def get_useractions(user, setlist):
     else:
         return {}
 
-def paginate(queryset_list, page, request):
+def paginater(queryset_list, page, request):
     if not queryset_list:
         return None
     if 'id=' in str(page):
@@ -844,6 +869,24 @@ def paginate(queryset_list, page, request):
             queryset = paginator.page(paginator.num_pages)
         except:
             pass
+    if any(p._meta.object_name == 'Post' for p in queryset):
+        from utils.utils import get_model
+        obj_types = {}
+        for p in queryset:
+            if p._meta.object_name == 'Post' and p.pointerType:
+                if p.pointerType not in obj_types:
+                    obj_types[p.pointerType] = []
+                obj_types[p.pointerType].append(p.pointerId)
+        if obj_types:
+            objs = {}
+            for objType, iden_list in obj_types.items():
+                z = {obj.id:obj for obj in get_model(objType).objects.filter(id__in=iden_list)}
+                objs = objs | z
+            if objs:
+                for p in queryset:
+                    if p._meta.object_name == 'Post' and p.pointerId in objs:
+                        p.Pointer_obj = objs[p.pointerId]
+
     return queryset
 
 def get_sort_order(sort):

@@ -1604,10 +1604,12 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
     return check_validators(block, {'creator_nodes':creator_nodes,'validator_list':validator_list,'required_validators':required_validators,'required_consensus':required_consensus,'block_delay':block_delay,'broadcast_list':broadcast_list, 'next_block':next_block}, do_mark_valid=do_mark_valid, broadcast_if_unknown=broadcast_if_unknown)
 
 
-def validate_block(block, creator_nodes=None, opBlock_data={}, create_validator=True, fail_reason=None):
+def validate_block(block, creator_nodes=None, opBlock_data=None, create_validator=True, fail_reason=None):
     from utils.models import get_operator_obj, get_objType, sigData_to_hash,now_utc,prnt,dt_to_string,is_id, get_chain_id, toBroadcast
+    from utils.utils import declare_var
     prnt('---validate_block', block, now_utc(),'fail_reason',fail_reason)
     from network.models import Validator, Block, _OperationsChain_genesisId, _block_creation_times, reward_models
+    opBlock_data = declare_var(opBlock_data, {})
     self_node_id = get_operator_obj('self_nodeId')
     if block.Block_obj:
         return None, None, None
@@ -1637,66 +1639,7 @@ def validate_block(block, creator_nodes=None, opBlock_data={}, create_validator=
                 fail_reason = 76
             elif prev_block.validated == None:
                 return None, None, None # wait for result of prev_block
-            if not hard_pass and block.Transaction_obj:
-                carry_on = False
-                if 'BlockReward' in block.Transaction_obj.regarding:
-                    
-
-                    if block.Transaction_obj.regarding['BlockReward'] == block.id and 'Rewards' in block.Transaction_obj.ReceiverWallet_obj.Name:
-                        if block.Transaction_obj.token_value == calculate_reward(block.DateTime, prev_block):
-                            from posts.models import Region
-                            if not Region.objects.filter(id=block.Blockchain_obj.genesisId, Block_obj__validated=True, is_supported=True).exists():
-                                hard_pass = True
-                                fail_reason = 760
-                                prnt('fail_reason',fail_reason)
-                            else:
-                                hard_pass = False
-                                transaction_type = 'sender'
-
-                                if any(prefix for prefix in reward_models if block.Blockchain_obj.genesisId.startswith(prefix)):
-                                    from legis.models import Government
-                                    gov = Government.objects.filter(id=block.Blockchain_obj.genesisId, Validator_obj__is_valid=True, Region_obj__is_supported=True, Region_obj__Validator_obj__is_valid=True).first()
-                                    if not gov or not gov.StartDate:
-                                        hard_pass = True
-                                        fail_reason = 761
-                                        prnt('fail_reason',fail_reason)
-                                    
-                                    from network.models import Blockchain
-                                    future_govs = Government.objects.filter(Region_obj=gov.Region_obj, StartDate__gte=gov.StartDate, Validator_obj__is_valid=True).values('id')
-                                    if future_govs and Blockchain.objects.filter(genesisId__in=[g['id'] for g in future_govs], chain_length__gt=0).exists():
-                                        hard_pass = True
-                                        prnt('fail_reason',fail_reason)
-                                        fail_reason = 762
-                                    
-                                    if not future_govs and block.Blockchain_obj.chain_length == 0:
-                                        prev_gov = Government.objects.filter(Region_obj=gov.Region_obj, StartDate__lt=gov.StartDate, Validator_obj__is_valid=True).order_by('-StartDate').first()
-                                        if prev_gov and not prev_gov.EndDate:
-                                            hard_pass = True
-                                            fail_reason = 763
-                                            prnt('fail_reason',fail_reason)
-                                        elif prev_gov and prev_gov.EndDate:
-                                            if not prev_gov.Block_obj or not (prev_gov.id in prev_gov.Block_obj.data and check_commit_data(prev_gov, prev_gov.Block_obj.data[prev_gov.id])):
-                                                hard_pass = True
-                                                fail_reason = 764
-                                                prnt('fail_reason',fail_reason)
-
-                    elif block.Transaction_obj.ReceiverWallet_obj and block.Transaction_obj.ReceiverWallet_obj.id == block.Blockchain_obj.genesisId and 'Rewards' in block.Transaction_obj.ReceiverWallet_obj.Name:
-                        hard_pass = False
-                        transaction_type = 'receiver'
-                    else:
-                        hard_pass = True
-                        fail_reason = 72
-
-                elif not block.Transaction_obj.SenderWallet_obj:
-                    fail_reason = 73
-                    hard_pass = True
-                elif block.Transaction_obj.ReceiverWallet_obj == block.Blockchain_obj:
-                    transaction_type = 'receiver'
-                elif block.Transaction_obj.SenderWallet_obj == block.Blockchain_obj:
-                    transaction_type = 'sender'
-                else:
-                    fail_reason = 74
-                    hard_pass = True
+            
             
             prnt(' block.get_previous_hash()', block.get_previous_hash())
             prnt('block.prv_hash',block.prv_hash)
@@ -1740,24 +1683,92 @@ def validate_block(block, creator_nodes=None, opBlock_data={}, create_validator=
                     
                     if proceed_to_valid:
                         fail_reason = 705
-                        # check that prev_block validators are all acccounted for on block
-                        opChainId = get_chain_id(_OperationsChain_genesisId)
-                        if prev_block:
-                            fail_reason = []
-                            for v in Validator.objects.filter(networkChain=_OperationsChain_genesisId, validatorType='Block', jobId=prev_block.id, Block_obj=None):
-                                if v.id not in block.data and v.id not in block.extraData:
-                                    fail_reason.append(v.id)
+                        if block.Transaction_obj:
+                            fail_reason = 706
+                            carry_on = False
+                            if 'BlockReward' in block.Transaction_obj.regarding:
+                                fail_reason = 707
+                                
+                                if block.Transaction_obj.regarding['BlockReward'] == block.id and 'Rewards' in block.Transaction_obj.ReceiverWallet_obj.Name:
+                                    fail_reason = 708
+                                    if block.Transaction_obj.token_value == calculate_reward(block.DateTime, prev_block):
+                                        fail_reason = 709
+                                        from posts.models import Region
+                                        if not Region.objects.filter(id=block.Blockchain_obj.rewardsData['regionId'], Block_obj__validated=True, is_supported=True).exists():
+                                            hard_pass = True
+                                            fail_reason = 760
+                                            prnt('fail_reason',fail_reason)
+                                        else:
+            
+                                            if any(prefix for prefix in reward_models if block.Blockchain_obj.genesisId.startswith(prefix)):
+                                                from legis.models import Government
+                                                gov = Government.objects.filter(id=block.Blockchain_obj.genesisId, Validator_obj__is_valid=True, Region_obj__is_supported=True, Region_obj__Validator_obj__is_valid=True).first()
+                                                if not gov or not gov.StartDate:
+                                                    hard_pass = True
+                                                    fail_reason = 761
+                                                    prnt('fail_reason',fail_reason)
+                                                
+                                                from network.models import Blockchain
+                                                future_govs = Government.objects.filter(Region_obj=gov.Region_obj, StartDate__gte=gov.StartDate, Validator_obj__is_valid=True).exclude(id=gov.id).values('id')
+                                                if future_govs and Blockchain.objects.filter(genesisId__in=[g['id'] for g in future_govs], chain_length__gt=0).exists():
+                                                    hard_pass = True
+                                                    prnt('fail_reason',fail_reason)
+                                                    fail_reason = 762
+                                                
+                                                if not future_govs and block.Blockchain_obj.chain_length == 0:
+                                                    prev_gov = Government.objects.filter(Region_obj=gov.Region_obj, StartDate__lt=gov.StartDate, Validator_obj__is_valid=True).order_by('-StartDate').first()
+                                                    if prev_gov and not prev_gov.EndDate:
+                                                        hard_pass = True
+                                                        fail_reason = 763
+                                                        prnt('fail_reason',fail_reason)
+                                                    elif prev_gov and prev_gov.EndDate:
+                                                        if not prev_gov.Block_obj or not (prev_gov.id in prev_gov.Block_obj.data and check_commit_data(prev_gov, prev_gov.Block_obj.data[prev_gov.id])):
+                                                            hard_pass = True
+                                                            fail_reason = 764
+                                                            prnt('fail_reason',fail_reason)
+                                            else:
+                                                hard_pass = True
+                                                fail_reason = 765
+                                                # transaction_type = 'sender'
+            
+                                elif block.Transaction_obj.ReceiverWallet_obj and block.Transaction_obj.ReceiverWallet_obj.id == block.Blockchain_obj.genesisId and 'Rewards' in block.Transaction_obj.ReceiverWallet_obj.Name:
+                                    hard_pass = False
+                                    transaction_type = 'receiver'
+                                else:
                                     hard_pass = True
-                                    prnt(f'v.id not in block.data fail_reason:{v.id}')
-                                elif v.id in block.data and not check_commit_data(v, block.data[v.id]):
-                                    fail_reason.append(v.id)
-                                    hard_pass = True
-                                    prnt(f'check_commit_data fail_reason:{v.id}')
-                                elif v.id in block.extraData and not check_commit_data(v, block.extraData[v.id]):
-                                    fail_reason.append(v.id)
-                                    hard_pass = True
-                                    prnt(f'check_commit_data fail_reason:{v.id}')
+                                    fail_reason = 72
+            
+                            elif not block.Transaction_obj.SenderWallet_obj:
+                                fail_reason = 73
+                                hard_pass = True
+                            elif block.Transaction_obj.ReceiverWallet_obj == block.Blockchain_obj:
+                                transaction_type = 'receiver'
+                            elif block.Transaction_obj.SenderWallet_obj == block.Blockchain_obj:
+                                transaction_type = 'sender'
+                            else:
+                                fail_reason = 74
+                                hard_pass = True
+
                         if not hard_pass:
+                            fail_reason = 99
+                            # check that prev_block validators are all acccounted for on block
+                            opChainId = get_chain_id(_OperationsChain_genesisId)
+                            if prev_block:
+                                fail_reason = []
+                                for v in Validator.objects.filter(networkChain=_OperationsChain_genesisId, validatorType='Block', jobId=prev_block.id, Block_obj=None):
+                                    if v.id not in block.data and v.id not in block.extraData:
+                                        fail_reason.append(v.id)
+                                        hard_pass = True
+                                        prnt(f'v.id not in block.data fail_reason:{v.id}')
+                                    elif v.id in block.data and not check_commit_data(v, block.data[v.id]):
+                                        fail_reason.append(v.id)
+                                        hard_pass = True
+                                        prnt(f'check_commit_data fail_reason:{v.id}')
+                                    elif v.id in block.extraData and not check_commit_data(v, block.extraData[v.id]):
+                                        fail_reason.append(v.id)
+                                        hard_pass = True
+                                        prnt(f'check_commit_data fail_reason:{v.id}')
+
                             fail_reason = 100
                             if block.networkChain == _OperationsChain_genesisId:
                                 fail_reason = 101
@@ -2132,11 +2143,11 @@ def validate_obj(obj=None, pointer=None, validators=None, save_obj=True, update_
                             obj_hash = sigData_to_hash(target, exclude_fields=['CreatorNode_obj', 'Validator_obj', 'signed'])
                             matched_vals = []
                             for val in vals:
-                                prnt('val',val.id,'target.id',target.id,'obj_hash',obj_hash)
-                                try:
-                                    'val.data[target.id]',val.data[target.id]
-                                except Exception as e:
-                                    prnt('err 2',str(e))
+                                # prnt('val',val.id,'target.id',target.id,'obj_hash',obj_hash)
+                                # try:
+                                #     'val.data[target.id]',val.data[target.id]
+                                # except Exception as e:
+                                #     prnt('err 2a',str(e))
                                 if val.id in validator.Validator_array:
                                     if target.id in val.data and val.data[target.id] == obj_hash:
                                         prnt('good')
@@ -2189,11 +2200,11 @@ def validate_obj(obj=None, pointer=None, validators=None, save_obj=True, update_
                             obj_hash = sigData_to_hash(target, exclude_fields=['CreatorNode_obj', 'Validator_obj', 'signed'])
                             matched_vals = []
                             for val in vals:
-                                prnt('val',val.id,'target.id',target.id,'obj_hash',obj_hash)
-                                try:
-                                    prnt('val.data[target.id]',val.data[target.id])
-                                except Exception as e:
-                                    prnt('err 2',str(e))
+                                # prnt('val',val.id,'target.id',target.id,'obj_hash',obj_hash)
+                                # try:
+                                #     prnt('val.data[target.id]',val.data[target.id])
+                                # except Exception as e:
+                                #     prnt('err 2b',str(e))
                                 if val.CreatorNode_obj.id in creator_nodes:
                                     if target.id in val.data and val.data[target.id] == obj_hash:
                                         prnt('good')
@@ -2612,13 +2623,15 @@ def get_relevant_nodes(dt=None, genesisId=None, chains=None, blockchain=None, pl
     record = None
     node_ids = []
 
-    from network.models import Block, Node, NodeRecord, Blockchain, Sonet, _EarthChain_genesisId, universalChains, _OperationsChain_genesisId, mandatoryChains
+    from network.models import Block, Node, NodeRecord, Blockchain, Sonet, _EarthChain_genesisId, universalChains, _OperationsChain_genesisId, mandatoryChains, reward_models
     from utils.models import get_pointer_type, get_chain_type, is_id
     from django.db import models
     prnt('dt',dt)
     if not opBlock and not testing():
         prnt('get opBlock',_OperationsChain_genesisId,dt)
         opBlock = Block.objects.filter(Blockchain_obj__genesisId=_OperationsChain_genesisId, DateTime__lte=dt, validated=True).only('opData').order_by('-index', 'created').first()
+    if plugin_id and isinstance(plugin_id, models.Model):
+        plugin_id = plugin_id.id
 
     if blockchain and isinstance(blockchain, models.Model) and blockchain.genesisType in universalChains:
         include_relays = True
@@ -2649,15 +2662,15 @@ def get_relevant_nodes(dt=None, genesisId=None, chains=None, blockchain=None, pl
             # #     return relevant_nodes, _user_peer_count
             # # return relevant_nodes
             # return {'relevant_nodes':dict(relevant_nodes.items()),'opData':opBlock.opData}
-        elif genesisId and NodeRecord.objects.filter(pointerId=genesisId, DateTime__lte=dt, is_valid=True).exists():
-            prnt('op1')
-            record = NodeRecord.objects.filter(pointerId=genesisId, DateTime__lte=dt, is_valid=True).first()
-            prnt('record',record)
-            prnt('record.data',record.data)
-            prnt('exclude_list',exclude_list)
-            if not sublist:
-                sublist = 'active'
-            node_ids = [n for n in record.data[sublist] if n not in exclude_list]
+        # elif genesisId and NodeRecord.objects.filter(pointerId=genesisId, DateTime__lte=dt, is_valid=True).exists():
+        #     prnt('op1')
+        #     record = NodeRecord.objects.filter(pointerId=genesisId, DateTime__lte=dt, is_valid=True).first()
+        #     prnt('record',record)
+        #     prnt('record.data',record.data)
+        #     prnt('exclude_list',exclude_list)
+        #     if not sublist:
+        #         sublist = 'active'
+        #     node_ids = [n for n in record.data[sublist] if n not in exclude_list]
 
         elif genesisId or blockchain:
             prnt('op2')
@@ -2674,6 +2687,22 @@ def get_relevant_nodes(dt=None, genesisId=None, chains=None, blockchain=None, pl
             from django.db import models
             if isinstance(blockchain, models.Model):
                 genesisId = blockchain.genesisId
+            if any(prefix for prefix in reward_models if genesisId.startswith(prefix)):
+                if not blockchain:
+                    blockchain = Blockchain.objects.filter(genesisId=blockchain).only('genesisType','genesisId').first()
+                if blockchain and blockchain.rewardsData:
+                    genesisId = blockchain.rewardsData['regionId']
+                    plugin_id = blockchain.rewardsData['pluginId']
+                else:
+                    from utils.utils import fetch_obj_data, get_plugin
+                    obj_dict = fetch_obj_data(genesisId)
+                    if obj_dict:
+                        plugin_id = get_plugin(obj_dict['id'], id=True)
+                        genesisId = obj_dict['Region_obj']
+                        if blockchain:
+                            blockchain.rewardsData = {'regionId':obj_dict['Region_obj'], 'pluginId':plugin_id}
+                            blockchain.save()
+
             prnt('genesisId',genesisId,'sublist',sublist)
             # if genID not either region or plugin, fetch genObj, cross references plugin and region
             record = NodeRecord.objects.filter(pointerId=genesisId, DateTime__lte=dt, is_valid=True).first()
@@ -5266,7 +5295,7 @@ def get_signing_data(obj, extra_data=None, include_sig=False, full_pk=False, sor
         return obj
     from django.db import models
     from utils.models import get_model, has_method, prnt, prntDebug, string_to_dt
-    prnt('--get_signing_data',str(obj)[:150],'exclude_fields',exclude_fields)
+    # prnt('--get_signing_data',str(obj)[:150],'exclude_fields',exclude_fields)
     data = {}
     model = None
     include_sign_fields = []

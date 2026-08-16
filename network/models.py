@@ -215,7 +215,7 @@ unshared_models = ['Post','UserAction','UserNotification','Wallet','Blockchain',
 share_to_all = ['oh','nod','nrev','reg','usr','upk','uver','udat'] # this sends to relays as well, relay shouldnt need reg, uver and udat. can remove those under process_received_data, may cause relay to request those items in other locations
 intelligence_funcs = ['summarize_meetings', 'summarize_bills']
 node_types = ['server','maintainer','server/maintainer','relay','intelligence']
-reward_models = ['1govSo'] # only Government chain - requires Region_obj on model - hardcoded to gov
+reward_models = ['2govSo'] # only Government chain - requires Region_obj on model - hardcoded to gov
 
 model_prefixes = {'Sonet':'oh','Plugin':'plg','Signature':'sig','DataPacket':'dpk','Node':'nod','NodeReview':'nrev','NodeRecord':'nrec','Block':'blc','Validator':'val','Blockchain':'chn','EventLog':'log',}
 
@@ -1769,9 +1769,10 @@ class Block(models.Model):
     def on_confirmation(self, obj=None):
         if any(prefix for prefix in reward_models if self.Blockchain_obj.genesisId.startswith(prefix)):
             from legis.models import Government
-            gov = Government.objects.filter(id=self.genesisId).only('Region_obj').first()
-            chain = Blockchain.objects.filter(genesisId=gov.Region_obj.id).first()
-            chain.add_item_to_queue(self)
+            gov = Government.objects.filter(id=self.Blockchain_obj.genesisId).only('Region_obj').first()
+            if gov:
+                chain = Blockchain.objects.filter(genesisId=gov.Region_obj.id).first()
+                chain.add_item_to_queue(self)
         if self.Blockchain_obj.genesisId in [_OperationsChain_genesisId, _KeyChain_genesisId, _AccountChain_genesisId]:
             chain = Blockchain.objects.filter(genesisName=_SonetChain_genesisName).first()
             chain.add_item_to_queue(self)
@@ -2463,7 +2464,7 @@ class Block(models.Model):
             prnt('self.networkChain:',self.networkChain)
             
             hash_history = [i['hash'] for i in reversed(Block.objects.filter(networkChain=self.networkChain, index__lt=self.index, validated=True).values("hash").order_by('-index')[:50])]
-            sending_data = {'type' : 'Blocks',  'opBlock': opBlock.id if opBlock else None, 'opBlock_hash':opBlock.hash if opBlock else None, 'blockchainId' : self.networkChain, 'genesisId':self.Blockchain_obj.genesisId, 'hash_history':hash_history, 'block_list' : json.dumps(block_list), 'end_of_chain' : True}
+            sending_data = {'type' : 'Blocks',  'opBlock': opBlock.id if opBlock else None, 'opBlock_hash':opBlock.hash if opBlock else None, 'blockchainId' : self.Blockchain_obj.id, 'genesisId':self.Blockchain_obj.genesisId, 'hash_history':hash_history, 'block_list' : json.dumps(block_list), 'end_of_chain' : True}
             
             if opBlock and opBlock.index != opBlock.Blockchain_obj.chain_length:
                 sending_data['opBlock_not_latest'] = True
@@ -2519,7 +2520,7 @@ class Block(models.Model):
                 func = f'blockbroadcast:{self.id}'
                 dp = DataPacket(id=packet_id, Node_obj=self_node, func=func, networkChain=self.networkChain)
                 dp.save()
-            headers = {'Packet-Id':packet_id, 'Packet-Origin-Dt':dt_to_string(now), 'Senderid':self_node.id, 'func':'blockbroadcast', 'Packet-Creator':self_node.id, 'Seedid':self.CreatorNode_obj.id, 'Dt':dt_to_string(now), 'Blockchainid' : self.networkChain, 'Genesisid':self.Blockchain_obj.genesisId, 'Blockid':self.id, 'Index':str(self.index), 'Prevhash':self.prv_hash, 'Blockdt':dt_to_string(self.DateTime), 'Rebroadcast':'True', 'Validators-only': str(validators_only)}
+            headers = {'Packet-Id':packet_id, 'Packet-Origin-Dt':dt_to_string(now), 'Senderid':self_node.id, 'func':'blockbroadcast', 'Packet-Creator':self_node.id, 'Seedid':self.CreatorNode_obj.id, 'Dt':dt_to_string(now), 'Blockchainid' : self.Blockchain_obj.id, 'Genesisid':self.Blockchain_obj.genesisId, 'Blockid':self.id, 'Index':str(self.index), 'Prevhash':self.prv_hash, 'Blockdt':dt_to_string(self.DateTime), 'Rebroadcast':'True', 'Validators-only': str(validators_only)}
             successes = downstream_broadcast(lst, 'network/receive_blocks', sending_data, headers=headers, target_node_id=[target_node_id, self_node.id], stream=True, skip_self=skip_self)
             if successes:
                 prnt('broadcast block successes:',successes)
@@ -2634,6 +2635,7 @@ class Block(models.Model):
                 
                 obj_ids = []
                 add_to_chain = []
+                chains = {}
                 for x in storedModels:
                     if super_delete_content:
                         superDelete(x, force_delete=True)
@@ -2647,9 +2649,15 @@ class Block(models.Model):
                                 if len(add_to_chain) >= 200:
                                     self.Blockchain_obj.add_item_to_queue(add_to_chain, force_add=True)
                                     add_to_chain = []
+                            if has_field(x, 'networkChain') and x.networkChain in chains:
+                                chains[x.networkChain]['objs'].append(x)
                             else:
                                 network_chain, x, commit_chain = find_or_create_chain_from_object(x)
-                                network_chain.add_item_to_queue(x, force_add=True)
+                                chains[x.networkChain] = {'chain':network_chain, 'objs':[x]}
+                                if commit_chain:
+                                    if commit_chain.id not in chains:
+                                        chains[commit_chain.id] = {'chain':commit_chain, 'objs':[]}
+                                    chains[commit_chain.id]['objs'].append(x)
     
                         for val in fail_vals:
                             if 'fail_reason' in val.data and isinstance(val.data['fail_reason'], list) and x.id in val.data['fail_reason']:
@@ -2658,6 +2666,12 @@ class Block(models.Model):
                                     x.Block_obj = existing_block
                                 break
                         obj_ids.append(x.id)
+
+                storedModels = None
+                if chains:
+                    for chain_id, data in chains.items():
+                        data['chain'].add_item_to_queue(data['objs'], force_add=True)
+                chains = None
                 if add_to_chain:
                     self.Blockchain_obj.add_item_to_queue(add_to_chain, force_add=True)
 
@@ -3208,7 +3222,8 @@ class Blockchain(models.Model):
     data_added_datetime = models.DateTimeField(auto_now=False, auto_now_add=False, blank=True, null=True) # when new data was added since last block created
     genesisType = models.CharField(max_length=50, default="0", blank=True, null=True)
     genesisId = BinaryBase62Field(max_byte_length=30, null=True, blank=True)
-    genesisName = models.CharField(max_length=50, default=None, blank=True, null=True)
+    genesisName = models.CharField(max_length=50, default=None, blank=True, null=True)    
+    rewardsData = models.JSONField(default=dict, blank=True, null=True)
     last_block_datetime = models.DateTimeField(auto_now=False, auto_now_add=False, blank=True, null=True)
     queuedData = models.JSONField(default=dict, blank=True, null=True)
 
@@ -3225,7 +3240,7 @@ class Blockchain(models.Model):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Blockchain', 'modlVer': 1, 'id': None, 'created': None, 'chain_length': 0, 'data_added_datetime': None, 'genesisType': '0', 'genesisId': None, 'genesisName': None, 'last_block_datetime': None, 'queuedData': {}}
+            return {'objType': 'Blockchain', 'modlVer': 1, 'id': None, 'created': None, 'chain_length': 0, 'data_added_datetime': None, 'genesisType': '0', 'genesisId': None, 'genesisName': None, 'rewardsData': {}, 'last_block_datetime': None, 'queuedData': {}}
         
     def get_hash_to_id(self, version=None):
         if not version:
@@ -4109,13 +4124,38 @@ class Blockchain(models.Model):
             new_block.index = chain_length + 1
             new_block.CreatorNode_obj = self_node
             reward = None
-            if self.genesisType == 'Region':
+            if any(prefix for prefix in reward_models if self.genesisId.startswith(prefix)):
                 from posts.models import Region
-                if Region.objects.filter(id=self.genesisId, Block_obj__validated=True, is_supported=True).exists():
-                    from transactions.models import Transaction
-                    reward = Transaction(ReceiverWallet_obj=self_node.User_obj.get_wallet(f'Rewards-{self_node.id}'), regarding={'BlockReward':'coming'}, created=new_block.DateTime)
-                    reward.save()
-                    new_block.Transaction_obj = reward
+                if Region.objects.filter(id=self.rewardsData['regionId'], Block_obj__validated=True, is_supported=True).exists():
+                    proceed = True
+                    # only latest active gov chain gets reward
+                    from legis.models import Government
+                    gov = Government.objects.filter(id=new_block.Blockchain_obj.genesisId, Validator_obj__is_valid=True).first()
+                    if not gov or not gov.StartDate:
+                        prnt('not gov stop',gov)
+                        return None, None
+                    
+                    future_govs = Government.objects.filter(Region_obj=gov.Region_obj, StartDate__gte=gov.StartDate, Validator_obj__is_valid=True).exclude(id=gov.id).values('id')
+                    if future_govs and Blockchain.objects.filter(genesisId__in=[g['id'] for g in future_govs], chain_length__gt=0).exists():
+                        prnt('future_govs stop',future_govs)
+                        proceed = False
+                    
+                    if not future_govs and self.chain_length == 0:
+                        prev_gov = Government.objects.filter(Region_obj=gov.Region_obj, StartDate__lt=gov.StartDate, Validator_obj__is_valid=True).order_by('-StartDate').first()
+                        if prev_gov and not prev_gov.EndDate:
+                            prnt('prev_gov stop',prev_gov)
+                            proceed = False
+                        elif prev_gov and prev_gov.EndDate:
+                            from utils.locked import check_commit_data
+                            if not prev_gov.Block_obj or not (prev_gov.id in prev_gov.Block_obj.data and check_commit_data(prev_gov, prev_gov.Block_obj.data[prev_gov.id])):
+                                prnt('prev_gov check_commit_data stop',prev_gov)
+                                proceed = False
+
+                    if proceed: 
+                        from transactions.models import Transaction
+                        reward = Transaction(ReceiverWallet_obj=self_node.User_obj.get_wallet(f'Rewards-{self_node.id}'), regarding={'BlockReward':'coming'}, created=new_block.DateTime)
+                        reward.save()
+                        new_block.Transaction_obj = reward
             if 'meta' in self.queuedData:
                 del self.queuedData['meta']
             if self.genesisId == _OperationsChain_genesisId:
@@ -4163,30 +4203,6 @@ class Blockchain(models.Model):
                     prnt('prev_block_not_valid3 - skipping new_block')
                     return None, None
             if new_block.Transaction_obj:
-
-                if any(prefix for prefix in reward_models if new_block.Blockchain_obj.genesisId.startswith(prefix)):
-                    from legis.models import Government
-                    gov = Government.objects.filter(id=new_block.Blockchain_obj.genesisId, Validator_obj__is_valid=True).first()
-                    if not gov or not gov.StartDate:
-                        prnt('not gov stop',gov)
-                        return None, None
-                    
-                    future_govs = Government.objects.filter(Region_obj=gov.Region_obj, StartDate__gte=gov.StartDate, Validator_obj__is_valid=True).values('id')
-                    if future_govs and Blockchain.objects.filter(genesisId__in=[g['id'] for g in future_govs], chain_length__gt=0).exists():
-                        prnt('future_govs stop',future_govs)
-                        return None, None
-                    
-                    if not future_govs and self.chain_length == 0:
-                        prev_gov = Government.objects.filter(Region_obj=gov.Region_obj, StartDate__lt=gov.StartDate, Validator_obj__is_valid=True).order_by('-StartDate').first()
-                        if prev_gov and not prev_gov.EndDate:
-                            prnt('prev_gov stop',prev_gov)
-                            return None, None
-                        elif prev_gov and prev_gov.EndDate:
-                            from utils.locked import check_commit_data
-                            if not prev_gov.Block_obj or not (prev_gov.id in prev_gov.Block_obj.data and check_commit_data(prev_gov, prev_gov.Block_obj.data[prev_gov.id])):
-                                prnt('prev_gov check_commit_data stop',prev_gov)
-                                return None, None
-
                 from utils.locked import calculate_reward
                 reward.token_value = calculate_reward(new_block.DateTime, prev_block)
                 # receiverBlock_id = hash_obj_id('Block', specific_data={'objType':'Block','DateTime':dt_to_string(reward.created), 'regarding':reward.id})
@@ -4222,7 +4238,6 @@ class Blockchain(models.Model):
         else:
             return None if do_not_return_self else self 
 
-
     def add_item_to_queue(self, post, force_add=False, skip=None, back_of_line=False):
         prntDebug('-add_item_to_blockchain',self,str(post))
         from utils.models import get_self_node, has_field, value_is_none, round_time, get_data
@@ -4256,19 +4271,20 @@ class Blockchain(models.Model):
                                 parentChain.data_added_datetime = now_utc()
                             parentChain.save()
 
-                    if has_field(p, 'commitChain'):
-                        prnt('add to second chain')
+                    if has_field(p, 'commitChain') and p.commitChain != self.genesisId:
+                        # prnt('add to second chain')
                         network_chain, p, commit_chain = find_or_create_chain_from_object(p)
-                        if commit_chain and commit_chain != self and commit_chain != skip:
-                            prnt('-commit_chain add_to',commit_chain)
+                        if commit_chain and commit_chain != skip:
+                            # prnt('-commit_chain add_to',commit_chain)
                             commit_chain.add_item_to_queue(p, skip=self)
                         elif network_chain and network_chain != self and network_chain != skip:
-                            prnt('-network_chain add_to',network_chain)
+                            # prnt('-network_chain add_to',network_chain)
                             network_chain.add_item_to_queue(p, skip=self)
-                    if p.id not in self.queuedData:
-                        add_dt = dt_to_string(now_utc())
-                        self.queuedData[p.id] = add_dt
-                        return True
+                    if not has_field(p, 'commitChain') or p.commitChain == self.genesisId or p.id == self.genesisId:
+                        if p.id not in self.queuedData:
+                            add_dt = dt_to_string(now_utc())
+                            self.queuedData[p.id] = add_dt
+                            return True
                     return False
 
                 if isinstance(post, models.Model) and post._meta.object_name == 'Node':
@@ -4408,8 +4424,7 @@ class Tidy:
                         try:
                             obj = p.get_pointer()
                             prnt('obj:',obj.id)
-                            if not obj.signed and has_field(obj, 'created') and obj.created < dt - datetime.timedelta(hours=6) or has_field(obj, 'created') and obj.created < dt - datetime.timedelta(hours=18):
-                            # if has_field(obj, 'created') and obj.created < dt - datetime.timedelta(days=2) or not obj.signed and has_field(obj, 'created') and obj.created < dt - datetime.timedelta(hours=8):
+                            if not is_locked(obj) and (not obj.signed and has_field(obj, 'created') and obj.created < dt - datetime.timedelta(hours=6) or has_field(obj, 'created') and obj.created < dt - datetime.timedelta(hours=18)):
                                 deleted = obj.delete()
                                 delled += 1
                                 m_type = get_pointer_type(p.pointerId)
@@ -4419,7 +4434,7 @@ class Tidy:
                                 skipped += 1
                                 prnt('skipped')
                         except Exception as e:
-                            prnt('fail7534',p,str(e))
+                            prnt('error7534',p,str(e))
                             # p.delete()
                             # delled += 1
                             # m_type = get_pointer_type(p.pointerId)
@@ -4744,8 +4759,14 @@ class Tidy:
 
                         if find_chain:
                             network_chain, obj, commit_chain = find_or_create_chain_from_object(pointer)
-                            prntDebug('networkChainxxy',network_chain)
-                            if network_chain:
+                            prntDebug('networkChainxxy',network_chain,'commit_chainxx',commit_chain)
+                            if commit_chain:
+                                if commit_chain not in add_to_queue:
+                                    add_to_queue[commit_chain] = []
+                                add_to_queue[commit_chain].append(pointer)
+                                prnt('pointer add_to_queue',pointer,commit_chain)
+                                add_to_chain += 1
+                            elif network_chain:
                                 if network_chain not in add_to_queue:
                                     add_to_queue[network_chain] = []
                                 add_to_queue[network_chain].append(pointer)

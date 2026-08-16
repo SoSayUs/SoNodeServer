@@ -1,25 +1,31 @@
 
+{% load static %}
 
 <div id="response-wrapper">
 {% if is_mobile %}
-    <div class='mobile_navigation'>
-        
-        <ul>
-            <br>
-            {% if user %}
-                <li style='font-size:130%'><a href='/{{ country.Name|lower }}/home'>Home</a></li>
-            <ul class='navSubmenu' id='home'>    
-                <li><a href='/following'>Following</a></li>
-                <li><a href='/region'>Region</a></li>
-            </ul>
-            {% else %}
-                <li style='font-size:130%'><a href='/{{ country.Name|lower }}/home'>Home</a></li>
-                <ul class='navSubmenu' id='home'>    
-                    <li><a href='/region'>Region</a></li>
+
+        <div class="mobile_navigation">
+            <ul>
+                <br>
+                <br>
+                <li style='font-size:130%'><a href='/{{ country.Name|lower }}/legislature'>Legislature</a></li>
+                <ul class='navSubmenu' id='legislature'>    
+                    {% if gov %} 
+                        {% for i in gov.menuItem_array %}
+                        <li><a href='/{{ country.Name|lower }}/{{i|lower}}'>{{ i }}</a></li>
+                        {% endfor %}
+                    {% endif %}
+                <br>
+                <br>
                 </ul>
-            {% endif %}
-            <br>
-            <li style='font-size:130%'><a href='/{{ country.Name|lower }}/legislature'>Legislature!</a></li>
+            </ul>
+        </div>
+        
+{% else %}
+
+
+            <li style="margin-top: 20px;"></li>
+            <li style='font-size:130%'><a href='/{{ country.Name|lower }}/legislature'>Legislature</a></li>
             <ul class='navSubmenu' id='legislature'>    
                 {% if gov %} 
                     {% for i in gov.menuItem_array %}
@@ -27,31 +33,9 @@
                     {% endfor %}
                 {% endif %}
             <br>
-            <br>
-            <br>
-            <li style="display: block; margin-left: -30px;"><a onclick='select_node()'>
-                {% if self_node %}
-                        <li>Connected:</li>
-                        <li style="font-size: 90%; font-style: italic; color: gray; margin-top: -10px;">{{ self_node }}</li>
 
-                {% else %}
-                    <li>Connected:</li>
-                    <li style="font-size: 90%; font-style: italic; color: gray; margin-top: -10px;">unknown</li>
-                {% endif %}
-            </a></li>
-            </ul>
-        </ul>
 
-    </div>
-
-    {% include 'mobile/search_mobile.html' %}
-
-{% else %}
-    <div id='navigation'>
-    {% include 'index_navigation.html' %}
-    </div>
-
-    {% include 'sidebar.html' %}
 
 {% endif %}
 </div>
+

@@ -7,8 +7,7 @@ body{
     background: linear-gradient(to bottom, #0b559a, #011D37 400px);
 }
 * {
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none; /* Optional: disable long press popup */
+    -webkit-tap-highlight-color: #dbdbdb;
 }
 #container{
     width: 100%;
@@ -51,21 +50,21 @@ body a{
 }
 .shorten2{
     
-/*    
-  display: inline-block;
-  text-overflow: ellipsis;
-  word-wrap: break-word;
-  overflow: hidden;
-  max-height: 2.8em;
-  line-height: 1.4em; */
-  
+    /*    
+    display: inline-block;
+    text-overflow: ellipsis;
+    word-wrap: break-word;
+    overflow: hidden;
+    max-height: 2.8em;
+    line-height: 1.4em; */
+    
     overflow: hidden !important;
-   text-overflow: ellipsis !important;
-   display: -webkit-box !important;
-   /* number of lines to show */
-   -webkit-line-clamp: 3; 
-           line-clamp: 3; 
-   -webkit-box-orient: vertical !important;
+    text-overflow: ellipsis !important;
+    display: -webkit-box !important;
+    /* number of lines to show */
+    -webkit-line-clamp: 3; 
+            line-clamp: 3; 
+    -webkit-box-orient: vertical !important;
 }
 .darkenOverlay {
     background-color: rgba(0, 0, 0, 0.45);
@@ -74,7 +73,6 @@ body a{
     padding: 40px 60px;
     min-width: 600px;
     max-width: 70vw;
-    min-height: 800px;
     max-height: 80vh;
     transition: 0.3s !important;
     -webkit-transition: 0.3s !important;
@@ -90,12 +88,14 @@ body a{
     visibility: visible;
 }
 .modalWidget #modalTitle{
-    top: -50px;
+    top: -10px;
 }
 .modalWidgetClose{
     display: block;
     position:relative;
-    text-align:right;
+    text-align:center;
+    float:right;
+    width: 40px;
     top: -10px;
     left: 7px !important;
     cursor: pointer;
@@ -112,12 +112,13 @@ body a{
     font-size: 100%;
 }
 .modalWidget .lds-dual-ring {
-    margin-top: 20%;
+    margin-top: 0%;
 }
 .modalWidget #modalContent{
     height: 100%;
+    min-height: 600px;
 }
-.indexMobile, .searchMobile, .notificationsMobile, .pouponsMobile{
+.drawer1, .drawer4, .drawer3, .drawer2{
     position: fixed;
     top: 0px;
     z-index: 19000;
@@ -131,30 +132,30 @@ body a{
     overflow-x: hidden;
     border: 1px solid #727272;
 }
-.indexMobile, .pouponsMobile{
+.drawer1, .drawer2{
     right: auto;
     left: -91%;
 }
-.searchMobile, .notificationsMobile{
+.drawer4, .drawer3{
     left: auto;
     right: -91%;
 }
-.indexMobile.show_window, .pouponsMobile.show_window{
+.drawer1.show_window, .drawer2.show_window{
     left: 0%;
 }
-.searchMobile.show_window, .notificationsMobile.show_window{
+.drawer4.show_window, .drawer3.show_window{
     right: 0%;
 }
-.indexMobile, .pouponsMobile{
+.drawer1, .drawer2{
     border-top-right-radius: 40px !important;
 }
-.searchMobile, .notificationsMobile{
+.drawer4, .drawer3{
     border-top-left-radius: 40px !important;
 }
-.indexMobile a, .searchMobile a{
+.drawer1 a, .drawer4 a{
     text-decoration: none;
 }
-.indexMobile .navTop{
+.drawer1 .navTop{
     position: relative;
     display: block;
     height: 10px;
@@ -163,25 +164,25 @@ body a{
     padding: 0px;
     z-index: 1001;
 }
-.indexMobile .navTop ul{
+.drawer1 .navTop ul{
     top: 0px;
     margin-top: -30px;
     position: relative;
     display: block;
     width: 100%;
 }
-.indexMobile .navTop li{
+.drawer1 .navTop li{
     display: inline-block;
     position: relative;
 }
-.indexMobile .navTop h1, .searchMobile .navTop h1{
+.drawer1 .navTop h1, .drawer4 .navTop h1{
     font-size: 180%;
     top: 5px;
     margin-right: 20px;
     margin-top: 0px;
     display: inline-block;
 }
-.indexMobile  .navTop div{
+.drawer1  .navTop div{
     position: relative;
     display: inline-block;
     width: 100%;
@@ -190,12 +191,12 @@ body a{
     border-left: 1px solid #727272;
     border-right: 1px solid #727272;
     border-top: 2px solid #727272;
-    border-radius: 20px;    
+    border-radius: 30px;    
     height: calc(100% - 170px);
     z-index: 1200;
 }
-.indexMobile .mobileNavigation{
-    border-radius: 40px;    
+.drawer1 .mobileNavigation{
+    /* border-radius: 40px;     */
     margin-top: 135px;
 }
 .shady{
@@ -218,50 +219,58 @@ body a{
     padding-left: 15px;
     font-size: 115%;
 }
-.indexMobile .container1{
+.drawer1 .navContainer{
+    display: block;
+    margin: auto;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+}
+.drawer1 .container1{
     display: inline-block;
     position: relative;
     left: 0px;
-    width: 35%;
-    padding-left: 10%;
     vertical-align: top;
 }
-.indexMobile .container2{
+.drawer1 .container2{
     display: inline-block;
     position: relative;
-    width: 20%;
-    padding-left: 10%;
+    right: 0%;
     vertical-align: top;
 }
-.indexMobile ul{
+.drawer1 ul{
     display: block;
     width: 40%;
     vertical-align: top;
     list-style: none;
     padding-left: 20px;
 }
-.indexMobile li{
+.drawer1 li{
     white-space: nowrap;
     padding: 10px 0px;
 }
-.indexMobile #userProfile{
-    padding-left: 10%;
+.drawer1 #userProfile{
+    padding-left: 5%;
 }
-.indexMobile #userProfile #userPic{
+.drawer1 #userProfile li{
+    display: inline-block;
+}
+.drawer1 #userProfile #userPic{
     height: 85px;
-    padding-left: 30%;
+    padding-left: 10px;
 }
-.indexMobile #userName{
+.drawer1 #userName{
+    position: relative;
     font-size: 55px;
-    left: 3%;
+    left: 20px;
     top: -20px;
 }
-.indexMobile #userProfile .settings{
+.drawer1 #userProfile .settings{
     right: 55px;
 }
-.searchMobile .navTop, .notificationsMobile .navTop, .pouponsMobile .navTop{
+.drawer4 .navTop, .drawer3 .navTop, .drawer2 .navTop{
     position: relative;
-    height: 120px;
+    height: 145px;
     width:100%;
     border: none;
     display: flex;
@@ -271,7 +280,7 @@ body a{
 .searchTabs{
     border: 1px solid green;
 }
-.searchMobile .navTop{
+.drawer4 .navTop{
     /* border: 1px solid red; */
 }
 .searchTab {
@@ -286,7 +295,7 @@ body a{
     display: block;
     right: 30px;
 }
-.searchMobile .mobileNavigation, .notificationsMobile .mobileNavigation, .pouponsMobile .mobileNavigation{
+.drawer4 .mobileNavigation, .drawer3 .mobileNavigation, .drawer2 .mobileNavigation{
     overflow: scroll;
     position: relative;
 }
@@ -371,7 +380,7 @@ body a{
     left: 0px;
     margin-top: -350px;
     border-radius: 40px;
-    padding-top: 20px;
+    padding-top: 40px;
     background-color: #f2f2f2;
     border-left: 2px solid #c4c4c4;
     border-right: 2px solid #c4c4c4;
@@ -436,7 +445,7 @@ body a{
     overflow-y: hidden;
     white-space: nowrap;
     z-index: 1000;
-    margin: 0px 5px;
+    margin: 0px 0px;
     box-sizing: border-box;
     font-size: 200%;
     box-shadow: 0px 1px 13px 1px gray;
@@ -452,6 +461,7 @@ body a{
     padding: 5px 12px;
     cursor: pointer;
     border-radius: 4px;
+    margin-right: -5px;
     white-space: nowrap;
     border-right: 2px solid #727272;
     border-left: none;
@@ -468,7 +478,7 @@ body a{
     top: 90px;
     left: 0;
     width: 100%;
-    height: 150px;
+    /* height: 150px; */
     max-height: 0;
     overflow-x: auto;
     overflow-y: hidden;
@@ -477,12 +487,13 @@ body a{
     z-index: 999;
 }
 .navOptionsMenu.open {
-    max-height: 90px;
+    max-height: 25vh;
     transition: max-height 0.3s ease-in-out;
 }
 .navOptionsMenu .navBar-item {
     flex: 0 0 auto;
     padding: 12px 14px 8px 12px;
+    margin: 25px 5px;
     white-space: nowrap;
     cursor: pointer;
 }
@@ -518,6 +529,9 @@ body a{
 }
 #navBar #datePickerForm input, #navBar #searchForm input{
     font-size: 60%;
+}
+.pagePicker {
+    margin: 25px auto;
 }
 .pagePicker a{
     padding: 35px 35px;
@@ -705,6 +719,7 @@ body a{
     font-size: 120%;
     justify-content: center;
     border-bottom: 2px solid #c4c4c4 !important;
+    -webkit-touch-callout: none;
 }
 .bottomDivider{
     border-bottom: 2px solid #c4c4c4 !important;
@@ -792,6 +807,7 @@ body a{
     height: 170px;
     width: 100%;
     z-index: 20000 !important;
+    -webkit-touch-callout: none;
 }
 #bottomNavBar .shadow{
     position: absolute;

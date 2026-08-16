@@ -1,6 +1,8 @@
 
 
-
+* {
+    -webkit-tap-highlight-color: #515151;
+}
 body{
   background: linear-gradient(to bottom, #09437A, #011D37 400px);
 }

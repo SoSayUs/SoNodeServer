@@ -20,6 +20,7 @@ urlpatterns = [
     path('network/', include("network.urls")),
     path('utils/', include("utils.urls")),
     path('', include("posts.urls")),
+    path('', include("transactions.urls")),
     path('', include("legis.urls")),
 
     re_path(r'^static/(?P<path>.*)$', serve,
