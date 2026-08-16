@@ -1270,11 +1270,12 @@ def get_objType(obj):
         return None
 
 def dynamic_bulk_create(model_name=None, model=None, items=[], return_items=False, retrieve_missing=True):
-    prntDebug('dynamic_bulk_create', model_name)
+    prntDebug('-dynamic_bulk_create', model_name)
 
     if not model:
         model = get_model(model_name)
     if not model:
+        prnt('no model')
         return None
     if model._meta.object_name == 'Post':
         model_manager = 'all_objects'

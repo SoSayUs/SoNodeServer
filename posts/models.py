@@ -9,10 +9,13 @@ from urllib.parse import urljoin
 from utils.models import (
     BinaryBase62Field, prnt, prntDebug, get_dynamic_model, has_method, is_obj_commit_valid, 
     now_utc, has_field, string_to_dt, initial_save, save_mutable_fields, 
-    find_or_create_chain_from_object, baseline_time, safe_dt, get_plugin,
+    find_or_create_chain_from_object, baseline_time, safe_dt,
     get_operator_obj, is_locked, superDelete, get_pointer_type, get_timeData
     )
 from utils.locked import sign_obj, hash_obj_id
+from utils.utils import (
+    get_plugin
+)
 
 import random
 import pytz

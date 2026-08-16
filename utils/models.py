@@ -2299,15 +2299,15 @@ def get_model(obj_type, all_models=False):
         return apps.get_model(app_name, obj_type)
     return None
 
-def get_plugin(obj, name=False):
-    try:
-        if name:
-            return obj._meta.app_label
-        from network.models import Plugin
-        return Plugin.objects.filter(app_name=obj._meta.app_label).first()
-    except Exception as e:
-        prnt('get_plugin err',str(e))
-        return None
+# def get_plugin(obj, name=False):
+#     try:
+#         if name:
+#             return obj._meta.app_label
+#         from network.models import Plugin
+#         return Plugin.objects.filter(app_name=obj._meta.app_label).first()
+#     except Exception as e:
+#         prnt('get_plugin err',str(e))
+#         return None
 
 def get_objType(obj):
     try:
@@ -2317,11 +2317,12 @@ def get_objType(obj):
         return None
 
 def dynamic_bulk_create(model_name=None, model=None, items=[], return_items=False, retrieve_missing=True):
-    prntDebug('dynamic_bulk_create', model_name)
+    prntDebug('-dynamic_bulk_create', model_name)
 
     if not model:
         model = get_model(model_name)
     if not model:
+        prnt('no model')
         return None
     if model._meta.object_name == 'Post':
         model_manager = 'all_objects'
@@ -3174,10 +3175,11 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                             setattr(obj, f.name, string_to_dt(data[f.name]))
                     elif str(f.name) in ['networkChain','commitChain']:
                         if str(getattr(obj, f.name)) != data[f.name]:
-                            if data[f.name] == 'Nodes':
-                                pass
-                            elif data[f.name] == 'Sonet':
+                            # if data[f.name] == 'Nodes':
+                            #     pass
+                            if data[f.name] == 'Sonet':
                                 from network.models import _EarthChain_genesisId
+                                from utils.utils import get_plugin
                                 if get_plugin(obj, name=True) == 'network' or data['id'] == _EarthChain_genesisId:
                                     updatedDB = True
                                     updated_fields.append(f.name)
@@ -3422,7 +3424,7 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                 network_chain, commit_chain = obj.get_chains()
             
             elif obj_is_model and has_field(obj, 'commitChain') and obj.commitChain or not obj_is_model and 'commitChain' in obj and obj['commitChain']:
-                
+                from utils.utils import get_plugin
                 if obj_is_model and is_id(obj.commitChain):
                     commit_chain = Blockchain.objects.filter(Q(id=obj.commitChain)|Q(genesisId=obj.commitChain)).only('id','genesisName','genesisId').first()
                     if not commit_chain:
@@ -3432,7 +3434,7 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                             rewardsData = {}
                             from network.models import reward_models
                             if any(i for i in reward_models if obj.commitChain.startswith(i)):
-                                from utils.utils import get_plugin
+                                
                                 rewardsData = {'regionId':obj.Region_obj, 'pluginId':get_plugin(obj.id, id=True)}
                             commit_chain = Blockchain(genesisId=obj.commitChain, rewardsData=rewardsData)
                         commit_chain.save()
@@ -3445,7 +3447,7 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                             rewardsData = {}
                             from network.models import reward_models
                             if any(i for i in reward_models if obj['commitChain'].startswith(i)):
-                                from utils.utils import get_plugin
+                                
                                 rewardsData = {'regionId':obj['Region_obj'], 'pluginId':get_plugin(obj['id'], id=True)}
                             commit_chain = Blockchain(genesisId=obj['commitChain'], rewardsData=rewardsData)
                         commit_chain.save()
@@ -3526,6 +3528,7 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                 network_chain.save()
     else:
         from network.models import universalChains
+        from utils.utils import get_plugin
         if has_field(obj, 'networkChain') and (obj_is_model and obj.networkChain in universalChains or not obj_is_model and obj['networkChain'] in universalChains):
             prnt('p5')
             if obj_is_model:
@@ -3651,6 +3654,25 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                                     commit_chain.save()
                             except Exception as e:
                                 prnt('find chain err 2',str(e))
+                                if has_field(obj, 'commitChain') and (obj_is_model and obj.commitChain in universalChains or not obj_is_model and obj['commitChain'] in universalChains):
+                                    prnt('p5')
+                                    if obj_is_model:
+                                        for n in universalChains:
+                                            if n == obj.commitChain:
+                                                chainId = n
+                                                break
+                                    else:
+                                        for n in universalChains:
+                                            if n == obj['commitChain']:
+                                                chainId = n
+                                                break
+                                    commit_chain = Blockchain.objects.filter(Q(id=get_chain_id(chainId))|Q(genesisId=chainId)|Q(genesisName=chainId)).defer('queuedData').first()
+                                    if not commit_chain:
+                                        sonet = Sonet.objects.only('id','created').first()
+                                        if sonet:
+                                            prnt('new commit chain branched from Sonet chain',chainId)
+                                            commit_chain = Blockchain(genesisId=chainId, genesisType=chainId, genesisName=chainId, created=sonet.created)
+                                            commit_chain.save()
                     
             prntDebug('done find chainx', network_chain, obj, commit_chain)
             return network_chain, obj, commit_chain
@@ -6249,6 +6271,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                 created_items = dynamic_bulk_create(current_model_type, items=bulk_create_objs, return_items=True, retrieve_missing=get_missing_blocks)
                 prnt('created_items',[i.id for i in created_items])
                 synced_idens += [i.id for i in created_items]
+                prnt('proof:',[i['id'] for i in get_model(current_model_type).objects.filter(id__in=synced_idens).values('id')])
                 if return_updated_objs:
                     updated_objs = updated_objs + created_items
                 elif return_updated_ids:
@@ -6261,6 +6284,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
             if bulk_update_objs:
                 updated_items = dynamic_bulk_update(current_model_type, items=bulk_update_objs, return_items=True, retrieve_missing=get_missing_blocks)
                 synced_idens += [i.id for i in updated_items]
+                prnt('proof:',[i['id'] for i in get_model(current_model_type).objects.filter(id__in=synced_idens).values('id')])
                 if return_updated_objs:
                     updated_objs = updated_objs + updated_items
                 elif return_updated_ids:

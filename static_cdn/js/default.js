@@ -1514,7 +1514,7 @@ async function modalPopUp(title, target=null, content=null) {
   };
   return m;
 };
-function closeModal(m=null) {
+function closeModal(m=null, close_nav=true) {
   // console.log('-close modal');
   if (m == null) {
     m = document.getElementsByClassName('modalWidget')[0];
@@ -1527,8 +1527,8 @@ function closeModal(m=null) {
   modal.addClass('fade-out');
   var isMobile = document.getElementById('isMobile').name;
   // console.log('isMobile',isMobile);
-  if (isMobile == 'True') {
-    mobileSwitch(null);
+  if (isMobile == 'True' && close_nav) {
+    mobileSwitch(null, close_modal=false);
     modal.removeClass('show');
     modal.removeClass('fade-out');
     hideDarkenOverlay();
@@ -3197,11 +3197,11 @@ async function load_queue() {
                 storeNavigation();
               } else {
                 const $newMobileNav = $response.find(".mobileNavContent");
-                console.log('newMobileNav',$newMobileNav.html());
+                // console.log('newMobileNav',$newMobileNav.html());
                 if ($newMobileNav.length) {
                   var nav = sanitizeWithException($newMobileNav.html(), ["modalPopUp", "logout", "themer", "select_node", "mobileSwitch"]);
                   $(".mobileNavContent").html(nav);
-                  console.log('new mobile nav',nav)
+                  // console.log('new mobile nav',nav)
                   storeNavigation();
                 };
               };
@@ -3321,8 +3321,12 @@ document.addEventListener("click", function(event) {
 });
 
 
-function mobileSwitch(screen){
+function mobileSwitch(screen, close_modal=true){
   // console.log('-mobileSwitch',screen);
+    modal = $('.modalWidget');
+    if (screen != 'so' && modal.hasClass('show') && close_modal) {
+      closeModal(close_nav=false);
+    }
     labels = document.getElementsByClassName('label');
     for (i=0;i<labels.length;i++) {
       if (labels[i].id == 'drawer1') {

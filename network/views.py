@@ -72,7 +72,7 @@ def get_current_node_list_view(request):
         from utils.locked import get_relevant_nodes
         from network.models import NodeRecord, _EarthChain_genesisId
         dt = now_utc()
-        record = NodeRecord.objects.filter(chainId=_EarthChain_genesisId, DateTime__lte=dt, is_valid=True).first()
+        record = NodeRecord.objects.filter(pointerId=_EarthChain_genesisId, DateTime__lte=dt, is_valid=True).first()
         node_data = get_relevant_nodes(include_relays=True, strings_only=True)
         addresses = {}
         for key, value in node_data['relevant_nodes'].items():
@@ -309,7 +309,7 @@ def broadcast_dataPackets_view(request):
                             prnt('dataPackets to broadcast',dataPackets)
                             success = None
                             for dp in dataPackets:
-                                if len(dp.data.keys()) > 0 or dp.chainId == _OperationsChain_genesisId:
+                                if len(dp.data.keys()) > 0 or dp.networkChain == _OperationsChain_genesisId:
                                     result = dp.broadcast_dp() # this will need to be a worker, node should check is_data_processing
                                     if success == None or success == True:
                                         success = result
@@ -619,7 +619,7 @@ def request_data_view(request):
                     sending_idens = []
                     compressed_data = []
                     from utils.models import is_id, to_megabytes, logEvent, compress_data, get_model_prefix, seperate_by_type, sigData_to_hash
-                    from utils.locked import check_commit_data
+                    from utils.locked import check_commit_data, verify_obj_to_data
                     if obj_type == 'Blockchain':
                         genesisId = requested_data['genesisId']
                         try:
@@ -944,12 +944,12 @@ def request_data_view(request):
                             if items == 'All':
                                 index = requested_data['index']
                                 if requested_update_dt:
-                                    models = get_dynamic_model(model_type, list=[int(index), int(index) + max_obj_send_count], order_by='created', exclude={"id__in": exclude}, last_update__gte=requested_update_dt)
+                                    models = get_dynamic_model(model_type, list=[int(index), int(index) + max_obj_send_count], order_by='created', exclude={"id__in": exclude}, lastUpdate__gte=requested_update_dt)
                                 else:
                                     models = get_dynamic_model(model_type, list=[int(index), int(index) + max_obj_send_count], order_by='created', exclude={"id__in": exclude})
                             else:
                                 if requested_update_dt:
-                                    models = get_dynamic_model(model_type, list=True, order_by='created', exclude={"id__in": exclude}, last_update__gte=requested_update_dt, id__in=items)
+                                    models = get_dynamic_model(model_type, list=True, order_by='created', exclude={"id__in": exclude}, lastUpdate__gte=requested_update_dt, id__in=items)
                                 else:
                                     models = get_dynamic_model(model_type, list=True, order_by='created', exclude={"id__in": exclude}, id__in=items)
                             if models:
@@ -1054,7 +1054,7 @@ def request_data_view(request):
                         elif obj_type == 'Region' and items == 'networkSupported':
                             index = requested_data['index']
                             if requested_update_dt:
-                                models = get_dynamic_model(obj_type, list=[int(index), int(index) + max_obj_send_count], order_by='created', last_update__gte=requested_update_dt, is_supported=True)
+                                models = get_dynamic_model(obj_type, list=[int(index), int(index) + max_obj_send_count], order_by='created', lastUpdate__gte=requested_update_dt, is_supported=True)
                             else:
                                 models = get_dynamic_model(obj_type, list=[int(index), int(index) + max_obj_send_count], is_supported=True)
                             index = int(index) + max_obj_send_count
