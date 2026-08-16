@@ -3178,14 +3178,14 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                         prnt('data[f.name]',data[f.name])
                         prnt("str(getattr(obj, f.name))",str(getattr(obj, f.name)))
                         if str(getattr(obj, f.name)) != data[f.name]:
-                            prnt('p0',obj._meta.object_name)
-                            if data[f.name] == 'Nodes' and obj._meta.object_name != 'network':
+                            from utils.utils import get_plugin
+                            prnt('p0',get_plugin(obj, name=True))
+                            if data[f.name] == 'Nodes' and get_plugin(obj, name=True) != 'network':
                                 pass
                                 prnt('p1')
                             elif data[f.name] == 'Sonet':
                                 prnt('p2')
                                 from network.models import _EarthChain_genesisId
-                                from utils.utils import get_plugin
                                 if get_plugin(obj, name=True) == 'network' or data['id'] == _EarthChain_genesisId:
                                     prnt('p3')
                                     updatedDB = True
