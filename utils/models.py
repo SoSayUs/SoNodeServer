@@ -2994,7 +2994,7 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
     import decimal
     from django.contrib.contenttypes.models import ContentType
     from utils.locked import sort_for_sign
-    prnt('-set_model_attrs',obj,get_missing_blocks)
+    prnt('-set_model_attrs',obj,get_missing_blocks,debug)
     
     updatedDB = False
     updated_fields = []
