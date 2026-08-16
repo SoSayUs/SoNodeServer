@@ -950,6 +950,9 @@ class DataPacket(models.Model):
         def send_to_all(obj):
             prnt('send_to_all',str(obj)[:150])
             allPacket = DataPacket.objects.filter(networkChain='All').first()
+            if not allPacket:
+                allPacket = DataPacket(networkChain='All')
+                
             save_all = False
             if isinstance(obj, list):
                 for i in obj:
