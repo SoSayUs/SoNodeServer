@@ -3621,7 +3621,7 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                             rewardsData = {}
                             from network.models import reward_models
                             if any(i for i in reward_models if obj.commitChain.startswith(i)):
-                                from utils.utils import get_plugin
+                                # from utils.utils import get_plugin
                                 rewardsData = {'regionId':obj.Region_obj, 'pluginId':get_plugin(obj.id, id=True)}
                             commit_chain = Blockchain(genesisId=obj.commitChain, rewardsData=rewardsData)
                         commit_chain.save()
@@ -3634,7 +3634,7 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                             rewardsData = {}
                             from network.models import reward_models
                             if any(i for i in reward_models if obj['commitChain'].startswith(i)):
-                                from utils.utils import get_plugin
+                                # from utils.utils import get_plugin
                                 rewardsData = {'regionId':obj['Region_obj'], 'pluginId':get_plugin(obj['id'], id=True)}
                             commit_chain = Blockchain(genesisId=obj['commitChain'], rewardsData=rewardsData)
                         commit_chain.save()

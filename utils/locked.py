@@ -306,7 +306,7 @@ def process_gathered_data(received_data, override_completed=False):
                     break
 
     q += '19'
-    from utils.models import get_data, connect_to_node
+    from utils.utils import get_data, connect_to_node
     validator = sign_obj(validator)
     obj_list = [convert_to_dict(validator)]
     for i in content:
@@ -2067,7 +2067,7 @@ def calculate_reward(dt, previous_dt):
 
 def validate_obj(obj=None, pointer=None, validators=None, save_obj=True, update_pointer=True, verify_validator=True, add_to_queue=True, opBlock_data={}):
     # obj should be post
-    from utils.models import prnt, now_utc, has_field, get_plugin
+    from utils.utils import prnt, now_utc, has_field, get_plugin
     prnt('--validate_obj now_utc:',obj,pointer, now_utc(),'save_obj',save_obj)
     validator = None
     target = None
@@ -2776,7 +2776,8 @@ def get_relevant_nodes(dt=None, genesisId=None, chains=None, blockchain=None, pl
     return {'relevant_nodes':{}, 'opData':get_default_opData()}
 
 def check_block_contents(block, retrieve_missing=True, update_items=False, log_missing=False, downstream_worker=True, return_missing=False, input_data=None, uncommitted_required=False):
-    from utils.models import chunk_dict, get_timeData, has_field, has_method, get_dynamic_model, sigData_to_hash, exists_in_worker, get_data, now_utc, prnt, string_to_dt, is_id, declare_var, request_items, logMissing, logError, get_plugin
+    from utils.models import chunk_dict, get_timeData, has_field, has_method, get_dynamic_model, sigData_to_hash, exists_in_worker, get_data, now_utc, prnt, string_to_dt, is_id, declare_var, request_items, logMissing, logError
+    from utils.utils import get_plugin
     prnt('-check_block_contents', block, block.index, now_utc(), retrieve_missing, downstream_worker)
     from network.models import Validator, max_commit_window
     input_data = declare_var(input_data, {})
