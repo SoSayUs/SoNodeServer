@@ -2990,7 +2990,7 @@ def sync_and_share_object(obj, received_json, skip_verify=False):
         share_with_network(obj)
     return obj, valid_obj
 
-def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_fields=[], debug=False, get_missing_blocks=True):
+def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_fields=[], debug=True, get_missing_blocks=True):
     import decimal
     from django.contrib.contenttypes.models import ContentType
     from utils.locked import sort_for_sign
