@@ -461,8 +461,8 @@ def build_records_view(request):
     if assess_received_header(request.headers, return_is_self=True):
         raw_data = request.body.decode('utf-8')
         received_data = json.loads(raw_data)
-        requested_index = json.loads(received_data.get('request'))
-        b = Block.objects.filter(networkChain='Nodes', index=requested_index, validated=True).first()
+        requested = json.loads(received_data.get('request'))
+        b = Block.objects.filter(networkChain='Nodes', index=requested['index'], validated=True).first()
         if b:
             b.build_node_record()
             return JsonResponse({'message' : 'Success', 'index': b.index+1})
