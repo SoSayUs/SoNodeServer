@@ -3299,8 +3299,19 @@ class Blockchain(models.Model):
     def get_genesis_pointer(self):
         # prntDebug('-get_genesis_pointer')
         if self.genesisId == _OperationsChain_genesisId:
-            return Node.objects.all().order_by('created').first()
-        obj = get_dynamic_model(self.genesisType, id=self.genesisId)
+            obj = Node.objects.all().order_by('created').first()
+        elif is_id(self.genesisId):
+            obj = get_dynamic_model(self.genesisType, id=self.genesisId)
+        else:
+            model = get_model(self.genesisType)
+            if model:
+                obj = model.objects.all().order_by('added_to_node').first()
+            else:
+                from accounts.models import User, UserPubKey
+                if self.genesisType == 'Accounts':
+                    obj = User.objects.all().order_by('added_to_node').first()
+                elif self.genesisType == 'Keys':
+                    obj = UserPubKey.objects.all().order_by('added_to_node').first()
         return obj
 
     def create_dummy_block(self, now=None):

@@ -829,7 +829,6 @@ def request_data_view(request):
                             block_list = compress_data(block_list)
                         return JsonResponse({'message' : 'Success', 'type' : 'Blocks', 'blockchainId' : block.networkChain, 'genesisId':block.Blockchain_obj.genesisId, 'block_idens':block_idens, 'block_list' : block_list, 'index' : index, 'end_of_chain' : True if any(b for b in blocks if b.index == block.Blockchain_obj.chain_length) else False, 'force_check':False})
                 
-
                     elif obj_type == 'multi':
                         requested_items = requested_data['items']
                         if 'exclude' in requested_data:

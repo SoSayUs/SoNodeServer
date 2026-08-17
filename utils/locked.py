@@ -2687,7 +2687,7 @@ def get_relevant_nodes(dt=None, genesisId=None, chains=None, blockchain=None, pl
             from django.db import models
             if isinstance(blockchain, models.Model):
                 genesisId = blockchain.genesisId
-            if any(prefix for prefix in reward_models if genesisId.startswith(prefix)):
+            if genesisId and any(prefix for prefix in reward_models if genesisId.startswith(prefix)):
                 if not blockchain:
                     blockchain = Blockchain.objects.filter(genesisId=blockchain).only('genesisType','genesisId').first()
                 if blockchain and blockchain.rewardsData:

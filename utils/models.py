@@ -2990,7 +2990,7 @@ def sync_and_share_object(obj, received_json, skip_verify=False):
         share_with_network(obj)
     return obj, valid_obj
 
-def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_fields=[], debug=True, get_missing_blocks=True):
+def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_fields=[], debug=False, get_missing_blocks=True):
     import decimal
     from django.contrib.contenttypes.models import ContentType
     from utils.locked import sort_for_sign
@@ -3174,25 +3174,17 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                             updated_fields.append(f.name)
                             setattr(obj, f.name, string_to_dt(data[f.name]))
                     elif str(f.name) in ['networkChain','commitChain']:
-                        prnt('fff',f)
-                        prnt('data[f.name]',data[f.name])
-                        prnt("str(getattr(obj, f.name))",str(getattr(obj, f.name)))
                         if str(getattr(obj, f.name)) != data[f.name]:
                             from utils.utils import get_plugin
-                            prnt('p0',get_plugin(obj, name=True))
                             if data[f.name] == 'Nodes' and get_plugin(obj, name=True) != 'network':
                                 pass
-                                prnt('p1')
                             elif data[f.name] == 'Sonet':
-                                prnt('p2')
                                 from network.models import _EarthChain_genesisId
                                 if get_plugin(obj, name=True) == 'network' or data['id'] == _EarthChain_genesisId:
-                                    prnt('p3')
                                     updatedDB = True
                                     updated_fields.append(f.name)
                                     setattr(obj, f.name, data[f.name])
                             else:
-                                prnt('p4')
                                 updatedDB = True
                                 updated_fields.append(f.name)
                                 setattr(obj, f.name, data[f.name])
