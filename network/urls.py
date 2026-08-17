@@ -18,6 +18,7 @@ urlpatterns = [
     path('receive_posts_for_validating', chain_views.receive_posts_for_validating_view),
     path('receive_gathered_data', chain_views.receive_gathered_data_view),
 
+    path('build_records', chain_views.build_records_view),
     path('receive_data', chain_views.receive_data_view),
     path('request_data', chain_views.request_data_view),
     path('request_obj', chain_views.request_obj_view),

@@ -2099,7 +2099,7 @@ class Block(models.Model):
 
     def build_node_record(self):
         prnt('--build_node_record',self.id)
-        prnt('self.data',self.data)
+        # prnt('self.data',self.data)
         
         def shuffle_order(node_ids, salt=''):
             if not node_ids:

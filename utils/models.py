@@ -6586,6 +6586,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                     if obj._meta.object_name == 'Region': # ParentRegion_obj must be saved before bulk update
                         val_err += 'J'
                         obj.save(sigs[0])
+                        save_sigs(sigs)
                     else:
                         bulk_update_items[obj.id] = {'is_new':is_new,'updatedDB':updatedDB,'obj':obj, 'sigs':sigs}
                     synced_idens.append(obj.id)

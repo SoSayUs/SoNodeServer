@@ -456,6 +456,21 @@ def check_latest_data_view(request, model_type):
             return JsonResponse({'message' : 'Not Found'})
 
 @csrf_exempt
+def build_records_view(request):
+    # during activation
+    if assess_received_header(request.headers, return_is_self=True):
+        raw_data = request.body.decode('utf-8')
+        received_data = json.loads(raw_data)
+        requested_index = json.loads(received_data.get('request'))
+        b = Block.objects.filter(networkChain='Nodes', index=requested_index, validated=True).first()
+        if b:
+            b.build_node_record()
+            return JsonResponse({'message' : 'Success', 'index': b.index+1})
+        else:
+            return JsonResponse({'message' : 'Done', 'index': None})
+
+
+@csrf_exempt
 def receive_data_view(request):
     # from sonodeManager
     prnt('-receive_data_view')
