@@ -1346,7 +1346,20 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
             block_created_dt = string_to_dt(val_obj.created)
             block_dt = block_created_dt
             obj_commit_data = get_commit_data(val_obj)
-            temp_block = Block(id=block_id, Transaction_obj=val_obj, created=val_obj.created, DateTime=val_obj.created, Blockchain_obj=Blockchain.objects.filter(genesisId=val_obj.regarding['GenesisId']).first())
+
+            chain = Blockchain.objects.filter(genesisId=val_obj.regarding['GenesisId']).first()
+            if not chain:
+                from utils.utils import fetch_obj_data
+                from utils.models import find_or_create_chain_from_object
+                obj_dict = fetch_obj_data(val_obj.regarding['GenesisId'])
+                if obj_dict:
+                    network_chain, obj, commit_chain = find_or_create_chain_from_object(obj_dict)
+                    if commit_chain and commit_chain.genesisId == val_obj.regarding['GenesisId']:
+                        chain = commit_chain
+                    elif network_chain and network_chain.genesisId == val_obj.regarding['GenesisId']:
+                        chain = network_chain
+                
+            temp_block = Block(id=block_id, Transaction_obj=val_obj, created=val_obj.created, DateTime=val_obj.created, Blockchain_obj=chain)
             
             next_block = inputted_data['next_block']
             block_delay = inputted_data['block_delay']
