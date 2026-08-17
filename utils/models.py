@@ -6408,6 +6408,8 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                                     user.save(bypass_verify=True)
                                     obj = user
                                     save_sigs(sigs)
+                                    if has_method(obj, 'boot'):
+                                        obj.boot()
                                     new = False
                         else:
                             val_err += 'C'
@@ -6508,6 +6510,8 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                                 obj, sigs, updatedDB = set_model_attrs(obj, i, get_missing_blocks=get_missing_blocks)
                                 obj.save(bypass_verify=True)
                                 save_sigs(sigs)
+                                if has_method(obj, 'boot'):
+                                    obj.boot()
                                 new_upk_valid = verify_data(get_signing_data(obj), i['signed'])
                                 prnt('new_upk_valid?',new_upk_valid)
                                 is_new = False
