@@ -25,7 +25,7 @@ def get_item(dictionary, key):
     try:
         return dictionary.get(key)
     except Exception as e:
-        prnt('get_item err',str(e),'key',key)
+        prnt('get_item err',str(e),'key',key,'dictionary',dictionary)
         return None
 
 @register.filter
@@ -123,7 +123,7 @@ def get_update(obj):
 
 @register.filter
 def modelNameByRegion(region, model_name):
-    if region.data:
+    if region and region.data:
         if model_name in region.data and 'name' in region.data[model_name] and region.data[model_name]['name']:
             return region.data[model_name]['name']
     return model_name
@@ -906,7 +906,7 @@ def chains_view(request):
         nav_options = [
                 ]
     subtitle = ''
-    posts = Blockchain.objects.all().defer('queuedData').order_by('-updated_on_node')
+    posts = Blockchain.objects.all().defer('queuedData').order_by('-last_block_datetime')
     
     setlist = paginater(posts, page, request)
     context = {

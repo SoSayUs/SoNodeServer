@@ -88,7 +88,7 @@ def house_or_senate_hansards_view(request, region):
         userKeys = get_trending_keys(dt, ['Meeting'], current_chamber_list)
 
     context = default_context(request, posts, 'debates_list', nav_options)
-    context['title'] = title
+    context['feed_title'] = title
     context['subtitle'] = subtitle
     context['user_keywords'] = userKeys
     return render_view(request, context, country_dict, 'legis')
@@ -140,10 +140,11 @@ def debate_view(request, region, chamber, govNumber, session, iden, year, month,
     video_link = None
     prnt('topic', topic)
     if '_' in iden or len(iden) < 33:
-        p = Post.objects.filter(Meeting_obj__Title__iexact=iden.replace('_',' ')).first()
+        m = Meeting.objects.filter(Title__iexact=iden.replace('_',' ')).first()
     else:
-        p = Post.objects.filter(Meeting_obj__id=iden).first()
-    m = p.Meeting_obj
+        m = Meeting.objects.filter(id=iden).first()
+    # m = p.Meeting_obj
+    p = Post.objects.filter(id=get_post_id(m.id)).first()
     meetingUpdate = p.Update_obj
     sprenPost = None
     # if style == 'index':
@@ -248,17 +249,18 @@ def debate_view(request, region, chamber, govNumber, session, iden, year, month,
             posts = Post.objects.filter(Statement_obj__Meeting_obj=m).select_related('Statement_obj__Person_obj', 'Statement_obj').order_by(*ordering)
 
     else:
-        posts = Post.objects.filter(Statement_obj__Meeting_obj=m).select_related('Statement_obj__Person_obj', 'Statement_obj').order_by(*ordering)
+        statements = Statement.objects.filter(Meeting_obj=m).values('id')
+        posts = Post.objects.filter(id__in=[get_post_id(i['id']) for i in statements]).select_related('Update_obj').order_by(*ordering)
     if id:
-        setlist = paginater(posts, 'id=%s' %(id), request)
-        statement = setlist[0].Statement_obj
+        setlist = paginater(posts, 'id=%s' %(id))
+        statement = setlist[0]
         if statement.order:
             hasContext = statement.order
         else:
             hasContext = statement.id
         video_link = None
     else:
-        setlist = paginater(posts, page, request)
+        setlist = paginater(posts, page)
     # prnt('posts len',len(posts))
     # try:
     #     isApp = request.COOKIES['fcmDeviceId']
@@ -290,7 +292,7 @@ def debate_view(request, region, chamber, govNumber, session, iden, year, month,
     # }
     # return render_view(request, context, country=country_dict)
 
-    context = default_context(request, posts, 'debate_view', nav_options, sort='Earliest', paginate=False)
+    context = default_context(request, setlist, 'debate_view', nav_options, sort='Earliest', paginate=False)
     context['feed_title'] = title
     context['hasContext'] = hasContext
     context['sprenPost'] = sprenPost
@@ -381,7 +383,7 @@ def legislature_view(request, region):
     page = request.GET.get('page', 1)
     getDate = request.GET.get('date', None)
     date = request.POST.get('date')
-    title = 'Legislature'
+    title = 'SoVote'
     r = default_setup(request, title, region, 'legis')
     if r:
         return r
@@ -416,7 +418,7 @@ def legislature_view(request, region):
             ]
 
     form = AgendaForm()
-    title = f'{country_dict["Name"]} Legislature!'
+    title = f'SoVote {country_dict["Name"]}'
     subtitle = ''
     cards = 'home_list'
     if view == 'Upcoming':
@@ -453,32 +455,37 @@ def legislature_view(request, region):
         except:
             dt = datetime.datetime.now().replace(tzinfo=pytz.UTC) - datetime.datetime.now().replace(tzinfo=pytz.UTC)
         userKeys = get_trending_keys(dt, include_list, current_chamber_list)
-    setlist = paginater(posts, page, request)
-    daily = None
-    if page == 1:
-        pass
-    try:
-        isApp = request.COOKIES['fcmDeviceId']
-    except:
-        isApp = None
-    context = {
-        'isApp': isApp,
-        'title': title,
-        'subtitle': subtitle,
-        'nav_bar': nav_options,
-        'view': view,
-        'region': region,
-        'dateForm': form,
-        'user_keywords': userKeys,
-        'dailyCard': daily,
-        'cards': cards,
-        'sort': sort,
-        'filter': current_chamber_name,
-        'feed_list':setlist,
-        'useractions': get_useractions(user_id, setlist),
-        # 'myRepVotes': getMyRepVotes(user_id, setlist),
-    }
-    return render_view(request, context, country=country_dict)
+    # setlist = paginater(posts, page)
+    # daily = None
+    # if page == 1:
+    #     pass
+    # try:
+    #     isApp = request.COOKIES['fcmDeviceId']
+    # except:
+    #     isApp = None
+    context = default_context(request, posts, 'home_list', nav_options)
+    context['feed_title'] = title
+    context['subtitle'] = subtitle
+    context['user_keywords'] = userKeys
+    return render_view(request, context, country_dict, 'legis')
+    # context = {
+    #     'isApp': isApp,
+    #     'feed_title': title,
+    #     'subtitle': subtitle,
+    #     'nav_bar': nav_options,
+    #     'view': view,
+    #     'region': region,
+    #     'dateForm': form,
+    #     'user_keywords': userKeys,
+    #     'dailyCard': daily,
+    #     'cards': cards,
+    #     'sort': sort,
+    #     'filter': current_chamber_name,
+    #     'feed_list':setlist,
+    #     'useractions': get_useractions(user_id, setlist),
+    #     # 'myRepVotes': getMyRepVotes(user_id, setlist),
+    # }
+    # return render_view(request, context, country=country_dict)
         
 
 def agendas_view(request, region, Chamber):
@@ -524,7 +531,7 @@ def agendas_view(request, region, Chamber):
         title = '%s Agendas' %(Chamber)
         h = '/House-agendas'
         s = '/agendas'
-    setlist = paginater(posts, page, request)
+    setlist = paginater(posts, page)
     try:
         isApp = request.COOKIES['fcmDeviceId']
     except:
@@ -589,7 +596,8 @@ def bill_view(request, region, chamber, govNumber, session, numcode):
         changeSort = 'old'
         ordering = '-DateTime'
         order2 = '-id'
-    billPost = Post.objects.filter(Bill_obj__NumberCode=numcode, Bill_obj__Government_obj__GovernmentNumber=govNumber, Bill_obj__Government_obj__SessionNumber=session).first()
+    bill = Bill.objects.filter(NumberCode=numcode, Government_obj__GovernmentNumber=govNumber, Government_obj__SessionNumber=session).first()
+    billPost = Post.objects.filter(id=get_post_id(bill.id)).first()
     if not billPost:
         billPost = Archive.objects.filter(Bill_obj__NumberCode=numcode, Bill_obj__Government_obj__GovernmentNumber=govNumber, Bill_obj__Government_obj__SessionNumber=session).first()
 
@@ -614,14 +622,14 @@ def bill_view(request, region, chamber, govNumber, session, numcode):
     title_link = None
     billText = None
     if request.GET.get('include_nav', False) == 'True':
-        nav_options = [nav_item('link', 'Overview', '%s?view=Overview' %(billPost.Bill_obj.get_absolute_url()), None), 
-                    nav_item('link', 'Text', '%s?view=Text' %(billPost.Bill_obj.get_absolute_url()), None), 
-                    nav_item('link', 'Debates', '%s?view=Debates' %(billPost.Bill_obj.get_absolute_url()), None), 
-                    nav_item('link', 'Motions', '%s?view=Motions' %(billPost.Bill_obj.get_absolute_url()), None),
-                    nav_item('link', 'Updates', '%s?view=Updates' %(billPost.Bill_obj.get_absolute_url()), None),
-                    nav_item('link', 'Work', '%s?view=Work' %(billPost.Bill_obj.get_absolute_url()), None)]
-        title =  f"{billPost.Bill_obj.Chamber} {billPost.Bill_obj.BillDocumentTypeName}",
-        title_link =  billPost.Bill_obj.get_absolute_url(),
+        nav_options = [nav_item('link', 'Overview', '%s?view=Overview' %(bill.get_absolute_url()), None), 
+                    nav_item('link', 'Text', '%s?view=Text' %(bill.get_absolute_url()), None), 
+                    nav_item('link', 'Debates', '%s?view=Debates' %(bill.get_absolute_url()), None), 
+                    nav_item('link', 'Motions', '%s?view=Motions' %(bill.get_absolute_url()), None),
+                    nav_item('link', 'Updates', '%s?view=Updates' %(bill.get_absolute_url()), None),
+                    nav_item('link', 'Work', '%s?view=Work' %(bill.get_absolute_url()), None)]
+        title =  f"{bill.Chamber} {bill.BillDocumentTypeName}",
+        title_link =  bill.get_absolute_url(),
     updatedVersion = None
     if getSpren and user and user.is_superuser:
         billPost.Bill_obj.getSpren(False)
@@ -641,7 +649,8 @@ def bill_view(request, region, chamber, govNumber, session, numcode):
     elif view.lower() == 'updates':
         posts = Post.objects.filter(pointerType='GenericModel', Country_obj__id=country_dict['id'], GenericModel_obj__pointerId=billPost.Bill_obj.id).order_by(ordering, order2)
     else:
-        posts = Post.objects.filter(Q(Motion_obj__Bill_obj=billPost.Bill_obj)|Q(pointerType='Meeting')&Q(Update_obj__data__Terms__icontains=billPost.Bill_obj.NumberCode)).filter(Country_obj__id=country_dict['id']).order_by(ordering, order2)
+        motions = Motion.objects.filter(Bill_obj__id=bill.id).values('id')
+        posts = Post.objects.filter(Q(id__in=[get_post_id(i['id']) for i in motions])|Q(pointerType='Meeting')&Q(Update_obj__data__Terms__icontains=bill.NumberCode)).filter(Country_obj__id=country_dict['id']).order_by(ordering, order2).select_related('Update_obj')
         prnt('postsoverview', posts)
         topicList = [billPost.Bill_obj.NumberCode]
     prnt("%s Bill" %(billPost.Bill_obj.Chamber))
@@ -865,7 +874,7 @@ def elections_view(request, region):
     else:  
         nav_options = [nav_item('link', 'All Elections', '?view=All Elections', None)]
 
-    setlist = paginater(posts, page, request) 
+    setlist = paginater(posts, page) 
     try:
         isApp = request.COOKIES['fcmDeviceId']
     except:
@@ -896,7 +905,7 @@ def candidates_view(request, organization, region, iden):
         title = "%s %s %s" %(election.province.name, election.district.name, election.type)
     else:
         title = "%s %s %s" %(election.province.name, election.level, election.type)
-    setlist = paginater(candidates, page, request)    
+    setlist = paginater(candidates, page)    
     context = {
         'title': title,
         'view': view,
@@ -983,13 +992,20 @@ def motions_view(request, region, type):
         else: 
             secondDate = now_utc() + datetime.timedelta(hours=1)
             firstDate = secondDate - datetime.timedelta(days=1000)
-        posts = Post.objects.filter(Country_obj__id=country_dict['id'], pointerType='Motion', filters__Chamber__in=current_chamber_list).order_by(sort_option, '-DateTime', 'Motion_obj__VoteNumber')
+        motions = Motion.objects.filter(Country_obj__id=country_dict['id'], Chamber__in=current_chamber_list).order_by(sort_option, '-DateTime', 'VoteNumber')
+
+        # posts = Post.objects.filter(Country_obj__id=country_dict['id'], pointerType='Motion', filters__Chamber__in=current_chamber_list).order_by(sort_option, '-DateTime', 'Motion_obj__VoteNumber')
 
     if sort.lower() == 'passed':
-        posts = posts.filter(Motion_obj__Yeas__gt=F('Motion_obj__Nays'))
+        motions = motions.filter(id__in=[], Yeas__gt=F('Motion_obj__Nays'))
+        # posts = posts.filter(Motion_obj__Yeas__gt=F('Motion_obj__Nays'))
     elif sort.lower() == 'failed':
-        posts = posts.filter(Motion_obj__Nays__gt=F('Motion_obj__Yeas'))
-    # setlist = paginate(posts, page, request)        
+        motions = motions.filter(id__in=[], Yeas__gt=F('Motion_obj__Yeas'))
+    setlist = paginater(motions, page)
+    for s in setlist:
+        prnt('s',s)
+    posts = Post.objects.filter(id__in=[get_post_id(i.id) for i in setlist])
+    # setlist = paginate(posts, page, request)
     # context = {
     #     'isApp': isApp,
     #     'view': view,
@@ -1005,7 +1021,7 @@ def motions_view(request, region, type):
     # }
     # return render_view(request, context, country=country_dict)
 
-    context = default_context(request, posts, 'motions_list', nav_options, sort='Time', view='past')
+    context = default_context(request, posts, 'motions_list', nav_options, sort='Time', view='past', paginate=False, pointers=setlist)
     context['feed_title'] = title
     context['myRepVotes'] = {}
     return render_view(request, context, country_dict, 'legis')
@@ -1068,15 +1084,16 @@ def motion_view(request, region, chamber, govNumber, session, number, type):
                 ]
         title_link =  motion.get_absolute_url(),
 
-    votes = Post.objects.filter(Vote_obj__Motion_obj=motion)
+    votes = RepVote.objects.filter(Motion_obj=motion)
     if party != 'All':
-        votes = votes.filter(Vote_obj__CaucusName__iexact=party)
+        votes = votes.filter(CaucusName__iexact=party)
     if vote != 'All':
-        votes = votes.filter(Vote_obj__VoteValue__iexact=vote)
+        votes = votes.filter(VoteValue__iexact=vote)
     if sort != 'All':
-        votes = votes.filter(Vote_obj__PersonFullName__istartswith=sort)
+        votes = votes.filter(PersonFullName__istartswith=sort)
     if subRegion != 'All':
-        votes = votes.filter(Vote_obj__ConstituencyProvStateName__icontains=subRegion)
+        votes = votes.filter(ConstituencyProvStateName__icontains=subRegion)
+    posts = Post.objects.filter(id__in=[get_post_id(i['id']) for i in votes]).select_related('Update_obj')
     # setlist = paginate(votes, page, request)
     # try:
     #     isApp = request.COOKIES['fcmDeviceId']
@@ -1097,7 +1114,7 @@ def motion_view(request, region, chamber, govNumber, session, number, type):
     # }
     # return render_view(request, context, country=country_dict)
 
-    context = default_context(request, votes, 'vote_list', nav_options, sort='All')
+    context = default_context(request, posts, 'vote_list', nav_options, sort='All')
     context['feed_title'] = title
     context['title_link'] = title_link
     context['motion'] = motion
@@ -1149,7 +1166,7 @@ def latest_committees_view(request, region, Chamber):
             title = f'Latest {Chamber} Committee Events'
 
     if not request.method == 'POST':
-        setlist = paginater(posts, page, request)
+        setlist = paginater(posts, page)
     else:
         setlist = posts
     try:
@@ -1219,11 +1236,11 @@ def committee_view(request, organization, govNumber, session, iden):
         posts = Post.objects.filter(Statement_obj__Meeting_obj=c).select_related('Statement_obj__Person_obj', 'Statement_obj').order_by('Statement_obj__DateTime', 'created')
 
     if iden:
-        setlist = paginater(posts, 'id=%s' %(iden), request)
+        setlist = paginater(posts, 'id=%s' %(iden))
         hasContext = setlist[0].Statement_obj.id
         iden = int(iden)
     else:
-        setlist = paginater(posts, page, request)
+        setlist = paginater(posts, page)
         if page != 1:
             hasContext = setlist[0].Statement_obj.id
     try:
@@ -1318,7 +1335,7 @@ def officials_list(request, region):
     else:
     #     # prnt(subRegion)
         subR = Region.objects.filter(ParentRegion_obj__id=country_dict['id'], Name=subRegion).first()
-        posts = Post.objects.filter(pointerType='Person', Region_obj__id=country_dict['id'], Update_obj__data__ProvState_id=subR.id, Chamber__in=current_chamber_list).filter(Q(**{'Update_obj__data__Position__in': positions})).order_by('Update_obj__data__LastName')
+        posts = Post.objects.filter(pointerType='Person', Region_obj__id=country_dict['id'], Update_obj__data__ProvState_id=subR.id, Chamber__in=current_chamber_list).filter(Q(**{'Update_obj__data__Position__in': positions})).order_by('Update_obj__data__LastName').select_related('Update_obj')
     prnt('posts len',len(posts))
     if sort != 'All':
         posts = posts.filter(Update_obj__data__LastName__startswith=sort)

@@ -105,16 +105,16 @@ runTimes = {
 
 functions = { # in gov_region timezone
     "2025-03-13" : [
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 8, 10, 12, 14, 16, 18, 22], 'cmds' : ['get_bills_us'] },
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [1, 5, 17, 21], 'cmds' : ['get_house_rollcalls_us']},
-    {'date' : ['x'], 'dayOfWeek' : [1,2,3,4,5,6], 'hour' : [3, 7, 16, 23], 'cmds' : ['get_senate_rollcalls_us']},
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [12,13,14], 'cmds' : ['get_house_debates_us','get_senate_debates_us']},
-    ],
-    "2026-01-24" : [
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 8, 10, 12, 14, 16, 18, 22], 'cmds' : ['get_bills_us'] },
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [1, 5, 11, 17, 21], 'cmds' : ['get_house_debates_us', 'get_house_rollcalls_us']},
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [3, 7, 19, 23], 'cmds' : ['get_senate_debates_us', 'get_senate_rollcalls_us']},
-    {'date' : ['x'], 'dayOfWeek' : [1], 'hour' : [14], 'cmds' : ['get_persons_us']},
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 8, 10, 12, 14, 16, 18, 22], 'cmds' : ['get_bills_us'] },
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [1, 5, 17, 21], 'cmds' : ['get_house_rollcalls_us']},
+    # {'date' : ['x'], 'dayOfWeek' : [1,2,3,4,5,6], 'hour' : [3, 7, 16, 23], 'cmds' : ['get_senate_rollcalls_us']},
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [12,13,14], 'cmds' : ['get_house_debates_us','get_senate_debates_us']},
+    # ],
+    # "2026-01-24" : [
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 8, 10, 12, 14, 16, 18, 22], 'cmds' : ['get_bills_us'] },
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [1, 5, 11, 17, 21], 'cmds' : ['get_house_debates_us', 'get_house_rollcalls_us']},
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [3, 7, 19, 23], 'cmds' : ['get_senate_debates_us', 'get_senate_rollcalls_us']},
+    # {'date' : ['x'], 'dayOfWeek' : [1], 'hour' : [14], 'cmds' : ['get_persons_us']},
     ],
 }
 

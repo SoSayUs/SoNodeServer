@@ -107,7 +107,6 @@ body a:hover{
   margin-right: auto;
   padding: 35px;
   min-width: 250px;
-  min-height: 350px;
   max-width: 750px;
   max-height: 750px;
   max-height: 75vh;
@@ -142,16 +141,15 @@ body a:hover{
   display: flex; 
   align-items: center; 
   justify-content: center; 
-  /* height: 300px; */
-
-  /* display: block; */
   position: relative;
-  /* margin: auto; */
-  /* text-align: center; */
+  min-height: 300px;
   width: 100%;
   left: 50%;
   transform: translate(-50%, 0);
   overflow-y: scroll;
+}
+.modalWidget .lds-dual-ring {
+  margin-top: -40px;
 }
 .modalWidget #showAllClose{
   position:relative;
@@ -423,6 +421,7 @@ body a:hover{
   max-height: calc(100vh - 13px);
   width:205px;
   padding-bottom: 10px;
+  /* padding-top: 2px; */
   position: absolute;
   top: 100px;
   right: 0px;
@@ -660,6 +659,7 @@ body a:hover{
   position: fixed;
   bottom: unset;
   border-bottom-left-radius: 7px;
+  border-bottom-right-radius: 7px;
   top: -1;
   right: calc(200px + 4px + 210px);
   max-width: calc(100% - 200px - 4px - 210px);
@@ -691,11 +691,17 @@ body a:hover{
   border-top-left-radius: 7px;
   border-left: 1px solid #727272;
 }
+#navBar.fixed > #navOptions > :last-child {
+  border-bottom-right-radius: 7px;
+}
 #navBar.fixed > #navOptions > .navBar-btn:first-child {
   border-top-left-radius: 0px;
   border-bottom-left-radius: 7px;
   border-left: 1px solid #727272;
 }
+/* #navBar.fixed > #navOptions > .navBar-btn:last-child {
+  border-bottom-right-radius: 7px;
+} */
 #navOptions > .navBar-btn::before {
   height: 20px;
   margin: 0px;
@@ -1334,12 +1340,15 @@ background-color: #030491;
   display: block;
   list-style: none;
   padding: 0px;
-  padding-left: 2px;
+  /* padding-left: 2px; */
   margin: 0px;
   left:110px;
   bottom: -5px;
   z-index: 102;
   overflow-x:scroll;
+  box-shadow: 0px 6px 6px 0px gray;
+  border-top-left-radius: 15px;
+  border-top-right-radius: 15px;
 }
 .reactionBar ul > li, .reactionBar ul > li a {
   position: relative;

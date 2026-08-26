@@ -6,7 +6,6 @@
     <li><img id='userPic' src={% static 'img/user-colored.png' %}></li>
     <li id='userName'>{% if user.id %}{{ user.get_userLink_html|safe }}{% else %}<span onclick="modalPopUp('Login', '/accounts/login-signup')">Login/Signup</span>{% endif %}</li>
 </ul>
-
 <ul>
     <li style="font-style: italic;"><a href='/{{ country.Name|lower }}/search'>Search</a></li>
 
@@ -14,10 +13,8 @@
         {% include index_template %}
     {% endif %}
     
-
-    <li style="margin-top: 30px;"></li>
-    <li style="font-style: italic; cursor: pointer;" onclick="modalPopUp('So...', 'so_modal')">So...</li>
     <br>
+    <li style="font-style: italic; cursor: pointer; align-items: left;" onclick="modalPopUp('So...', 'so_modal')">So...</li>
     <li style="font-style: italic;"><a href='/'>What is Us</a></li>
     {% comment %}
     <li style="font-style: italic;"><a href='/someta'>SoMeta</a></li>

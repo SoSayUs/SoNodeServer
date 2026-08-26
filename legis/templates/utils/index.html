@@ -8,7 +8,7 @@
             <ul>
                 <br>
                 <br>
-                <li style='font-size:130%'><a href='/{{ country.Name|lower }}/legislature'>Legislature</a></li>
+                <li><a href='/{{ country.Name|lower }}/legislature'>Legislature</a></li>
                 <ul class='navSubmenu' id='legislature'>    
                     {% if gov %} 
                         {% for i in gov.menuItem_array %}
@@ -25,7 +25,7 @@
 
 
             <li style="margin-top: 20px;"></li>
-            <li style='font-size:130%'><a href='/{{ country.Name|lower }}/legislature'>Legislature</a></li>
+            <li><a href='/{{ country.Name|lower }}/legislature'>Overview</a></li>
             <ul class='navSubmenu' id='legislature'>    
                 {% if gov %} 
                     {% for i in gov.menuItem_array %}

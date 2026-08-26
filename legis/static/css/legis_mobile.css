@@ -1,0 +1,103 @@
+
+.card .sponsor{
+    width: 200px;
+    font-size: 25px !important;
+    padding: 5px 15px 0px 5px;
+    max-width: 140px;
+}
+.card .sponsor > div{
+    /* margin-top: 30%; */
+}
+.card .sponsor img{
+    max-width: 145px;
+    max-height:300px;
+}
+.card .sponsor img.sprenPic{
+    max-width: 130px;
+    max-height:300px;
+    margin-top: 60px;
+}
+.card .Code .Parl {
+    position: relative;
+    float: right;
+    /* padding-right: 30px; */
+    font-size: 75%;
+    right: 50px;
+}
+
+/* .hansard, .committee{
+    font-size: 100%;
+} */
+.debate{
+    /* font-size: 125%; */
+}
+.committee .Code h2{
+    font-size: 140%;
+}
+.Code .Parl{
+    /* font-size: 75%; */
+}
+.election, .candidate{
+    font-size: 140%;
+}
+.vote .cardContent{
+    width: calc(100% - 240px);
+}
+.daily .Code{
+    font-size: 135%;
+}
+.daily .TextContent{
+    font-size: 120% !important;
+    line-height: 180%;
+}
+.bill{
+    /* font-size: 140%; */
+}
+.billVersion{
+    font-size: 100%;
+}
+.bill .Details .title{
+    font-size: 110%;
+}
+.bill .Details .subtitle{
+    font-size: 80%;
+}
+.agendaItem{
+    font-size: 140% !important;
+}
+.agendaItem li{
+  /* font-size: 200% !important; */
+}
+.agendaItem .Parl{
+    font-size: 75% !important;
+}
+.debate .Details > .title{
+    font-size: 110%;
+}
+.hansard .Details li{
+    margin-top: 30px !important;
+}
+.committee .Details li{
+    font-size: 70%;
+}
+.debate .Terms > ul > li, .committee .Terms > ul > li{
+    font-size: 120%;
+    margin-top: 20px;
+    margin-bottom: 0px;
+}
+.bill .TextContent {
+    font-size: 90%;
+    line-height: 90% !important;
+}
+.committee .TextContent {
+    font-size: 110%;
+}
+.motion .fadeOut, .spren .fadeOut {
+    top: 125px;
+}
+.motion, .vote, .debate{
+    /* font-size: 120%; */
+}
+.vote .votePic{
+    width: 150px;
+}

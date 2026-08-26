@@ -1,0 +1,151 @@
+
+@layer overrides {
+*{
+  color: white;
+}
+body{
+  background: linear-gradient(to bottom, #09437A, #011D37);
+  background-attachment: fixed;
+}
+/* active is being used on reactionBar */
+.active{
+  background-color: #4f4e4e;
+}
+#feedContainer, .modalWidget{
+  /* background-color: #222222 !important; */
+  border-left: 1px solid #4f4e4e;
+  border-right: 1px solid #4f4e4e;
+  border-top: 1px solid #4f4e4e;
+}
+#feedTop{
+  background-color: #222222 !important;
+  border-top: 1px solid #4f4e4e;
+}
+.navTop{
+  background-color: #222222 !important;
+  border-left: 1px solid #4f4e4e;
+  border-top: 1px solid #4f4e4e;
+}
+#index {
+  background-color: #222222 !important;
+}
+.indexMobile .navTop{
+  border: none;
+}
+.navTop .shadow, #feedTop .shadow{
+  background: linear-gradient(to top, RGBA(34, 34, 34, 0), #474646);
+}
+#navBar li.active{
+  background-color: transparent;
+  background: linear-gradient(to top, RGBA(34, 34, 34, 0), #474646);
+  border-bottom: 0px solid #4f4e4e;
+}
+.card, .cardCover {
+  background-color: #222222;
+}
+#navBar{
+  background-color: #222222 !important;
+}
+.navOptionsMenu {
+  background-color: #222222 !important;
+}
+#feedTop #navBar.fixed > ul > li{
+  border-right: 1px solid #4f4e4e;
+  border-bottom: 0px solid #4f4e4e;
+}
+#navBar.fixed{
+  background-color: #222222;
+  border: 1px solid #4f4e4e;
+}
+#navBar #navOptions .navOptionsMenu.showForm .pagePicker li{
+  border: 1px solid #4f4e4e;
+}
+.arrowdown {
+  border: solid white;
+  border-width: 0 1px 1px 0;
+}
+.reactionBar ul > li.readingButton:hover, .reactionBar ul > li.readingButton a:hover, .reactionBar ul > li.readingButton.active, .reactionBar ul > li.readingButton a.active{
+  background: linear-gradient(to top, RGBA(34, 34, 34, 0), #474646);
+}
+#sidebar ul{
+  border-top: 1px solid #4f4e4e; 
+}
+.feedTop #optionsBar > ul > li{
+  border: 1px solid #4f4e4e;
+}
+#navigation{
+  background-color: #222222;
+  border-left: 1px solid #4f4e4e;
+  border-top: 1px solid #4f4e4e;
+}
+#sidebar{
+  background-color: #222222;
+  border: 1px solid #4f4e4e;
+}
+#feed{
+  background-color: #222222;
+  border-left: 1px solid #4f4e4e;
+  border-right: 1px solid #4f4e4e;
+  border-top: 1px solid #4f4e4e; 
+  border-bottom: 0px solid #4f4e4e;
+}
+#bottomNavBar > ul{
+  background-color: #222222;
+  border-top: 1px solid #4f4e4e;
+}
+.darkenOverlay {
+  background-color: rgba(43, 43, 43, 0.5);
+}
+.debate .debateEmbedContent{
+  border: 1px solid #4f4e4e;
+}
+.debate .debateTerms > ul > li{
+  border: 1px solid #4f4e4e;
+}
+.debate .Terms > ul > li, .committee .Terms > ul > li{
+  border: 1px solid #4f4e4e;
+}
+.debate .Terms > ul > li > a, .committee .Terms > ul > li > a{
+  color: #c4c4c4;
+}
+.readMore{
+  background-color:#222222;
+}
+.reactionBar, .pageDivider, .bottomDivider, .postContext{
+  border-bottom: 1px solid #4f4e4e;
+}
+.reactionBar > ul{
+  box-shadow: 0px 12px 12px 0px #333333;
+}
+.reactionBar ul > li{
+  border: 1px solid #4f4e4e;
+  border-bottom: 1px solid #3a3939;
+  background: linear-gradient(to top, transparent, #3a3939) !important;
+}
+.sharePopUp {
+  background-color: #222222;
+  border: 1px solid #4f4e4e;
+}
+.pagePicker li{
+  background-color: #222222;
+  border: 1px solid #4f4e4e;
+}
+.pagePicker li.active {
+  background: linear-gradient(to top, RGBA(34, 34, 34, 0), #474646);
+}
+.pagePicker li:hover:not(.active) {
+  background: linear-gradient(to top, RGBA(34, 34, 34, 0), #474646);
+}
+#bottomCard{
+  background-color: #222222;
+}
+.fadeOut{
+  background: linear-gradient(to top, #222222, RGBA(34, 34, 34, 0));
+}
+.autocomplete-result-list{
+  background:#222222;
+}
+.autocomplete-result:hover,.autocomplete-result[aria-selected=true]{
+  background-color:#4f4e4e;
+}
+}

@@ -106,7 +106,7 @@ async function direct_to(url) {
 
 
 function getItem(key) {
-  console.log("-getItem", key);
+  // console.log("-getItem", key);
   return openDatabase().then((db) => {
     return new Promise((resolve, reject) => {
       const tx = db.transaction('keys', 'readonly');
@@ -715,7 +715,7 @@ async function verify(data, sortData=false, key_type=null) {
 
 async function react(item, iden, code=null, button=null){
   console.log('-react', code)
-
+  // navigator.vibrate(3);
   userData = get_stored_userData();
   const addr = await myVar("last_accessed_url");
   console.log('addr',addr)
@@ -871,7 +871,7 @@ async function react(item, iden, code=null, button=null){
 
 }
 async function signReturnInteraction({ response, item }) {
-  console.log('-signReturnInteraction')
+  console.log('-signReturnInteraction',response)
   message = response['message'];
   console.log('message',message)
   if (message == 'login') {
@@ -929,8 +929,11 @@ async function signReturnInteraction({ response, item }) {
         }
         return '';
       };
-
-      if (response['addon']) {
+      function isPopulated(obj) {
+        return obj && typeof obj === 'object' && Object.keys(obj).length > 0;
+      }
+      if (isPopulated(response['addon'])) {
+        console.log("esponse['addon']",response['addon'])
         addon = JSON.parse(response['addon']);
         if (addon['objType']) {
           data.addonId = addon['id'];
@@ -2221,7 +2224,7 @@ async function clearLocalUserData(pass) {
   };
 };
 function storeNavigation() {
-  console.log('-storeNavigation');
+  // console.log('-storeNavigation');
   var navHtml = document.querySelector("#navigation");
   if (navHtml && navHtml.innerHTML.includes('dual-ring')) {
     return
@@ -2237,14 +2240,14 @@ function storeNavigation() {
     } else if (navHtml && navHtml.innerHTML) {
       if (!navHtml.innerHTML.includes('dual-ring')) {
         const cleaned = sanitizeWithException(navHtml.innerHTML, ["modalPopUp", "logout", "themer", "select_node", "direct_to", "mobileSwitch"]);
-        console.log('cleaned',cleaned)
+        // console.log('cleaned',cleaned)
         storeItem(cleaned,"navigationHtml");
       };
     };
   };
 };
 async function displayStoredNavigation(fadeIn=true, savedNav=null) {
-  console.log('-displayStoredNavigation', savedNav);
+  // console.log('-displayStoredNavigation', savedNav);
   if (savedNav) {
     var savedNav = sanitizeWithException(savedNav, ["modalPopUp", "logout", "themer", "select_node", "mobileSwitch"]);
   } else {
@@ -2258,10 +2261,10 @@ async function displayStoredNavigation(fadeIn=true, savedNav=null) {
     if ($currentNav.length === 0) {
       if (savedNav.includes("mobileNavContent")) {
         if (savedNav.includes("drawer1")) {
-            console.log('savedNav1',savedNav);
+            // console.log('savedNav1',savedNav);
             document.querySelector(".drawer1").outerHTML = savedNav;
         } else {
-          console.log('savedNav2',savedNav);
+          // console.log('savedNav2',savedNav);
           document.querySelector(".drawer1").innerHTML = savedNav;
         };
       };  
@@ -2271,7 +2274,7 @@ async function displayStoredNavigation(fadeIn=true, savedNav=null) {
             $currentNav.html(savedNav).fadeIn(500);
         });
       } else {
-        console.log('savedNav3',savedNav)
+        // console.log('savedNav3',savedNav)
         document.querySelector("#navigation").innerHTML = savedNav;
       };
     };
@@ -2503,7 +2506,7 @@ $el.addClass('fixed');
 function adjustNavBar($navbar) {
   var con = document.getElementById('container');
     var rect = con.getBoundingClientRect();
-    var right = rect.left + 211;
+    var right = rect.left + 206;
     right = right.toString();
     right = right + 'px';
     $navbar.css({'right': right }); 
@@ -2871,6 +2874,7 @@ async function check_for_node_updates(document) {
     } else {
       var saved_nodeData = null;
     };
+    console.log('saved_nodeData',saved_nodeData)
     await storeItem(JSON.stringify(parsed_nodeData), 'nodeData');
     if (!saved_nodeData) {
       await storeItem(JSON.stringify(parsed_nodeData), 'nodeData');
@@ -2881,10 +2885,12 @@ async function check_for_node_updates(document) {
     };
     await storeItem(parsed_nodeData['sonetInitializedDatetime'], 'sonetInitializedDatetime');
   };
+  var saved_nodeData = await getItem("nodeData");
+  console.log('saved_nodeData111',saved_nodeData)
 };
 
 
-async function browser_shuffle(text_input, dt, node_ids) {
+async function browser_shuffle_2(text_input, dt, node_ids) {
     console.log('-browser_shuffle',text_input,'dt',dt,'node_ids',node_ids);
     async function sha256Hex(input) {
       const encoder = new TextEncoder();
@@ -2904,14 +2910,45 @@ async function browser_shuffle(text_input, dt, node_ids) {
     console.log('hashes',hashes);
     return hashes.map(obj => obj.item);
 };
+
+function mulberry32(seed) {
+  function stringToSeed(s) {
+    let h = 0x811C9DC5; // FNV offset basis
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0; // FNV prime
+    }
+    return h;
+  }
+  seed = stringToSeed(seed)
+  let state = seed >>> 0;
+  return function rng() {
+    state = (state + 0x6D2B79F5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function cross_language_shuffle(arr, seed) {
+  const result = arr.slice();
+  const rng = mulberry32(seed);
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 function gcd(a, b) {
     while (b !== 0) {
         [a, b] = [b, a % b];
     };
     return a;
 };
-function find_matches(active_set, starting_position, pattern, max_number, number_of_matches) {
-    console.log('-find_matches',starting_position,pattern,max_number,number_of_matches);
+function position_sort(active_set, starting_position, pattern, max_number, number_of_matches) {
+    console.log('-position_sort',starting_position,pattern,max_number,number_of_matches);
     console.log('active_set',active_set);
 
     let matches = [];
@@ -2976,6 +3013,7 @@ async function get_assignment(obj=null, iden=null, DateTime=null, nodeIds=[], re
   };
   if (nodeIds.length === 0 || Object.keys(relevantNodes).length === 0 ) {
     var saved_nodeData = await getItem("nodeData");
+    console.log('saved_nodeData22',saved_nodeData)
     var parsed_nodeData = JSON.parse(saved_nodeData);
     // console.log('parsed_nodeData',parsed_nodeData);
     var relevantNodes = parsed_nodeData.id_data.active;
@@ -2989,10 +3027,13 @@ async function get_assignment(obj=null, iden=null, DateTime=null, nodeIds=[], re
   userData = await get_stored_userData();
   const position_dict = {};
   for (const [id, data] of Object.entries(relevantNodes)) {
+    console.log('id',id,'data',data)
     if (parsed_nodeData.id_data.active[id]) {
+      console.log('1a')
       position_dict[parsed_nodeData.id_data.active[id]['pos']] = id;
       // console.log('position_dict1',position_dict);
     } else {
+      console.log('1b')
       position_dict[1] = id;
       // console.log('position_dict2',position_dict);
     };
@@ -3017,7 +3058,7 @@ async function get_assignment(obj=null, iden=null, DateTime=null, nodeIds=[], re
   } else {
     var pattern = 6;
   };
-  matches = find_matches(position_dict, startPos, pattern, max_number, 50);
+  matches = position_sort(position_dict, startPos, pattern, max_number, 50);
   // const sorted = await browser_shuffle(iden, DateTime, nodeIds);
   console.log('matches',matches);
   return {'orderOfNodes':matches, 'addresses':relevantNodes} ;
@@ -3075,10 +3116,11 @@ async function load_queue() {
               const newHtmlText = await result.text();
               const parsedElements = $.parseHTML(newHtmlText);
               const new_cards = $(parsedElements);
-              const navBar = $(parsedElements).filter("#navBar")[0];
+              var navBar = $(parsedElements).filter("#navBar")[0];
               if (navBar) {
                   const has_nav = true;
                   const $holder = $("#navBarHolder");
+                  navBar = sanitizeWithException(navBar, ["subNavWidget", "scrollToElement"]);
                   const $newNav = $(navBar).clone().hide();
                   $newNav.attr("id", "navBar");
                   const $existingNav = $holder.find("#navBar");
@@ -3093,13 +3135,23 @@ async function load_queue() {
                       $newNav.fadeIn(240);
                   }; 
               };
-              const feedTitle = $(parsedElements).filter("#feedTitle")[0];
+              const newStylesheet = $(parsedElements).filter("link[rel='stylesheet']")[0];
+              console.log('newStylesheet',newStylesheet);
+              if (newStylesheet) {
+                  const href = newStylesheet.getAttribute("href");
+                  console.log('href',href);
+                  if (href && !document.querySelector(`link[rel="stylesheet"][href="${href}"]`)) {
+                      const $link = $(newStylesheet).clone();
+                      $("head").append($link);
+                  };
+              };
+              var feedTitle = $(parsedElements).filter("#feedTitle")[0];
               if (feedTitle) {
                   const $mainTitle = $("#mainTitle");
-                  const $newTitleContent = $(feedTitle).contents().clone().hide();
-                  $mainTitle.fadeOut(200, function() {
-                      $mainTitle.empty().append($newTitleContent).fadeIn(240);
-                      $newTitleContent.fadeIn(240);
+                  feedTitle = sanitize(feedTitle)
+                  const $newTitleContent = $(feedTitle).contents().clone();
+                  $mainTitle.fadeOut(100, function() {
+                      $mainTitle.empty().append($newTitleContent).fadeIn(200);
                   });
               };
               var newList = [];
@@ -3107,6 +3159,7 @@ async function load_queue() {
                   var el = new_cards[f];
                   var elId = el.id;
                   el = sanitizeWithException(el, ["react", "modalPopUp", "direct_to"]);
+                  // console.log('after sanitize:', el.outerHTML || el);
                   if ($(el).closest("#feedTitle").length || $(el).closest("#navBar").length) continue;
                   if (elId === 'bottomCard') {
                       const $bottom = $(el).hide();
@@ -3504,9 +3557,11 @@ async function select_node() {
   modalPopUp('Connect to Node');
   var assignment = await get_assignment(obj=null, iden=null, DateTime=null, nodeIds=[], relevantNodes={});
   orderOfNodes = assignment.orderOfNodes;
-  // console.log('assignment',orderOfNodes);
+  console.log('assignment',orderOfNodes);
   const listElement = document.getElementById("modalContent");
     listElement.innerHTML = "";
+      const inputUl = document.createElement("ul");
+      listElement.appendChild(inputUl);
       const inputLi = document.createElement("li");
       const input = document.createElement("input");
       input.type = "text";
@@ -3527,11 +3582,11 @@ async function select_node() {
 
       inputLi.appendChild(input);
       inputLi.appendChild(button);
-      listElement.appendChild(inputLi);
+      inputUl.appendChild(inputLi);
       const spacer = document.createElement("li");
       spacer.style.listStyle = "none";
       spacer.innerHTML = "&nbsp;";
-      listElement.appendChild(spacer);
+      inputUl.appendChild(spacer);
 
       orderOfNodes.forEach(item => {
         const li = document.createElement("li");
@@ -3549,7 +3604,7 @@ async function select_node() {
           await myVar('last_accessed_url', newIp);
           location.reload();
         });
-        listElement.appendChild(li);
+        inputUl.appendChild(li);
       });
 };
 

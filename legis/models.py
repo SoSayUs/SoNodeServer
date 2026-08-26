@@ -411,12 +411,14 @@ class BillText(BaseModel):
         
     def on_confirmation(self, obj=None):
         bill = Bill.objects.filter(id=self.pointerId).first()
+        prnt('bill',bill)
         if not bill:
             #request
             ...
         if bill and bill.BillText_obj != self:
             bill.BillText_obj = self
-            bill.save()
+            # bill.save()
+            super(Bill, bill).save()
         post = Post.objects.filter(id=self.pointerId).first()
         if post and post.Spren_obj and post.Spren_obj.pointerId != self.id:
             post.Spren_obj = None
@@ -503,7 +505,7 @@ class Bill(LegisModel):
             version = self.modlVer
         if int(version) >= 1:
             if not LegisUserAction.objects.filter(pointerId=self.id, User_obj__id=user_id, Block_obj=None).exists():
-                return LegisUserAction(id=hash_obj_id(LegisUserAction), Region_obj=self.Region_obj, networkChain=self.networkChain, pointerId=self.id)
+                return LegisUserAction(id=hash_obj_id('LegisUserAction'), Region_obj=self.Region_obj, networkChain=self.networkChain, pointerId=self.id)
             else:
                 return LegisUserAction.objects.filter(pointerId=self.id, User_obj__id=user_id, Block_obj=None).first()
 

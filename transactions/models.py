@@ -146,8 +146,9 @@ class Transaction(models.Model):
     updated_on_node = models.DateTimeField(auto_now=True, auto_now_add=False, blank=True, null=True)
     added_to_node = models.DateTimeField(auto_now=False, auto_now_add=True, blank=True, null=True)
     validations = models.JSONField(default=dict, blank=True, null=True)
-    senderChainGenId = BinaryBase62Field(max_byte_length=30, null=True, blank=True)
+    # senderChainGenId = BinaryBase62Field(max_byte_length=30, null=True, blank=True)
     senderBlockId = BinaryBase62Field(max_byte_length=30, null=True, blank=True)
+    receiverNetworkChain = BinaryBase62Field(max_byte_length=30, null=True, blank=True)
     SenderBlock_obj = models.ForeignKey('network.Block', related_name='receiver_block', blank=True, null=True, on_delete=models.PROTECT)
     ReceiverBlock_obj = models.ForeignKey('network.Block', related_name='sender_block', blank=True, null=True, on_delete=models.PROTECT)
     ReceiverWallet_obj = models.ForeignKey('transactions.Wallet', related_name='receiver', blank=True, null=True, on_delete=models.PROTECT)
@@ -170,13 +171,21 @@ class Transaction(models.Model):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Transaction', 'networkChain': 'Wallet', 'modlVer': 1, 'id': None, 'created': None, 'validations': {}, 'senderChainGenId': None, 'senderBlockId': None, 'SenderBlock_obj': None, 'ReceiverBlock_obj': None, 'ReceiverWallet_obj': None, 'SenderWallet_obj': None, 'token_value': 0, 'regarding': None, 'validated': None, 'enact_dt': None, 'enacted': None, 'iden_length': 20, 'signed': {}}
+            return {'objType': 'Transaction', 'networkChain': 'Wallet', 'modlVer': 1, 'id': None, 'created': None, 'validations': {}, 'receiverNetworkChain': None, 'senderBlockId': None, 'SenderBlock_obj': None, 'ReceiverBlock_obj': None, 'ReceiverWallet_obj': None, 'SenderWallet_obj': None, 'token_value': 0, 'regarding': None, 'validated': None, 'enact_dt': None, 'enacted': None, 'iden_length': 20, 'signed': {}}
         
     def commit_data(self, version=None):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return ['hash','token_value','ReceiverWallet_obj','SenderWallet_obj','enact_dt']
+            return ['hash','token_value','ReceiverWallet_obj','SenderWallet_obj','enact_dt','senderBlockId']
+
+    # def sender_is_valid(self):
+    #     sender_block = Block.objects.filter(id=self.senderId).defer('data','extraData').first()
+    #     if sender_block and sender_block.validated:
+    #         return True
+    #     elif sender_block:
+    #         return False
+
 
     def get_chains(self, obj=None):
         commit_chain = None
@@ -196,13 +205,23 @@ class Transaction(models.Model):
                         prnt('true1')
                         return True
             else:
-                self_node = get_self_node()
-                chain = Blockchain.objects.filter(id=self.senderChainGenId).values('id').first()
-                if chain and self_node.chain_array and chain['id'] in self_node.chain_array:
-                    if self.ReceiverBlock_obj and self.ReceiverBlock_obj.validated:
-                        prnt('true2')
-                        return True
-        prnt('false')
+                from utils.utils import request_is_valid, get_chain_id
+                if request_is_valid(self.senderBlockId, vals=10, chain=get_chain_id(self.networkChain)):
+                    prnt('true2')
+                    return True
+            # else:
+            #     from utils.utils import get_chain_id
+            #     self_node = get_self_node()
+            #     prnt("self.networkChain",self.networkChain)
+            #     chain = Blockchain.objects.filter(id=get_chain_id(self.networkChain)).values('id').first()
+            #     prnt("chain['id']",chain['id'])
+            #     prnt("self_node.chain_array",self_node.chain_array)
+            #     if chain and self_node.chain_array and chain['id'] in self_node.chain_array:
+            #         prnt("self.ReceiverBlock_obj",self.ReceiverBlock_obj)
+            #         if self.ReceiverBlock_obj and self.ReceiverBlock_obj.validated:
+            #             prnt('true2')
+            #             return True
+        prnt('assess_validation - false')
         return False
     
     def get_reward_block(self):
@@ -268,10 +287,14 @@ class Transaction(models.Model):
 
     def send_for_block_creation(self, id=None, downstream_worker=True, do_not_save=False):
         prnt('-send_for_block_creation',self.id,downstream_worker)
-        from utils.locked import get_node_assignment
+        from utils.locked import get_node_assignment, check_validation_consensus
         from utils.models import get_self_node, round_time, e_brake
         if e_brake(1):
             return
+        # if not self.receiverNetworkChain:
+        #     self.validated = False
+        #     self.save()
+        #     return None
 
         self_node = get_self_node()
         prnt('self.ReceiverBlock_obj',self.ReceiverBlock_obj,'senderBlockId',self.senderBlockId)
@@ -279,17 +302,34 @@ class Transaction(models.Model):
             senderBlock = self.SenderBlock_obj
         else:
             senderBlock = Block.objects.filter(id=self.senderBlockId).first()
-        if not senderBlock or senderBlock.validated == False:
-            self.validated = False
-            self.save(update_fields=['validated'])
-            prnt('no senderBlock')
+        if senderBlock and senderBlock.validated == False:
+            self.is_not_valid_tx()
+            # self.save(update_fields=['validated'])
+            prnt('senderBlock not valid')
             return None
-        if senderBlock and senderBlock.validated and not self.validated:
+
+        elif not senderBlock:
+            from utils.utils import request_is_valid, get_chain_id
+            proceed = False
+            if self.assess_validation():
+                if self.mark_valid(skip_assess=True):
+                    proceed = True
+            # if request_is_valid(self.senderBlockId, vals=10, chain=get_chain_id(self.networkChain)):
+            #     if self.mark_valid():
+            #         proceed = True
+            if not proceed:
+                if self.validated:
+                    self.is_not_valid_tx()
+                    # self.save()
+                prnt('done send_for_block_creation2')
+                return None
+
+        elif senderBlock and senderBlock.validated and not self.validated:
             self.mark_valid()
         if self.validated == False:
             prnt('not valid')
             return None
-        if self.ReceiverBlock_obj:
+        if self.ReceiverBlock_obj and self.ReceiverBlock_obj.validated:
             prnt('done send_for_block_creation4')
             return self.ReceiverBlock_obj
         else:
@@ -307,7 +347,7 @@ class Transaction(models.Model):
                     return
             prnt('no ReceiverBlock 1')
             now = round_time(now_utc(), amount='10mins')
-            creator_nodeId_list, validator_list = get_node_assignment(self, dt=now, return_receiverTransaction=True)
+            creator_nodeId_list, validator_list = get_node_assignment(self, dt=now, chainId=self.receiverNetworkChain)
             prnt('creator_nodeId_list, validator_list',creator_nodeId_list, validator_list,'self_node.id',self_node.id)
             receiverChain = self.ReceiverWallet_obj.get_chain()
 
@@ -328,6 +368,27 @@ class Transaction(models.Model):
                 prnt('self.updated_on_node:', self.updated_on_node, 'now_uct()', now_utc(),'self.ReceiverBlock_obj:', self.ReceiverBlock_obj)
                 prnt('done send_for_block_creation1')
                 return receiverBlock
+            # else:
+            #     from utils.locked import dt_to_string
+            #     from utils.utils import round_time, get_timeData, get_operator_obj, get_plugin
+            #     func = 'create_receiverBlock'
+            #     selected_nodes, validators = get_node_assignment(chainId=self.networkChain, func=func, dt=self.created, plugin_id=get_plugin(self.networkChain, id=True), nodeType='maintainer')
+                
+            #     self_node_id = get_operator_obj("self_nodeId")
+            #     if self_node_id in selected_nodes:
+            #         now = round_time(now_utc(), amount='10mins')
+            #         creator_nodeId_list, validator_list = get_node_assignment(self, dt=now, chainId=self.receiverNetworkChain)
+            #         from network.models import DataPacket, Node
+            #         dp = DataPacket()
+            #         dp.data[self.id] = dt_to_string(get_timeData(self))
+            #         dp.id = hash_obj_id(DataPacket, specific_data=f"{self.id}-{dt_to_string(now)}")
+            #         dp.func = 'share_tx'
+            #         dp.networkChain = self.ReceiverWallet_obj.id
+            #         dp.save()
+            #         dp.broadcast_dp(packet_id=dp.id, broadcast_list={self_node_id:[n.return_address() for n in Node.objects.filter(id__in=creator_nodeId_list)]})
+                
+
+            
         prnt('done send_for_block_creation3')
         return None
 
@@ -335,10 +396,30 @@ class Transaction(models.Model):
         prnt('-mark_valid',self,self.validated)
         if not self.validated:
             if skip_assess or self.assess_validation():
-                from utils.locked import verify_obj_to_data
+                from utils.locked import verify_obj_to_data, get_node_assignment, dt_to_string
                 if verify_obj_to_data(self, self):
                     self.validated = True
                     super(Transaction, self).save()
+
+
+                from utils.utils import round_time, get_timeData, get_operator_obj, get_plugin
+                func = 'create_receiverBlock'
+                selected_nodes, validators = get_node_assignment(chainId=self.networkChain, func=func, dt=self.created, plugin_id=get_plugin(self.networkChain, id=True), nodeType='maintainer')
+                
+
+                self_node_id = get_operator_obj("self_nodeId")
+                if self_node_id in selected_nodes:
+                    now = round_time(now_utc(), amount='10mins')
+                    creator_nodeId_list, validator_list = get_node_assignment(self, dt=now, chainId=self.receiverNetworkChain)
+                    from network.models import DataPacket, Node
+                    dp = DataPacket()
+                    dp.data[self.id] = dt_to_string(get_timeData(self))
+                    dp.id = hash_obj_id(DataPacket, specific_data=f"{self.id}-{dt_to_string(now)}")
+                    dp.func = 'share_tx'
+                    dp.networkChain = self.ReceiverWallet_obj.id
+                    dp.save()
+                    dp.broadcast_dp(packet_id=dp.id, broadcast_list={self_node_id:[n.return_address() for n in Node.objects.filter(id__in=creator_nodeId_list)]})
+                
 
                 receiverChain = self.ReceiverWallet_obj.get_chain()
                 if 'pending' in receiverChain.queuedData and self.id in receiverChain.queuedData['pending']:
@@ -350,13 +431,19 @@ class Transaction(models.Model):
                     if 'pending' in senderChain.queuedData and self.id in senderChain.queuedData['pending']:
                         del senderChain.queuedData['pending'][self.id]
                     senderChain.save()
+                return True
 
         if self.validated and not self.enacted:
             if not self.enact_dt or self.enact_dt < now_utc():
                 self.enact_transaction()
+            return True
+        return self.validated
 
-    def is_not_valid(self, omit=None, note=None):
-        prnt('-is_not_valid tx',self.id)
+    def is_not_valid_tx(self, omit=None, note=None):
+        prnt('-is_not_valid_tx',self.id)
+        if self.ReceiverBlock_obj and self.ReceiverBlock_obj != False:
+            self.ReceiverBlock_obj.is_not_valid(note=note, mark_strike=False)
+            self.ReceiverBlock_obj = None
         self.validated = False
         super(Transaction, self).save()
 
@@ -365,8 +452,6 @@ class Transaction(models.Model):
             if 'pending' in receiverChain.queuedData and self.id in receiverChain.queuedData['pending']:
                 del receiverChain.queuedData['pending'][self.id]
                 receiverChain.save()
-            if self.ReceiverBlock_obj and self.ReceiverBlock_obj != False:
-                self.ReceiverBlock_obj.is_not_valid(note=note, mark_strike=False)
             if self.SenderWallet_obj:
                 senderChain = self.SenderWallet_obj.get_chain()
                 if 'pending' in senderChain.queuedData and self.id in senderChain.queuedData['pending']:
@@ -385,7 +470,14 @@ class Transaction(models.Model):
             self.enact_dt = self.created
         if self.id is None:
             self.id = hash_obj_id(self)
+        if self.networkChain == 'Wallet' and self.SenderWallet_obj:
+            self.networkChain = self.SenderWallet_obj.networkChain
+        if not self.receiverNetworkChain:
+            self.receiverNetworkChain = self.ReceiverWallet_obj.networkChain
         return self
+
+    def boot(self):
+        self.send_for_block_creation()
 
     def save(self, share=False, sig=None, *args, **kwargs):
         prnt('-saving transaction', self)

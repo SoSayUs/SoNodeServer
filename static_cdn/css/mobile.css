@@ -82,6 +82,7 @@ body a{
     visibility: hidden;
     border-radius: 17px;
     font-size: 140%;
+    box-shadow: 0px 15px 20px 1px #636363;
 }
 .modalWidget.show{
     bottom: 50%;
@@ -155,7 +156,7 @@ body a{
 .drawer1 a, .drawer4 a{
     text-decoration: none;
 }
-.drawer1 .navTop{
+/* .drawer1 .navTop{
     position: relative;
     display: block;
     height: 10px;
@@ -163,7 +164,7 @@ body a{
     border: none;
     padding: 0px;
     z-index: 1001;
-}
+} */
 .drawer1 .navTop ul{
     top: 0px;
     margin-top: -30px;
@@ -175,7 +176,14 @@ body a{
     display: inline-block;
     position: relative;
 }
-.drawer1 .navTop h1, .drawer4 .navTop h1{
+.drawer1 .navTop h1{
+    font-size: 180%;
+    margin-right: 20px;
+    margin-top: 0px;
+    display: inline-block;
+    line-height: 1.1;
+}
+.drawer4 .navTop h1{
     font-size: 180%;
     top: 5px;
     margin-right: 20px;
@@ -183,21 +191,31 @@ body a{
     display: inline-block;
 }
 .drawer1  .navTop div{
-    position: relative;
+    /* position: relative; */
     display: inline-block;
     width: 100%;
+    justify-content: center;
+    align-items: center;
 }
 .mobileNavigation{
+    position: relative;
+    background-color: #f2f2f2;
     border-left: 1px solid #727272;
     border-right: 1px solid #727272;
     border-top: 2px solid #727272;
     border-radius: 30px;    
-    height: calc(100% - 170px);
+    height: calc(100% - 175px);
     z-index: 1200;
+    top: -30px;
+    box-shadow: 0px 0px 30px 5px #d3d3d3;
+}
+.mobileNavContent {
+    height: calc(100% - 175px);
+
 }
 .drawer1 .mobileNavigation{
     /* border-radius: 40px;     */
-    margin-top: 135px;
+    /* margin-top: 135px; */
 }
 .shady{
     top: 4px;
@@ -225,18 +243,21 @@ body a{
     width: 100%;
     height: 100%;
     text-align: center;
+    /* padding: 0px 20px; */
 }
 .drawer1 .container1{
     display: inline-block;
     position: relative;
     left: 0px;
     vertical-align: top;
+    /* width: 49%; */
 }
 .drawer1 .container2{
     display: inline-block;
     position: relative;
     right: 0%;
     vertical-align: top;
+    /* width: 49%; */
 }
 .drawer1 ul{
     display: block;
@@ -268,9 +289,9 @@ body a{
 .drawer1 #userProfile .settings{
     right: 55px;
 }
-.drawer4 .navTop, .drawer3 .navTop, .drawer2 .navTop{
+.drawer4 .navTop, .drawer3 .navTop, .drawer2 .navTop, .drawer1 .navTop{
     position: relative;
-    height: 145px;
+    height: 175px;
     width:100%;
     border: none;
     display: flex;
@@ -295,7 +316,7 @@ body a{
     display: block;
     right: 30px;
 }
-.drawer4 .mobileNavigation, .drawer3 .mobileNavigation, .drawer2 .mobileNavigation{
+.drawer4 .mobileNavigation, .drawer3 .mobileNavigation, .drawer2 .mobileNavigation, .drawer1 .mobileNavigation{
     overflow: scroll;
     position: relative;
 }
@@ -367,7 +388,7 @@ body a{
     border: none;
 }
 .navTop .shadow, #feedTop .shadow{
-    height: 60px;
+    height: 25px;
 }
 .navBarSpacer{
     position: relative;
@@ -426,11 +447,11 @@ body a{
 #navBar .shadow{
     position: fixed;
     width: 100%;
-    height: 45px;
-    top: 45px;
+    height: 50px;
+    top: 40px;
     left: 0px;
     margin: 0px;
-    background: linear-gradient(to bottom, transparent, #d3d3d3);
+    background: linear-gradient(to bottom, transparent, #dbdbdb);
     pointer-events: none;
 }
 #navBar {
@@ -448,7 +469,7 @@ body a{
     margin: 0px 0px;
     box-sizing: border-box;
     font-size: 200%;
-    box-shadow: 0px 1px 13px 1px gray;
+    box-shadow: 0px 0px 10px 2px gray;
 }
 #navOptions {
     display: flex;
@@ -458,7 +479,7 @@ body a{
 #navOptions > .navBar-btn {
     height: 90px !important;
     flex: 0 0 auto; /* do not shrink */
-    padding: 5px 12px;
+    padding: 10px 12px;
     cursor: pointer;
     border-radius: 4px;
     margin-right: -5px;

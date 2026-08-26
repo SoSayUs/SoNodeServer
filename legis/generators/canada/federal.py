@@ -65,7 +65,7 @@ prov_or_terr = {
 runTimes = {
     'initialize_region' : 1000,
     'get_bills' : 1000, 'get_senate_bills' : 1000, 'get_house_bills' : 1000, 'get_all_bills' : 7200, 
-    'get_house_agendas' : 200, 'get_house_debates' : 1000, 'get_senate_debates' : 600,
+    'get_house_agendas' : 200, 'get_house_debates' : 1000, 'get_senate_debates' : 1000,
     'get_house_persons' : 2000, 'get_senate_persons' : 2000, 'get_senate_agendas' : 200,
     'get_house_motions' : 200, 'get_senate_motions' : 200, 'get_senate_committees' : 200, 'get_house_expenses' : 600,
     'get_todays_xml_agenda' : 1000, 'get_house_committees' : 1000, 'get_upcoming_senate_committees' : 200,
@@ -175,9 +175,9 @@ def get_house_persons(special=None, value='current', dt=None, iden=None, func='g
                 region_type = prov_or_terr[prov_name]
             else:
                 region_type = 'Province'
-            prov = Region.objects.filter(Name=prov_name, AbbrName=AbbrName, modelType='provState', ParentRegion_obj=log.Region_obj, Validator_obj__is_valid=True).first()
+            prov = Region.objects.filter(Name=prov_name, AbbrName=AbbrName, nameType=region_type, ParentRegion_obj=log.Region_obj, Validator_obj__is_valid=True).first()
             if not prov:
-                prov = Region(func=func, Name=prov_name, AbbrName=AbbrName, nameType=region_type, modelType='provState', ParentRegion_obj=log.Region_obj)
+                prov = Region(func=func, Name=prov_name, AbbrName=AbbrName, nameType=region_type, ParentRegion_obj=log.Region_obj)
                 prov.save()
             if not prov.Validator_obj or not prov.Validator_obj.is_valid:
                 log.updateShare(prov)
@@ -301,7 +301,7 @@ def get_MP(person, personU, person_is_new, log, chamber='House'):
                 pass
         party, partyU, party_is_new, log = save_and_return(party, partyU, log)
         prov_name = soup.find('div', {'class':'ce-mip-mp-province'}).text
-        prov = Region.objects.filter(Name=prov_name, nameType='Province', modelType='provState', ParentRegion_obj=log.Region_obj, Validator_obj__is_valid=True).first()
+        prov = Region.objects.filter(Name=prov_name, nameType='Province', ParentRegion_obj=log.Region_obj, Validator_obj__is_valid=True).first()
         constituency_name = soup.find('div', {'class':'ce-mip-mp-constituency'}).text
         district = District.objects.filter(Q(Name=constituency_name)|Q(AltName=constituency_name.replace('—', ''))).filter(Country_obj=log.Region_obj, Region_obj=log.Region_obj, ProvState_obj=prov, gov_level='Federal', nameType='Federal District', Validator_obj__is_valid=True).first() # the character being removed is not a regular dash
         if district:
@@ -355,7 +355,7 @@ def get_MP(person, personU, person_is_new, log, chamber='House'):
                     end_date = timezonify('est', datetime.datetime.strptime(end, '%A, %B %d, %Y').replace(tzinfo=pytz.UTC))
                 else:
                     end_date = None
-                prov = Region.objects.filter(Name=prov_name, nameType='Province', modelType='provState', ParentRegion_obj=log.Region_obj, Validator_obj__is_valid=True).first()
+                prov = Region.objects.filter(Name=prov_name, nameType='Province', ParentRegion_obj=log.Region_obj, Validator_obj__is_valid=True).first()
                 district = District.objects.filter(Q(Name=constituency_name)|Q(AltName=constituency_name.replace('—', ''))).filter(Country_obj=log.Region_obj, Region_obj=log.Region_obj, ProvState_obj=prov, gov_level='Federal', nameType='Federal District', Validator_obj__is_valid=True).first() #that character being removed is important, it is not a regular dash
                 if district:
                     if not district.Office_array or 'Member of Parliament' not in district.Office_array:
@@ -535,7 +535,7 @@ def get_MP(person, personU, person_is_new, log, chamber='House'):
                 province_name = td[3].text
                 result = td[4].text
 
-                prov = Region.objects.filter(Name=province_name, nameType='Province', modelType='provState', ParentRegion_obj=log.Region_obj, Validator_obj__is_valid=True).first()
+                prov = Region.objects.filter(Name=province_name, nameType='Province', ParentRegion_obj=log.Region_obj, Validator_obj__is_valid=True).first()
                 district = District.objects.filter(Q(Name=constituency_name)|Q(AltName=constituency_name.replace('—', ''))).filter(Country_obj=log.Region_obj, Region_obj=log.Region_obj, ProvState_obj=prov, gov_level='Federal', nameType='Federal District', Validator_obj__is_valid=True).first() #that character being removed is important, it is not a regular dash
                 if district:
                     if not district.Office_array or 'Member of Parliament' not in district.Office_array:
@@ -653,9 +653,9 @@ def get_senate_persons(special=None, dt=None, iden=None, func='get_senate_person
                 region_type = prov_or_terr[region_name]
             else:
                 region_type = 'Province'
-            prov = Region.objects.filter(Name=region_name, AbbrName=AbbrName, modelType='provState', ParentRegion_obj=country, Validator_obj__is_valid=True).first()
+            prov = Region.objects.filter(Name=region_name, AbbrName=AbbrName, nameType=region_type, ParentRegion_obj=country, Validator_obj__is_valid=True).first()
             if not prov:
-                prov = Region(func=func, Name=region_name, AbbrName=AbbrName, nameType=region_type, modelType='provState', ParentRegion_obj=country)
+                prov = Region(func=func, Name=region_name, AbbrName=AbbrName, nameType=region_type, ParentRegion_obj=country)
                 prov.save()
             if not prov.Validator_obj or not prov.Validator_obj.is_valid:
                 log.updateShare(prov)
@@ -761,9 +761,9 @@ def get_senate_persons(special=None, dt=None, iden=None, func='get_senate_person
                     region_type = prov_or_terr[region_name]
                 else:
                     region_type = 'Province'
-                prov = Region.objects.filter(Name=region_name, AbbrName=AbbrName, modelType='provState', ParentRegion_obj=country, Validator_obj__is_valid=True).first()
+                prov = Region.objects.filter(Name=region_name, AbbrName=AbbrName, nameType=region_type, ParentRegion_obj=country, Validator_obj__is_valid=True).first()
                 if not prov:
-                    prov = Region(func=func, Name=region_name, AbbrName=AbbrName, nameType=region_type, modelType='provState', ParentRegion_obj=country)
+                    prov = Region(func=func, Name=region_name, AbbrName=AbbrName, nameType=region_type, ParentRegion_obj=country)
                     prov.save()
                     log.updateShare(prov)
 
@@ -1115,17 +1115,20 @@ def get_bills(special=None, dt=None, iden=None, period='session', target_links=N
             pub_dt = string_to_dt(latest_update['DateTime'])
             prnt('latest_update',latest_update['id'],'pub_dt',pub_dt)
         for b in bills:
+            prnt('b:',b)
             i_pub_dt = None
             ShortTitle = b.find('LongTitleEn').text
-            code = b.find('BillNumberFormatted').text
+            code = b.find('NumberCode').text
             parl = b.find('ParliamentNumber').text
             sess = b.find('SessionNumber').text
             if b.find('LatestBillEventDateTime') is not None:
                 pubDate = b.find('LatestBillEventDateTime').text
-                i_pub_dt = string_to_dt(pubDate)
+                # i_pub_dt = string_to_dt(pubDate)
+                i_pub_dt = timezonify('est', string_to_dt(pubDate))
             elif b.find('LatestActivityDateTime') is not None:
                 pubDate = b.find('LatestActivityDateTime').text
-                i_pub_dt = string_to_dt(pubDate)
+                # i_pub_dt = string_to_dt(pubDate)
+                i_pub_dt = timezonify('est', string_to_dt(pubDate))
             prnt('i_pub_dt',i_pub_dt)
             if not i_pub_dt or not pub_dt or i_pub_dt > pub_dt:
                 xml = 'https://www.parl.ca/LegisInfo/en/bill/%s-%s/%s/xml' %(parl, sess, code)
@@ -1615,7 +1618,7 @@ def add_bill(b, func, special=None, country=None, iden=None, log=None):
         textFound = True
     if bill_is_new and bill.Person_obj:
         # prntDebug('send alerts')
-        notification, notificationU, notification_is_new = get_model_and_update('Notification', Title=f'{bill.Person_obj.get_field("FullName")} has sponsored bill {bill.NumberCode}', Link=str(bill.get_absolute_url()), targetUsers={'follow_person' : bill.Person_obj.id}, pointerId=bill.id, Country_obj=country, Region_obj=country, Chamber=originChamber, networkChainType=gov.id)
+        notification, notificationU, notification_is_new = get_model_and_update('Notification', Title=f'{bill.Person_obj.get_field("FullName")} has sponsored bill {bill.NumberCode}', Link=str(bill.get_absolute_url()), targetUsers={'follow_person' : bill.Person_obj.id}, pointerId=bill.id, Country_obj=country, Region_obj=country, Chamber=originChamber, networkChain=gov.id)
         notification, notificationU, notification_is_new, log = save_and_return(notification, notificationU, log)
 
     bill, billU, bill_is_new, log = save_and_return(bill, billU, log)
@@ -1631,10 +1634,10 @@ def add_bill(b, func, special=None, country=None, iden=None, log=None):
             #         u.alert(title, str(bill.get_absolute_url()), body + '\n' + billData['Status'], obj=bill, share=False)
                 # notification, notificationU, notificationData, notification_is_new = get_model_and_update('Notification', title=f'Bill {bill.NumberCode} updated - {body}', link=str(bill.get_absolute_url()), targetUsers={'follow_bill' : bill.id}, pointerId=bill.id, pointerType=bill.objType, Country_obj=country, Region_obj=country, Chamber=originChamber)
                 # notification, notificationU, notificationData, notification_is_new, log = save_and_return(notification, notificationU, notificationData, notification_is_new, log, func)
-                notification, notificationU, notification_is_new = get_model_and_update('Notification', Title=f'Bill {bill.NumberCode} updated', Link=str(bill.get_absolute_url()), targetUsers={'follow_bill' : bill.id, 'follow_person' : person_id}, pointerId=bill.id, Country_obj=country, Region_obj=country, Chamber=bill.Chamber, networkChainType=gov.id)
+                notification, notificationU, notification_is_new = get_model_and_update('Notification', Title=f'Bill {bill.NumberCode} updated', Link=str(bill.get_absolute_url()), targetUsers={'follow_bill' : bill.id, 'follow_person' : person_id}, pointerId=bill.id, Country_obj=country, Region_obj=country, Chamber=bill.Chamber, networkChain=gov.id)
                 notification, notificationU, notification_is_new, log = save_and_return(notification, notificationU, log)
         elif 'Royal assent received' in billU.data['Status']:
-            notification, notificationU, notification_is_new = get_model_and_update('Notification', Title=f'Bill {bill.NumberCode} updated', Link=str(bill.get_absolute_url()), targetUsers={'follow_bill' : bill.id, 'follow_person' : person_id}, pointerId=bill.id, Country_obj=country, Region_obj=country, Chamber=bill.Chamber, networkChainType=gov.id)
+            notification, notificationU, notification_is_new = get_model_and_update('Notification', Title=f'Bill {bill.NumberCode} updated', Link=str(bill.get_absolute_url()), targetUsers={'follow_bill' : bill.id, 'follow_person' : person_id}, pointerId=bill.id, Country_obj=country, Region_obj=country, Chamber=bill.Chamber, networkChain=gov.id)
             notification, notificationU, notification_is_new, log = save_and_return(notification, notificationU, log)
     
     return log
@@ -1645,9 +1648,17 @@ def get_house_debates(special=None, dt=None, objType='hansard', value='latest', 
     prnt(f'--{func} Canada', now_utc())
     dt = declare_var(dt, now_utc())
     country = get_region('Canada')
-    meetings_count = Post.objects.filter(Meeting_obj__meeting_type='Debate', Meeting_obj__Chamber='House', Meeting_obj__DateTime__gte=now_utc() - datetime.timedelta(days=2), Meeting_obj__DateTime__lte=datetime.datetime.combine(now_utc().date(), datetime.datetime.min.time()), Region_obj=country).exclude(Update_obj__data__contains='"has_transcript": true').count()
-    prnt('meetings_count',meetings_count)
-    if meetings_count <= 1:
+
+    meeting_count = 0
+    meetings = Meeting.objects.filter(meeting_type='Debate', Chamber='House', DateTime__gte=now_utc() - datetime.timedelta(days=2), DateTime__lte=datetime.datetime.combine(now_utc().date(), datetime.datetime.min.time()), Validator_obj__is_valid=True).values('id', 'DateTime')
+    if meetings:
+        updates_count = Update.objects.filter(pointerId__in=[m['id'] for m in meetings], DateTime__gte=now_utc() - datetime.timedelta(days=2), DateTime__lte=datetime.datetime.combine(now_utc().date(), datetime.datetime.min.time()), Region_obj=country, Validator_obj__is_valid=True).exclude(data__contains='"has_transcript": true').count()
+        if updates_count:
+            meeting_count = updates_count
+
+    # meeting_count = Post.objects.filter(Meeting_obj__meeting_type='Debate', Meeting_obj__Chamber='House', Meeting_obj__DateTime__gte=now_utc() - datetime.timedelta(days=2), Meeting_obj__DateTime__lte=datetime.datetime.combine(now_utc().date(), datetime.datetime.min.time()), Region_obj=country).exclude(Update_obj__data__contains='"has_transcript": true').count()
+    prnt('meeting_count',meeting_count)
+    if meeting_count <= 1:
         log = create_share_object(func, country, special=special, dt=dt, iden=iden, job_dt=job_dt)
         log, gov = get_house_hansard_or_committee(objType, value, country, log)
         prntDebug('done done')
@@ -2042,11 +2053,19 @@ def get_house_motions(special=None, dt=None):
     dt = declare_var(dt, now_utc())
     country = get_region('Canada')
     proceed = True
-    meeting = Post.objects.filter(Meeting_obj__meeting_type='Debate', Meeting_obj__Chamber='House', Meeting_obj__DateTime__gte=now_utc() - datetime.timedelta(days=2), Meeting_obj__DateTime__lte=datetime.datetime.combine(now_utc().date(), datetime.datetime.min.time()), Region_obj=country, Update_obj__data__contains='"has_transcript": true').first()
+
+    meeting = Meeting.objects.filter(meeting_type='Debate', Chamber='House', DateTime__gte=now_utc() - datetime.timedelta(days=2), DateTime__lte=datetime.datetime.combine(now_utc().date(), datetime.datetime.min.time())).values('id', 'DateTime').first()
     if meeting:
-        recent_motion = Motion.objects.filter(Chamber='House', Country_obj=country, Region_obj=country, DateTime__gte=meeting.Meeting_obj.DateTime, Validator_obj__is_valid=True).first()
-        if recent_motion:
-            proceed = False
+        update = Update.objects.filter(pointerId=meeting['id'], DateTime__gte=now_utc() - datetime.timedelta(days=2), DateTime__lte=datetime.datetime.combine(now_utc().date(), datetime.datetime.min.time()), Region_obj=country, data__contains='"has_transcript": true').first()
+        if update:
+            if Motion.objects.filter(Chamber='House', Country_obj=country, Region_obj=country, DateTime__gte=meeting['DateTime'], Validator_obj__is_valid=True).exists():
+                proceed = False
+
+    # meeting = Post.objects.filter(Meeting_obj__meeting_type='Debate', Meeting_obj__Chamber='House', Meeting_obj__DateTime__gte=now_utc() - datetime.timedelta(days=2), Meeting_obj__DateTime__lte=datetime.datetime.combine(now_utc().date(), datetime.datetime.min.time()), Region_obj=country, Update_obj__data__contains='"has_transcript": true').first()
+    # if meeting:
+    #     recent_motion = Motion.objects.filter(Chamber='House', Country_obj=country, Region_obj=country, DateTime__gte=meeting.Meeting_obj.DateTime, Validator_obj__is_valid=True).first()
+    #     if recent_motion:
+    #         proceed = False
     if proceed:
         log = create_share_object(func, country, special=special, dt=dt, iden=None, job_dt=None)
         vote1 = 'https://www.ourcommons.ca/members/en/votes/xml'
@@ -2219,7 +2238,13 @@ def get_senate_debates(special=None, dt=None, period='latest'):
     prnt(f'--{func} Canada', now_utc())
     dt = declare_var(dt, now_utc())
     country = get_region('Canada')
-    meeting_count = Post.objects.filter(Meeting_obj__meeting_type='Debate', Meeting_obj__Chamber='Senate', Meeting_obj__DateTime__gte=now_utc() - datetime.timedelta(days=2), Meeting_obj__DateTime__lte=datetime.datetime.combine(now_utc().date(), datetime.datetime.min.time()), Region_obj=country).exclude(Update_obj__data__contains='"has_transcript": true').count()
+    meeting_count = 0
+    meetings = Meeting.objects.filter(meeting_type='Debate', Chamber='Senate', DateTime__gte=now_utc() - datetime.timedelta(days=2), DateTime__lte=datetime.datetime.combine(now_utc().date(), datetime.datetime.min.time()), Validator_obj__is_valid=True).values('id', 'DateTime')
+    if meetings:
+        updates_count = Update.objects.filter(pointerId__in=[m['id'] for m in meetings], DateTime__gte=now_utc() - datetime.timedelta(days=2), DateTime__lte=datetime.datetime.combine(now_utc().date(), datetime.datetime.min.time()), Region_obj=country, Validator_obj__is_valid=True).exclude(data__contains='"has_transcript": true').count()
+        if updates_count:
+            meeting_count = updates_count
+    # meeting_count = Post.objects.filter(Meeting_obj__meeting_type='Debate', Meeting_obj__Chamber='Senate', Meeting_obj__DateTime__gte=now_utc() - datetime.timedelta(days=2), Meeting_obj__DateTime__lte=datetime.datetime.combine(now_utc().date(), datetime.datetime.min.time()), Region_obj=country).exclude(Update_obj__data__contains='"has_transcript": true').count()
     prnt('meeting_count',meeting_count)
     if meeting_count <= 1:
         
@@ -2556,10 +2581,12 @@ def get_senate_motions(special=None, dt=None, time='latest'):
     dt = declare_var(dt, now_utc())
     country = get_region('Canada')
     proceed = True
-    meeting = Post.objects.filter(Meeting_obj__meeting_type='Debate', Meeting_obj__Chamber='Senate', Meeting_obj__DateTime__gte=now_utc() - datetime.timedelta(days=2), Meeting_obj__DateTime__lte=datetime.datetime.combine(now_utc().date(), datetime.datetime.min.time()), Region_obj=country, Update_obj__data__contains='"has_transcript": true').first()
+    meeting = Meeting.objects.filter(meeting_type='Debate', Chamber='Senate', DateTime__gte=now_utc() - datetime.timedelta(days=2), DateTime__lte=datetime.datetime.combine(now_utc().date(), datetime.datetime.min.time())).values('id', 'DateTime').first()
     if meeting:
-        if Motion.objects.filter(Chamber='Senate', Country_obj=country, Region_obj=country, DateTime__gte=meeting.Meeting_obj.DateTime, Validator_obj__is_valid=True).exists():
-            proceed = False
+        update = Update.objects.filter(pointerId=meeting['id'], DateTime__gte=now_utc() - datetime.timedelta(days=2), DateTime__lte=datetime.datetime.combine(now_utc().date(), datetime.datetime.min.time()), Region_obj=country, data__contains='"has_transcript": true').first()
+        if update:
+            if Motion.objects.filter(Chamber='Senate', Country_obj=country, Region_obj=country, DateTime__gte=meeting['DateTime'], Validator_obj__is_valid=True).exists():
+                proceed = False
     if proceed:
         log = create_share_object(func, country, special=special, dt=dt, iden=None, job_dt=None)
         if time == 'latest':
@@ -2747,7 +2774,7 @@ def get_user_region(u, url):
     result['greaterMunicipalityDistrict_name'] = ''
     result['greaterMunicipalityDistrict_id'] = ''
 
-    country = Region.objects.filter(Name='Canada', modelType='country').first()
+    country = Region.objects.filter(Name='Canada', nameType='Country').first()
     result['country_name'] = country.Name
     result['country_id'] = country.id
     # should not use verify=False but opennorth is giving ssl error
@@ -2771,10 +2798,10 @@ def get_user_region(u, url):
                 prntDebug('riding,,,')
                 try:
                     prntDebug('aa')
-                    riding = District.objects.filter(Q(Name=name)&Q(Country_obj=country)&Q(modelType='riding')).first()
+                    riding = District.objects.filter(Q(Name=name)&Q(Country_obj=country)&Q(nameType='riding')).first()
                 except Exception as e:
                     prntDebug('err 32',str(e))
-                    riding = District(Name=name, Country_obj=country, Region_obj=country, AltName=name.replace('—', ''), gov_level='Federal', modelType='riding', nameType='Riding')
+                    riding = District(Name=name, Country_obj=country, Region_obj=country, AltName=name.replace('—', ''), gov_level='Federal', nameType='riding')
                     riding.save()
                     log.append(riding)
                 prntDebug(riding)
@@ -2785,9 +2812,9 @@ def get_user_region(u, url):
                 provState_name = type.replace(' electoral district', '')
                 prntDebug(provState_name)
                 try:
-                    provState = Region.objects.filter(Name=provState_name, ParentRegion_obj=country, nameType='Province', modelType='provState').first()
+                    provState = Region.objects.filter(Name=provState_name, ParentRegion_obj=country, nameType='Province').first()
                 except:
-                    provState = Region(Name=provState_name, ParentRegion_obj=country, nameType='Province', modelType='provState')
+                    provState = Region(Name=provState_name, ParentRegion_obj=country, nameType='Province')
                     provState.save()
                     log.append(provState)
                 result['provState_id'] = provState.id
@@ -2796,9 +2823,9 @@ def get_user_region(u, url):
                     provState.AbbrName = prov
                     provState.save()
                 try:
-                    district = District.objects.filter(Name=name, Region_obj=provState, gov_level='Provincial', modelType='district', nameType='District')[0]
+                    district = District.objects.filter(Name=name, Region_obj=provState, gov_level='Provincial', nameType='District')[0]
                 except:
-                    district = District(Name=name, Country_obj=country, Region_obj=provState, gov_level='Provincial', modelType='district', nameType='District')
+                    district = District(Name=name, Country_obj=country, Region_obj=provState, gov_level='Provincial', nameType='District')
                     district.save()
                     log.append(district)
                 result['provStateDistrict_name'] = district.Name
@@ -2815,19 +2842,19 @@ def get_user_region(u, url):
                 # prntDebug('WARD')
                 mun_name = type.replace(' ward', '')
                 try:
-                    municipality = Region.objects.filter(Name=mun_name, nameType='Municipality', modelType='municipality').first()
+                    municipality = Region.objects.filter(Name=mun_name, nameType='municipality').first()
                     # municipality, municipalityU, municipalityData, municipality_is_new = get_model_and_update('Region', obj=municipality)
                 except:
-                    municipality = Region(Name=mun_name, ParentRegion_obj=provState, nameType='Municipality', modelType='municipality')
+                    municipality = Region(Name=mun_name, ParentRegion_obj=provState, nameType='municipality')
                     municipality.save()
                     log.append(municipality)
 
                 result['municipality_name'] = municipality.Name
                 result['municipality_id'] = municipality.id
                 try:
-                    ward = District.objects.filter(Name=name, Country_obj=country, Region_obj=municipality, gov_level='Municipal', modelType='ward', nameType='Ward').first()
+                    ward = District.objects.filter(Name=name, Country_obj=country, Region_obj=municipality, gov_level='Municipal', nameType='ward').first()
                 except:
-                    ward = District(Name=name, Country_obj=country, Region_obj=municipality, gov_level='Municipal', modelType='ward', nameType='Ward')
+                    ward = District(Name=name, Country_obj=country, Region_obj=municipality, gov_level='Municipal', nameType='ward')
                     ward.save()
                     log.append(ward)
                 result['ward_name'] = ward.Name
@@ -3000,9 +3027,9 @@ def get_user_region(u, url):
             elif 'Regional Council' in type:
                 region_name = type.replace(' Regional Council', '')
                 try:
-                    greater_municipality = Region.objects.filter(Name=region_name, ParentRegion_obj=provState, modelType='regionalMunicipality', nameType='Regional Municipality').first()
+                    greater_municipality = Region.objects.filter(Name=region_name, ParentRegion_obj=provState, nameType='Regional Municipality').first()
                 except:
-                    greater_municipality = Region(Name=region_name, ParentRegion_obj=provState, modelType='regionalMunicipality', nameType='Regional Municipality')
+                    greater_municipality = Region(Name=region_name, ParentRegion_obj=provState, nameType='Regional Municipality')
                     greater_municipality.save()
                     log.append(greater_municipality)
 
@@ -3013,9 +3040,9 @@ def get_user_region(u, url):
                 result['greaterMunicipality_name'] = greater_municipality.Name
                 result['greaterMunicipality_id'] = greater_municipality.id
                 try:
-                    greater_municipality_district = District.objects.filter(Name=district_name, Region_obj=greater_municipality, gov_level='regionalMunicipality', modelType='regionalDistrict', nameType='Regional District').first()
+                    greater_municipality_district = District.objects.filter(Name=district_name, Region_obj=greater_municipality, nameType='Regional District').first()
                 except:
-                    greater_municipality_district = District(Name=district_name, Country_obj=country, Region_obj=greater_municipality, gov_level='regionalMunicipality', modelType='regionalDistrict', nameType='Regional District')
+                    greater_municipality_district = District(Name=district_name, Country_obj=country, Region_obj=greater_municipality, nameType='Regional District')
                     greater_municipality_district.save()
                     log.append(greater_municipality_district)
 

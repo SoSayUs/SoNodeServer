@@ -757,7 +757,6 @@ def user_view(request, username):
 
 @csrf_exempt
 def user_settings_view(request):
-    prnt('-user_settings_view')
     user = request.user
     title = 'User Settings'
     style = request.GET.get('style', 'preload')
@@ -765,14 +764,18 @@ def user_settings_view(request):
     include_nav = request.GET.get('include_nav', False)
     view = request.GET.get('view', 'Active')
     page = request.GET.get('page', 1)
+    prnt('-user_settings_view',user_id, style)
 
-    if user and user_id and user.id != user_id:
+    if user.is_authenticated and user_id and user.id != user_id:
+        prnt('r0',user)
         # request authentication
-        return
-    if not user and user_id:
+        return render_view(request, {})
+    if not user.is_authenticated and user_id:
         user = User.objects.filter(id=user_id).first()
+        prnt('user',user)
     if not user:
-        return
+        prnt('r1')
+        return render_view(request, {'feed_title':'User Not Found'})
     from posts.utils import get_cookies, get_index, get_user_sending_data, nav_item, get_regions_and_govs
 
     if style == 'preload':
@@ -1197,8 +1200,10 @@ def user_settings_view(request):
         if style == 'index':
             context = get_index(request, country_dict, gov_dict)
             context = get_user_sending_data(user, context)
-            return render(request, "utils/fetch_index.html", context)
+            # prnt('context',context)
+            return render(request, "utils/index.html", context)
         else:
+            prnt('r2')
             nav_options = []
             key_types = ['All','Active','Account','Signing','Node','Security','Other']
             if include_nav == 'True':
@@ -1226,6 +1231,7 @@ def user_settings_view(request):
                 'nav_bar': nav_options,   
                 'feed_title': title,
                 'title': title,
+                'user': user,
                 'upks': upks,
                 'security_upk': UserPubKey.objects.filter(User_obj=user, keyType='security', end_life_dt=None).only('id').first()
             }
@@ -1348,7 +1354,7 @@ def reaction_view(request, iden, item):
         addon_fields = {}
         action = UserAction.objects.filter(User_obj__id=user['id'], postId=post.id).first()
         if not action:
-            action = UserAction(User_obj_id=user['id'], Post_obj=post, postId=post.id, pointerId=post.pointerId, created=now_utc(), id=hash_obj_id(UserAction, length=UserAction.iden_length, specific_data=f"UserAction_{user['id']}_{dt_to_string(now_utc())}"))
+            action = UserAction(User_obj_id=user['id'], Post_obj=post, postId=post.id, pointerId=post.pointerId, created=now_utc(), id=hash_obj_id('UserAction', length=UserAction.iden_length, specific_data=f"UserAction_{user['id']}_{dt_to_string(now_utc())}"))
 
         pointer = post.get_pointer(set_pointer=False)
         if pointer:

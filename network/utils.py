@@ -1,9 +1,10 @@
 
+from django.db import models
 from network.models import Node, DataPacket, Block, Blockchain, _OperationsChain_genesisId, universalChains, _EarthChain_genesisId
 from utils.utils import (
     prnt, prntn, prntDebug, prntDebugn, request_items, get_self_node, process_received_dp, exists_in_worker,
     now_utc, string_to_dt, dt_to_string, value_is_none, get_sigData, is_id,  hash_upk_id, get_or_create_model,
-    get_node
+    get_node, get_pointer_type
 )
 from utils.models import (
     e_brake, decompress_data, compress_data, get_operator_obj, downstream_broadcast, create_job, get_operatorData,
@@ -29,6 +30,9 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
     from posts.models import scoreMe, Update, Post
     from utils.locked import verify_data, check_commit_data, get_signing_data, convert_to_dict, sign_obj, validate_obj, get_relevant_nodes, get_node_assignment, get_commit_data, check_block_contents, check_validation_consensus
     from network.models import Plugin, DataPacket, Block, Blockchain, _OperationsChain_genesisId, _block_creation_times, mandatoryChains, block_time_delay, share_to_all, script_created_modifiable_models
+    from network.utils import retrieve_missing_blocks
+    from utils.models import get_data, set_model_attrs, save_sigs
+    from utils.utils import data_sort_priority, get_model_prefix, get_dynamic_model, dynamic_bulk_create, dynamic_bulk_update, get_model, has_method, has_field, sigData_to_hash, is_locked, logError, seperate_by_type, find_or_create_chain_from_object, testing
     
     result = process_received_dp(received_data, 'process_received_data', skip_log_check=skip_log_check, override_completed=override_completed)
     prnt('reslut:',str(result)[:1000])
@@ -91,11 +95,20 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
         if self_node and self_node.node_type == 'relay':
             prcs = share_to_all+['blc','val','chn']
             content = [i for i in content if isinstance(i,dict) and get_model_prefix(i['objType']) in prcs]
+        prnt('aa0')
         prnt('stage2- data Len:',len(content))
         opBlock_dict = {'index':{}}
         userVotes = []
         validators = []
         received_invalids = []
+        prnt('aa1')
+        try:
+            prnt('aa2')
+            storedModels, not_found, not_valid = get_data(content, return_model=True, include_related=False, result_as_dict=True, verify_data=False)
+            prnt('***get_data success')
+        except Exception as e:
+            prnt('*** err get_data',str(e))
+        prnt('aa3')
         storedModels, not_found, not_valid = get_data(content, return_model=True, include_related=False, result_as_dict=True, verify_data=False)
         prnt('existing_objs-',len(storedModels))
 
@@ -118,6 +131,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                 created_items = dynamic_bulk_create(current_model_type, items=bulk_create_objs, return_items=True, retrieve_missing=get_missing_blocks)
                 prnt('created_items',[i.id for i in created_items])
                 synced_idens += [i.id for i in created_items]
+                prnt('proof:',[i['id'] for i in get_model(current_model_type).objects.filter(id__in=synced_idens).values('id')])
                 if return_updated_objs:
                     updated_objs = updated_objs + created_items
                 elif return_updated_ids:
@@ -130,6 +144,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
             if bulk_update_objs:
                 updated_items = dynamic_bulk_update(current_model_type, items=bulk_update_objs, return_items=True, retrieve_missing=get_missing_blocks)
                 synced_idens += [i.id for i in updated_items]
+                prnt('proof:',[i['id'] for i in get_model(current_model_type).objects.filter(id__in=synced_idens).values('id')])
                 if return_updated_objs:
                     updated_objs = updated_objs + updated_items
                 elif return_updated_ids:
@@ -245,6 +260,8 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                                     user.save(bypass_verify=True)
                                     obj = user
                                     save_sigs(sigs)
+                                    if has_method(obj, 'boot'):
+                                        obj.boot()
                                     new = False
                         else:
                             val_err += 'C'
@@ -345,6 +362,8 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                                 obj, sigs, updatedDB = set_model_attrs(obj, i, get_missing_blocks=get_missing_blocks)
                                 obj.save(bypass_verify=True)
                                 save_sigs(sigs)
+                                if has_method(obj, 'boot'):
+                                    obj.boot()
                                 new_upk_valid = verify_data(get_signing_data(obj), i['signed'])
                                 prnt('new_upk_valid?',new_upk_valid)
                                 is_new = False
@@ -425,7 +444,9 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                     received_invalids.append({i['id']:val_err,'updatedDB':updatedDB})
                 elif updatedDB:
                     if obj._meta.object_name == 'Region': # ParentRegion_obj must be saved before bulk update
-                        obj.save()
+                        val_err += 'J'
+                        obj.save(sigs)
+                        save_sigs(sigs)
                     else:
                         bulk_update_items[obj.id] = {'is_new':is_new,'updatedDB':updatedDB,'obj':obj, 'sigs':sigs}
                     synced_idens.append(obj.id)
@@ -800,7 +821,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
         if log:
             log.completed()
     except Exception as e:
-        prnt('fail process data 9374',str(e))
+        prnt('***fail process data 9374***',str(e))
         if log:
             log.completed(str(e))
     prnt('done process received data databaseUpdated',databaseUpdated)
@@ -808,7 +829,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
         return updated_objs
     elif return_updated_count:
         return updated_count
-    return databaseUpdated            
+    return databaseUpdated         
             
 def process_data_packet(received_json):
     prnt('--process_data_packet')
@@ -922,7 +943,7 @@ def rebroadcast_dp(dp_id, override_completed=False):
                     include_relays = False
                     if 'chainId' in dp.headers and dp.headers['chainId'] in universalChains:
                         include_relays = True
-                    broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], all_nodes=True, dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Chainid'], seed_nodes=[dp.headers['Seedid']], include_relays=include_relays)
+                    broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], all_nodes=True, dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Chainid'], plugin_id=dp.headers['Pluginid'], seed_nodes=[dp.headers['Seedid']], include_relays=include_relays)
                     downstream_broadcast(broadcast_list, 'network/receive_data_packet', received_json, headers=dp.headers, skip_self=True)
                     dp.rebroadcast_dt = now_utc()
                     dp.save()
@@ -930,7 +951,7 @@ def rebroadcast_dp(dp_id, override_completed=False):
                 else: # shouldnt ever be used
                     prnt('rebroadcast_dp_Packet-Id',dp.headers['Packet-Id'])
                     # broadcast_list = get_broadcast_list(packet_id, dt=now, region_id=self.chainId, seed_nodes=[self_node_id])
-                    broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Chainid'], seed_nodes=[dp.headers['Senderid']])
+                    broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Chainid'], plugin_id=dp.headers['Pluginid'], seed_nodes=[dp.headers['Senderid']])
                     downstream_broadcast(broadcast_list, 'network/receive_data_packet', received_json, headers=dp.headers, exclude=[dp.headers['Senderid']], skip_self=True)
                     dp.rebroadcast_dt = now_utc()
                     dp.save()
@@ -1075,7 +1096,7 @@ def rebroadcast_block(dp_id):
                                             blockchain = Blockchain.objects.filter(genesisId=dp.headers['Genesisid']).first()
                                             new_block = blockchain.create_block(block_dict=block_dict)
                             
-                            broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], seed_nodes=[dp.headers['Seedid']], include_relays=True, peer_count=10, loop=False, all_nodes=True)
+                            broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], plugin_id=dp.headers['Pluginid'], seed_nodes=[dp.headers['Seedid']], include_relays=True, peer_count=10, loop=False, all_nodes=True)
                             received_data = received_json.copy()
                             headers = dp.headers
                             # del received_data['headers']
@@ -1089,7 +1110,7 @@ def rebroadcast_block(dp_id):
                                 log = result['dp']
                                 received_data = log.data.copy()
                                 headers = dp.headers
-                                broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], seed_nodes=[dp.headers['Seedid']], include_relays=True, peer_count=10, loop=False, all_nodes=True)
+                                broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], plugin_id=dp.headers['Pluginid'], seed_nodes=[dp.headers['Seedid']], include_relays=True, peer_count=10, loop=False, all_nodes=True)
                                 # del received_data['headers']
                             else:
                                 prnt('no dp')
@@ -1116,10 +1137,10 @@ def rebroadcast_block(dp_id):
                         include_relays = True
                     if 'Validators-Only' in dp.headers and dp.headers['Validators-Only'] == 'True':
                         prnt('validators only')
-                        broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], loop=True, all_nodes=False, dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], seed_nodes=[dp.headers['Seedid']], include_relays=include_relays)
+                        broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], loop=True, all_nodes=False, dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], plugin_id=dp.headers['Pluginid'], seed_nodes=[dp.headers['Seedid']], include_relays=include_relays)
                     else:
                         prnt('not validators only')
-                        broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], seed_nodes=[dp.headers['Seedid']], include_relays=include_relays, peer_count=10, loop=False, all_nodes=True)
+                        broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], plugin_id=dp.headers['Pluginid'], seed_nodes=[dp.headers['Seedid']], include_relays=include_relays, peer_count=10, loop=False, all_nodes=True)
                     # del received_data['headers']
                     
                     prnt('now_utc() < (block.DateTime + datetime.timedelta(minutes=1))')
@@ -1145,11 +1166,11 @@ def rebroadcast_block(dp_id):
                     prnt('validators only')
                     opBlock_data = get_relevant_nodes(dt=string_to_dt(dp.headers['Dt']), blockchain=dp.headers['Blockchainid'], strings_only=True, first_block_override=True)
 
-                    creator_nodes, validator_list = get_node_assignment(func=dp.headers['Packet-Id'],dt=string_to_dt(dp.headers['Dt']), chainId=dp.headers['Blockchainid'], opBlock_data=opBlock_data)
-                    broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], relevant_nodes=validator_list, loop=True, all_nodes=False, dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], seed_nodes=[dp.headers['Seedid']], include_relays=include_relays, opBlock_data=opBlock_data)
+                    creator_nodes, validator_list = get_node_assignment(func=dp.headers['Packet-Id'],dt=string_to_dt(dp.headers['Dt']), chainId=dp.headers['Blockchainid'], plugin_id=dp.headers['Pluginid'], opBlock_data=opBlock_data)
+                    broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], relevant_nodes=validator_list, loop=True, all_nodes=False, dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], plugin_id=dp.headers['Pluginid'], seed_nodes=[dp.headers['Seedid']], include_relays=include_relays, opBlock_data=opBlock_data)
                 else:
                     prnt('not validators only')
-                    broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], seed_nodes=[dp.headers['Seedid']], include_relays=include_relays)
+                    broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], seed_nodes=[dp.headers['Seedid']], plugin_id=dp.headers['Pluginid'], include_relays=include_relays)
                 downstream_broadcast(broadcast_list, 'network/receive_blocks', received_json, headers=dp.headers, skip_self=True)
                 dp.rebroadcast_dt = now_utc()
                 dp.save()
@@ -1198,7 +1219,7 @@ def process_received_blocks(received_json, get_missing_blocks=True, resend_missi
         return completed
 
     if 'headers'in received_json and 'Packet-Creator' in received_json['headers']:
-        if received_json['headers']['Packet-Creator'] == get_operator_obj('self_nodeId') and Node.objects.filter(activeNode=True).count() > 1:
+        if received_json['headers']['Packet-Creator'] == get_operator_obj('self_nodeId') and Node.objects.filter(activeNode=True).count() > 10:
             if log:
                 log.completed('self_seeded')
             return completed
@@ -1238,10 +1259,13 @@ def process_received_blocks(received_json, get_missing_blocks=True, resend_missi
 
     if 'headers' in received_json and 'Genesisid' in received_json['headers']:
         blockchain = Blockchain.objects.filter(genesisId=received_json['headers']['Genesisid']).defer('queuedData').first()
-        prntDebug('blockchain',blockchain)
+        prntDebug('blockchain1',blockchain)
+    elif 'genesisId' in received_json:
+            blockchain = Blockchain.objects.filter(genesisId=received_json['genesisId']).defer('queuedData').first()
+            prntDebug('blockchain1',blockchain)
     elif 'blockchainId' in received_json:
         blockchain = Blockchain.objects.filter(id=received_json['blockchainId']).defer('queuedData').first()
-        prntDebug('blockchain',blockchain)
+        prntDebug('blockchain2',blockchain)
 
     if 'force_check' in received_json:
         force_check = received_json['force_check']
@@ -1278,11 +1302,19 @@ def process_received_blocks(received_json, get_missing_blocks=True, resend_missi
         added_blocks = []
         received_hashes = []
         full_nodeData = None
+        operatorData = get_operatorData()
+        node_data = operatorData['myNodes'][operatorData['local_nodeId']]
+        operatorData.clear()
+        if not 'do_not_sync_block_content' in node_data['meta'] and 'chainData' in node_data['meta']:
+            supported = node_data['meta']['chainData'].get('supported_regions', []) + node_data['meta']['chainData'].get('plugin_regions', [])
+        else:
+            supported = []
         for index, b in sorted(blocks.items(), key=operator.itemgetter(0)):
             try:
                 new_block_dict = json.loads(b['block_dict'])
             except:
                 new_block_dict = b['block_dict']
+            transaction = None
             if verify_obj_to_data(Block(), new_block_dict):
                 prntDebugn('new_block',new_block_dict['id'])
                 block_transaction = b['block_transaction']
@@ -1324,7 +1356,7 @@ def process_received_blocks(received_json, get_missing_blocks=True, resend_missi
                             transaction, sigs, proceed_to_check_consensus, transaction_updatedDB = sync_model(transaction, block_transaction, get_missing_blocks=get_missing_blocks)
                                 
                     prnt('proceed_to_check_consensus',proceed_to_check_consensus)
-                    if proceed_to_check_consensus:
+                    if proceed_to_check_consensus and (get_pointer_type(new_block_dict['networkChain']) not in ['Region','Plugin'] or blockchain.genesisId in supported):
                         block = Block.objects.filter(hash=new_block_dict['hash']).defer('data','extraData').first()
                         if not block or block.signed != new_block_dict['signed']:
                             block = blockchain.create_block(block_dict=b, dummy_block=block)
@@ -1332,18 +1364,13 @@ def process_received_blocks(received_json, get_missing_blocks=True, resend_missi
                         if block and block.signed:
                             prnt('block.Transaction_obj',block.Transaction_obj)
                             if transaction and transaction_signature_verified and transaction == block.Transaction_obj:
-                                prnt('py1')
                                 if block.id == transaction.senderBlockId:
-                                    prnt('py2a')
                                     if transaction.SenderBlock_obj != block:
-                                        prnt('py2b')
                                         transaction.SenderBlock_obj = block
                                         transaction.save()
                                 elif transaction.ReceiverBlock_obj != block:
-                                    prnt('py3')
                                     transaction.ReceiverBlock_obj = block
                                     transaction.save()
-                            prnt('py4')
                             received_hashes.append(block.hash)
                             added_blocks.append(b)
                             if b['validations']:
@@ -1357,7 +1384,8 @@ def process_received_blocks(received_json, get_missing_blocks=True, resend_missi
                                 prnt('current_vals G',len(current_vals),len(val_ids))
                                 if len(current_vals) < len(val_ids):
                                     process_received_data([v for v in vals_dict if v['id'] in val_ids+[i['id'] for i in current_vals]], check_consensus=False, get_missing_blocks=get_missing_blocks)
-                
+                    elif transaction:
+                        transaction.boot()
         if 'hash_history' in received_json:
             prnt("received_json['hash_history']",len(received_json['hash_history']))
             hash_list = received_json['hash_history'].copy()

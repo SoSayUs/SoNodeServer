@@ -1,0 +1,71 @@
+
+
+.card .sponsor{
+  position:relative;
+  display: inline-block;
+  top: 0%;
+  /* padding: 5px; */
+  width: 110px;
+  overflow: visible;
+  vertical-align: top;
+  height: 3px;
+  /* width: 100%; */
+  border-radius: 2px;
+  margin: 7px 2px;
+}
+.card .sponsor h3{
+  position:relative;
+  display: block;
+  margin:3px 1px;
+  font-size: 90%;
+}
+.card .sponsor img{
+  position:relative;
+  display: block;
+  max-width: 90px;
+  max-height:150px;
+  margin-left:auto;
+  margin-right:auto;
+  border-radius: 7px;
+}
+.card .sponsor img.sprenPic {
+  position:relative;
+  display: block;
+  max-width: 60px;
+  max-height:110px;
+  margin-top: 25px;
+  margin-left:auto;
+  margin-right:auto;
+  border-radius: 7px;
+}
+.card .sponsorInfo div{
+  position:relative;
+  display: block;
+  padding-left: 3px;
+  margin-top: 0px;
+}
+.card .cosponsors li {
+    font-size: 90%;
+}
+.card .votePic{
+  position: relative;
+  display: inline-block;
+  margin: 5px 7px;
+  border-radius: 5px;
+  width: 75px;
+}
+.vote .profileInfo{
+  margin: 5px 15px;
+  width: 200px;
+}
+.card .Code .Parl{
+  position: relative;
+  display: inline-block;
+  top: -2px;
+  float: right;
+  /* right: 10px; */
+  text-align: right;
+}
+.card .billProgress{
+    font-size: 90%;
+}

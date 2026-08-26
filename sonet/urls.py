@@ -19,15 +19,15 @@ urlpatterns = [
     path('accounts/', include("accounts.urls")),
     path('network/', include("network.urls")),
     path('utils/', include("utils.urls")),
-    path('', include("posts.urls")),
-    path('', include("transactions.urls")),
-    path('', include("legis.urls")),
 
     re_path(r'^static/(?P<path>.*)$', serve,
             {'document_root': settings.STATIC_ROOT}),
 
-]
+    path('', include("posts.urls")),
+    path('', include("transactions.urls")),
+    path('', include("legis.urls")),
 
+] 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # if settings.DEBUG:

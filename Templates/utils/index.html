@@ -2,23 +2,17 @@
 {% load static %}
 <div id="response-wrapper">
 {% if is_mobile %}
-
-
     <div class='mobileNavigation'>
     <div class="mobileNavContent">
-
     <div style="position: relative; margin: 15px auto -15px auto; font-style:italic; display: block; width: fit-content; text-align: center; font-size: 85%;">in development</div>
     <ul id='userProfile'>
         <li><img id='userPic' src={% static 'img/user-colored.png' %}></li>
         <li id='userName'>{% if user.id %}{{ user.get_userLink_html|safe }}{% else %}<span onclick="modalPopUp('Login / Signup', '/accounts/login-signup')">Login/Signup</span>{% endif %}</li>    
     </ul>
-
     <div class="navContainer">
     <div class='container1'>
-
-        
     <ul>
-        <li style="font-style: italic; cursor: pointer;" onclick="modalPopUp('So...', 'so_modal')">So...</li>
+        <li style="font-style: italic; cursor: pointer; align-items: left;" onclick="modalPopUp('So...', 'so_modal')">So...</li>
         <li style="font-style: italic;"><a href='/'>What is Us</a></li>
         <li style="font-style: italic;"><a href='/values'>For All Things</a></li>
         <br>
@@ -46,21 +40,17 @@
     </ul>
 
     </div>
-
     <div class='container2'>
         {% if index_template %}
             {% include index_template %}
         {% endif %}
 
-
     </div>
     </div>
     <br>
     <br>
     </div>
     </div>
-
-
 
     {% include 'mobile/drawer4.html' %}
 

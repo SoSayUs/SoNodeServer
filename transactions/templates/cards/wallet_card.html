@@ -1,0 +1,24 @@
+
+
+<div class="card" id='{{ post.id }}'>
+    <div class='profile'>
+        <span class="material-symbols-outlined">money_bag</span>
+    </div>
+    
+    <div class='cardContent'>
+    <div class='Info'>
+        <div class='title shorten2'><h2><a href='wallet/{{ post.id }}' >Wallet: {{ post.Name }}</a></h2></div>
+        <div class='title'>ID: {{ post.id }}</a></div>
+    </div>
+
+        <div class='TextContent'>
+            <ul class='Text'>
+                <li style='margin-top:15px;'><span class="material-icons">attach_money</span> {{ post.value }}</li>
+                <li style='margin-top:15px;'>{{ post.lastUpdate }}</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="miniMore", title='More' onclick="react('more','{{post.id}}')"><span class="material-icons">more_horiz</span></div>
+</div>
+<div class='bottomDivider'></div>

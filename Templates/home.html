@@ -21,11 +21,14 @@
     {% else %}
       <title>Sonet</title>
     {% endif %} 
+    <style>
+      @layer injected, overrides;
+    </style>
     <link rel="shortcut icon" type="image/x-icon" href='{% static sonet.LogoLink %}' />
     <link rel="manifest" href="{% static 'manifest.json' %}?v=0.1">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons"
-      rel="stylesheet">
-    <link rel="stylesheet" href='{% static "css/defaults.css" %}?v=0.1.0.2'/>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+    <link rel="stylesheet" href='{% static "css/defaults.css" %}?v=0.1.0.4'/>
     {% if theme == 'night' %}
     <link id='themesheet' rel="stylesheet" href='{% static "css/night.css" %}?v=0.1'/>
     {% else %}
@@ -50,7 +53,9 @@
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#222222">
     {% endif %}
     {% if xRequest or iphone %}
+    {% comment %}
     <link rel="stylesheet" href='{% static "css/web_view.css" %}'/>
+    {% endcomment %}
     <meta id='isXRequest' name='True'>
     {% else %}
     <meta id='isXRequest' name='False'>
@@ -95,7 +100,6 @@
       {% endif %}
       <div id='feedTop'>
           {% if not isMobile %}
-            <div class='shadow'></div>
           {% else %}
             <div id="feedTitle">
           {% endif %}
@@ -168,7 +172,7 @@
     src="https://code.jquery.com/jquery-3.2.1.min.js"
     integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
     crossorigin="anonymous"></script>
-<script nonce="abc123" src="{% static 'js/default.js' %}?v=0.1.0.7"></script>
+<script nonce="abc123" src="{% static 'js/default.js' %}?v=0.1.0.9"></script>
 {% include 'utils/infinite.html' %}
 
 

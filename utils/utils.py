@@ -377,23 +377,28 @@ def get_latest_dataPacket(chain='All'):
     self_node = get_self_node()
     # chainId = chain
     if isinstance(chain, models.Model):
-        if chain._meta.object_name != 'Blockchain':
-            if has_field(chain, 'networkChain'):
-                chain = Blockchain.objects.filter(id=chain.networkChain).defer('queuedData').first()
-        if chain and chain.genesisId == _OperationsChain_genesisId:
-            chain = 'All'
-        elif chain:
-            chain = chain.id
+        plugin_id = get_plugin(chain, id=True)
+        # if chain._meta.object_name != 'Blockchain':
+        #     if has_field(chain, 'networkChain'):
+        #         chain = Blockchain.objects.filter(id=chain.networkChain).defer('queuedData').first()
+        if has_field(chain, 'Region_obj'):
+            chain = chain.Region_obj.id
         else:
-            return None
+            chain = chain.networkChain
+        # if chain and chain.genesisId == _OperationsChain_genesisId:
+        #     chain = 'All'
+        # elif chain:
+        #     chain = chain.genesisId
+        # else:
+        #     return None
     elif is_id(chain):
         pointer = get_pointer_type(chain)
         if pointer in ['User', 'Node']:
             chain = 'All'
-    dataPacket = DataPacket.objects.filter(networkChain=chain, func='share', created__gte=now_utc()-datetime.timedelta(days=7)).first()
+    dataPacket = DataPacket.objects.filter(networkChain=chain, jobId=plugin_id, func='share', created__gte=now_utc()-datetime.timedelta(days=7)).first()
     if not dataPacket:
         try:
-            dataPacket = DataPacket(networkChain=chain, Node_obj=self_node, func='share')
+            dataPacket = DataPacket(networkChain=chain, jobId=plugin_id, Node_obj=self_node, func='share')
             dataPacket.save()
         except Exception as e:
             prnt('get_latest_dataPacket err',str(e))
@@ -713,7 +718,7 @@ def get_chain_id(genesisId):
     return hash_obj_id(Blockchain, specific_data={'genesisId': genesisId, 'objType': 'Blockchain'})
 
 def get_post_id(pointerId):
-    prnt('-get_post_id',{'objType': 'Post', 'pointerId': pointerId})
+    # prnt('-get_post_id',{'objType': 'Post', 'pointerId': pointerId})
     from posts.models import Post
     from utils.locked import hash_obj_id
     return hash_obj_id(Post, specific_data={'objType': 'Post', 'pointerId': pointerId})
@@ -1247,6 +1252,12 @@ def get_model(obj_type):
 
 def get_plugin(obj, name=False, id=False):
     try:
+        if is_id(obj):
+            model_type = get_pointer_type(obj)
+            if model_type != 'Plugin':
+                obj = model_type
+        if has_field(obj, 'pointerId') and obj.pointerId:
+            obj = get_pointer_type(obj.pointerId)
         if isinstance(obj, str):
             obj = get_model(obj)
         if name:
@@ -1472,7 +1483,7 @@ def get_dynamic_model(model_name, list=False, order_by=None, exclude={}, values=
     model = None
     if isinstance(model_name, str):
         model = get_model(model_name)
-    elif isinstance(model_name, models.Model) or issubclass(model_name, models.Model):
+    elif model_name and (isinstance(model_name, models.Model) or issubclass(model_name, models.Model)):
         model = model_name
     # prnt('model',model)
     if not model:
@@ -1568,7 +1579,7 @@ def get_model_and_update(model_name, dt=None, obj=None, new_model=True, **kwargs
 def save_and_return(obj, update, log):
     prntn('--save and return, obj',obj, 'update:',update)
     func = log.data['func']
-    created = string_to_dt(log.data['created'])
+    created = string_to_dt(log.data.get('created', now_utc()))
     def confer(obj):
         field_names = [field.name for field in obj._meta.fields]
         query_kwargs = {field: getattr(obj, field) for field in field_names}
@@ -1605,7 +1616,7 @@ def save_and_return(obj, update, log):
             obj.update_data()
         else:
             obj.save()
-        if obj.id not in log.data['shareData']:
+        if obj.id not in log.data.get('shareData', []):
             log.updateShare(obj)
 
     if update and has_field(obj, 'Block_obj'):
@@ -1744,16 +1755,51 @@ def fetch_obj_data(iden):
         data = {'senderId':self_node_id, 'request':signedRequest}
 
         from network.models import Node
-        nodes = Node.objects.filter(activeNode=True).exclude(chain_array=[])
+        nodes = Node.objects.filter(activeNode=True).exclude(chain_array=[]).exclude(id=self_node_id)
 
         for node in nodes:
             prnt('fetch node',node)
-            if node.id != self_node_id:
-                try:
-                    success, response = connect_to_node(node, 'network/request_obj', data=data, timeout=(7,25), log_reponse_time=False)
-                    if success and response.status_code == 200:
-                        received_json = response.json()
-                        if received_json['message'].lower() == 'success':
-                            return received_json['data']
-                except Exception as e:
-                    prnt('fetch err 7',str(e))
+            try:
+                success, response = connect_to_node(node, 'network/request_obj', data=data, timeout=(7,25), log_reponse_time=False)
+                if success and response.status_code == 200:
+                    received_json = response.json()
+                    if received_json['message'].lower() == 'success':
+                        return received_json['data']
+            except Exception as e:
+                prnt('fetch err 7',str(e))
+
+def request_is_valid(iden, chain=None, vals=3):
+    prnt('-request_is_valid',iden, chain)
+    if not iden:
+        return None
+    from utils.locked import convert_to_dict, sign_for_sending
+    # obj = get_dynamic_model(iden, id=iden)
+    # if obj:
+    #     return convert_to_dict(obj)
+    # else:
+
+    self_node_id = get_operator_obj("self_nodeId")
+    keys = get_operator_obj('keyPair')
+    signedRequest = json.dumps(sign_for_sending({'itemId' : iden, 'dt':dt_to_string(now_utc())}, keys=keys))
+    data = {'senderId':self_node_id, 'request':signedRequest}
+    nodes = []
+    from network.models import Node
+    if chain:
+        nodes = Node.objects.filter(activeNode=True, chain_array__contains=[chain]).exclude(id=self_node_id)
+    if not nodes:
+        nodes = Node.objects.filter(activeNode=True).exclude(chain_array=[]).exclude(id=self_node_id)
+    found_vals = 0
+    for node in nodes:
+        prnt('request_is_valid from node',node)
+        try:
+            success, response = connect_to_node(node, 'network/request_is_valid', data=data, timeout=(7,25), log_reponse_time=False)
+            if success and response.status_code == 200:
+                received_json = response.json()
+                if received_json['message'].lower() == 'success':
+                    if received_json['is_valid']:
+                        found_vals += 1
+                        if found_vals >= vals or found_vals == nodes.count():
+                            return True
+        except Exception as e:
+            prnt('request_is_valid err 7',str(e))
+    return False

@@ -10,7 +10,7 @@ sonet/settings/local.py
 sonet/special/
 
 media
-static
+static_cdn
 
 logs
 supervisor

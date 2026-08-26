@@ -1312,18 +1312,201 @@ def tester_queue(obj=None):
     import requests
     # queue = django_rq.get_queue('low')
 
-    from network.models import EventLog, Block, DataPacket, NodeRecord, _EarthChain_genesisId
+    from network.models import Blockchain, Block, DataPacket, NodeRecord, _EarthChain_genesisId
     from utils.locked import get_signing_data,verify_data, sign_obj, convert_to_dict, validate_obj
     from utils.models import request_items, get_latest_dataPacket, super_share, find_or_create_chain_from_object
     from transactions.models import Transaction
     from accounts.models import UserPubKey, User
     from posts.models import Post, Update, Spren, ImageFile
-    from legis.models import  Person, Government, Party, Motion, Bill
+    from legis.models import  BillText, Government, Party, Motion, Bill
     from posts.models import Region
     from utils.models import get_dynamic_model, get_model_prefix, get_self_node, round_time, sigData_to_hash
     # # operatorData = get_operatorData()
     self_node = get_self_node()
     self_node_id = self_node.id
+
+
+
+
+
+    def block_run(input_block):
+        result = {}
+        if not input_block.Transaction_obj.SenderWallet_obj: # reward transactions
+            prnt('input_block.Transaction_obj',input_block.Transaction_obj)
+            carry_on = False
+            if 'BlockReward' in input_block.Transaction_obj.regarding and input_block.Transaction_obj.regarding['BlockReward'] == input_block.id:
+                # return_receiverTransaction = False
+                carry_on = True
+                if not opBlock_data:
+                    opBlock_data = get_relevant_nodes(obj=input_block, blockchain=get_chain_id(input_block.Transaction_obj.networkChain), plugin_id=get_plugin(input_block.networkChain, id=True))
+                creator_nodes, validator_nodes = get_node_assignment(input_block, full_validator_list=True, opBlock_data=opBlock_data)
+                result['s1'] = {'creator_nodes':creator_nodes,'validator_nodes':validator_nodes}
+            elif input_block.Transaction_obj.ReceiverWallet_obj and input_block.Transaction_obj.ReceiverWallet_obj.id == input_block.Blockchain_obj.genesisId:
+                # return_receiverTransaction = True
+                carry_on = True
+                # if not opBlock_data:
+                #     opBlock_data = get_relevant_nodes(dt=dt, genesisId=plugin_id, sublist='maintainer', strings_only=True, include_relays=False)
+                creator_nodes, validator_nodes = get_node_assignment(input_block, chainId=input_block.Transaction_obj.receiverNetworkChain, full_validator_list=True, opBlock_data=opBlock_data)
+                result['s2'] = {'creator_nodes':creator_nodes,'validator_nodes':validator_nodes}
+            if carry_on:
+                # creator_nodes, validator_nodes = get_node_assignment(self, return_receiverTransaction=return_receiverTransaction, full_validator_list=True, opBlock_data=opBlock_data)
+                if fetch_broadcast_list:
+                    broadcast_list = get_broadcast_list(input_block, relevant_nodes=opBlock_data['relevant_nodes'], peer_count=_number_of_peers, seed_nodes=creator_nodes, important_nodes=validator_nodes, loop=loop)
+                # return creator_nodes, validator_nodes, broadcast_list
+            else:
+                input_block.is_not_valid(note='transaction_err2')
+                prntDebug('px transaction_err2',input_block.id)
+                # return [], [], {}
+        else:
+            # peer to peer transactions - will need work
+            if not opBlock_data:
+                opBlock_data = get_relevant_nodes(obj=input_block, genesisId=input_block.Blockchain_obj.genesisId)
+            if input_block.Transaction_obj.ReceiverWallet_obj == input_block.Blockchain_obj:
+                # transaction_type = 'sender'
+                creator_nodes, validator_nodes = get_node_assignment(input_block, chainId=input_block.Transaction_obj.receiverNetworkChain, full_validator_list=True, opBlock_data=opBlock_data)
+                result['s3'] = {'creator_nodes':creator_nodes,'validator_nodes':validator_nodes}
+                if fetch_broadcast_list:
+                    broadcast_list = get_broadcast_list(input_block.Transaction_obj, relevant_nodes=opBlock_data['relevant_nodes'], peer_count=_number_of_peers, seed_nodes=creator_nodes, important_nodes=validator_nodes, loop=loop)
+                # return creator_nodes, validator_nodes, broadcast_list
+            elif input_block.Transaction_obj.SenderWallet_obj == input_block.Blockchain_obj:
+                # transaction_type = 'receiver'
+                creator_nodes, validator_nodes = get_node_assignment(input_block.Transaction_obj, full_validator_list=True, opBlock_data=opBlock_data)
+                if fetch_broadcast_list:
+                    broadcast_list = get_broadcast_list(input_block.Transaction_obj, relevant_nodes=opBlock_data['relevant_nodes'], peer_count=_number_of_peers, seed_nodes=creator_nodes, important_nodes=validator_nodes, loop=loop)
+                # return creator_nodes, validator_nodes, broadcast_list
+                result['s4'] = {'creator_nodes':creator_nodes,'validator_nodes':validator_nodes}
+
+
+
+
+
+        self = input_block.Transaction_obj
+        prnt('create receiverBlock tx')
+        prnt('no ReceiverBlock 1')
+        now = round_time(now_utc(), amount='10mins')
+        creator_nodeId_list, validator_list = get_node_assignment(self, dt=now, chainId=self.receiverNetworkChain)
+        prnt('creator_nodeId_list, validator_list',creator_nodeId_list, validator_list,'self_node.id',self_node.id)
+        # receiverChain = self.ReceiverWallet_obj.get_chain()
+        result['s5'] = {'creator_nodes':creator_nodeId_list,'validator_nodes':validator_list}
+
+
+
+        self_node_id = get_operator_obj("self_nodeId")
+        if self_node_id in selected_nodes:
+            now = round_time(now_utc(), amount='10mins')
+            creator_nodeId_list, validator_list = get_node_assignment(self, dt=now, chainId=self.receiverNetworkChain)
+            from network.models import DataPacket, Node
+            result['s6'] = {'creator_nodes':creator_nodeId_list,'validator_nodes':validator_list}
+
+
+
+
+
+
+
+        block = input_block
+        if block.Transaction_obj:
+            if transaction_type == 'sender':
+                creator_nodes, validator_nodes = get_node_assignment(block.Transaction_obj, opBlock_data=opBlock_data)
+                result['s7'] = {'creator_nodes':creator_nodes,'validator_nodes':validator_nodes}
+            elif transaction_type == 'receiver':
+                creator_nodes, validator_nodes = get_node_assignment(block, chainId=block.Transaction_obj.receiverNetworkChain, opBlock_data=opBlock_data)
+                result['s8'] = {'creator_nodes':creator_nodes,'validator_nodes':validator_nodes}
+            # else:
+            #     creator_nodes, validator_nodes = get_node_assignment(block, opBlock_data=opBlock_data)
+        else:
+            creator_nodes, validator_nodes = get_node_assignment(block, opBlock_data=opBlock_data)
+            result['s9'] = {'creator_nodes':creator_nodes,'validator_nodes':validator_nodes}
+
+
+
+
+
+
+                        
+        prnt('create block')
+        creator_nodes, validator_nodes = get_node_assignment(input_block)
+        result['s10'] = {'creator_nodes':creator_nodes,'validator_nodes':validator_nodes}
+
+
+
+
+
+
+        # prnt('rebroadcast_block')
+        # new_block = None
+        # for block in current_blocks:
+        #     block_dt = block.DateTime
+        #     opBlock_data = get_relevant_nodes(dt=(block.DateTime-datetime.timedelta(minutes=20)), genesisId=block.Blockchain_obj.genesisId, include_relays=True)
+        #     creator_nodes, validator_nodes = get_node_assignment(block, opBlock_data=opBlock_data, full_creator_list=True)
+        #     prnt('creator_nodes':creator_nodes)
+        #     new_index = 1
+
+
+
+
+        # prnt('dp.headers',dp.headers)
+        # if 'Validators-Only' in dp.headers and dp.headers['Validators-Only'] == 'True':
+        #     prnt('validators only')
+        #     opBlock_data = get_relevant_nodes(dt=string_to_dt(dp.headers['Dt']), blockchain=dp.headers['Blockchainid'], strings_only=True, first_block_override=True)
+
+        #     creator_nodes, validator_list = get_node_assignment(func=dp.headers['Packet-Id'],dt=string_to_dt(dp.headers['Dt']), chainId=dp.headers['Blockchainid'], plugin_id=dp.headers['Pluginid'], opBlock_data=opBlock_data)
+        #     broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], relevant_nodes=validator_list, loop=True, all_nodes=False, dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], plugin_id=dp.headers['Pluginid'], seed_nodes=[dp.headers['Seedid']], include_relays=include_relays, opBlock_data=opBlock_data)
+        # else:
+        #     prnt('not validators only')
+        #     broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], seed_nodes=[dp.headers['Seedid']], plugin_id=dp.headers['Pluginid'], include_relays=include_relays)
+        # downstream_broadcast(broadcast_list, 'network/receive_blocks', received_json, headers=dp.headers, skip_self=True)
+        # dp.rebroadcast_dt = now_utc()
+        return result
+
+    # bid = 'blcSo5E4X1jRnOXGTrrmvpBa'
+    # b = Block.objects.filter(id=bid).first()
+    # r = block_run(b)
+    # result['gov1'] = r
+    # bid = 'blcSo9eePhanpZIDH5Zc8qA5'
+    # b = Block.objects.filter(id=bid).first()
+    # r = block_run(b)
+    # result['rew1'] = r
+    # bid = 'blcSo40XMb0ZVreZwtXC4eq1'
+    # b = Block.objects.filter(id=bid).first()
+    # r = block_run(b)
+    # result['ca1'] = r
+    # bid = 'blcSo4KQQvaZXdMXJwcPiMwc'
+    # b = Block.objects.filter(id=bid).first()
+    # r = block_run(b)
+    # result['ac1'] = r
+    # bid = 'blcSon11GxFLYbs9wToOePTo'
+    # b = Block.objects.filter(id=bid).first()
+    # r = block_run(b)
+    # result['son1'] = r
+    # # r = block_run(block)
+    # prnt()
+    # prnt()
+
+    # for r in result:
+    #     prnt()
+    #     prnt(r)
+    #     prnt(result[r])
+    # from utils.utils import get_plugin
+    # from network.models import selectableChains
+    # genesis_obj = get_dynamic_model('1walSomun8c2BnloWBKQNNTZa', id='1walSomun8c2BnloWBKQNNTZa')
+    # x = get_plugin(genesis_obj, name=True)
+    # prnt('x',x)
+    # if x not in selectableChains:
+    #     prnt('A')
+    # else:
+    #     prnt('B')
+    b = '2bilSofaCZb9WrEiTcXQSkT0W'
+    t = '2btxtSo2lo1xErFupyxgf2qorK'
+    # i = get_dynamic_model(t, id=t)
+    # prnt('i',i)
+    r = Region.objects.filter(Name='Canada').first()
+
+    for i in BillText.objects.filter(Validator_obj__is_valid=True, Region_obj=r):
+        prnt('x')
+        i = i.on_confirmation()
+
+
     
     prnt('done tester_queue')
     return result
@@ -1340,7 +1523,7 @@ def tester_queue_view(request):
             prnt('HELLLOO!!')
             import django_rq
             queue = django_rq.get_queue('low')
-            # queue.enqueue(tester_queue, job_timeout=1200)
+            queue.enqueue(tester_queue, job_timeout=1200)
             # queue.enqueue(tester_queue, job_timeout=3600)
             from network.models import Blockchain, reward_models, _OperationsChain_genesisId
             # from posts.models import Region
@@ -1350,6 +1533,8 @@ def tester_queue_view(request):
             from utils.utils import get_plugin
             self_node = get_self_node()
 
+
+                
 
             end_time = now_utc()
             prnt(end_time - start_time)

@@ -800,7 +800,7 @@ def request_data_view(request):
                                 prntDebug('sending block_list',str(block_list)[:1000])
                                 if len(blocks) > 1 or str(include_content).lower() == 'true':
                                     block_list = compress_data(block_list)
-                                return JsonResponse({'message' : 'Success', 'type' : 'Blocks', 'blockchainId' : block.networkChain, 'genesisId':block.Blockchain_obj.genesisId, 'block_idens':block_idens, 'block_list' : block_list, 'index' : index, 'end_of_chain' : end_of_chain, 'force_check':force_check})
+                                return JsonResponse({'message' : 'Success', 'type' : 'Blocks', 'blockchainId' : block.Blockchain_obj.id, 'genesisId':block.Blockchain_obj.genesisId, 'block_idens':block_idens, 'block_list' : block_list, 'index' : index, 'end_of_chain' : end_of_chain, 'force_check':force_check})
                         except Exception as e:
                             prnt('request data fail 7531',str(e))
                             return JsonResponse({'message' : 'Not Found', 'type':obj_type, 'blockchainId' : blockchainId, 'index' : index, 'error' : str(e)})
@@ -839,10 +839,10 @@ def request_data_view(request):
                             block_list.append(data)
                             block_idens.append(block.id)
                         block_list = json.dumps(block_list)
-                        prntDebug('sending block_list',str(block_list)[:1000])
+                        prntDebug('sending block_listb',str(block_list)[:1000])
                         if len(blocks) > 2:
                             block_list = compress_data(block_list)
-                        return JsonResponse({'message' : 'Success', 'type' : 'Blocks', 'blockchainId' : block.networkChain, 'genesisId':block.Blockchain_obj.genesisId, 'block_idens':block_idens, 'block_list' : block_list, 'index' : index, 'end_of_chain' : True if any(b for b in blocks if b.index == block.Blockchain_obj.chain_length) else False, 'force_check':False})
+                        return JsonResponse({'message' : 'Success', 'type' : 'Blocks', 'blockchainId' : block.Blockchain_obj.id, 'genesisId':block.Blockchain_obj.genesisId, 'block_idens':block_idens, 'block_list' : block_list, 'index' : index, 'end_of_chain' : True if any(b for b in blocks if b.index == block.Blockchain_obj.chain_length) else False, 'force_check':False})
                 
                     elif obj_type == 'multi':
                         requested_items = requested_data['items']
@@ -1080,6 +1080,7 @@ def request_data_view(request):
                                         data_to_send.append(obj.Validator_obj)
                         elif obj_type == 'Validators_only':
                             vals = []
+                            from network.models import Validator
                             for objType, idList in items.items():
                                 val_idens = [i for i in idList if i.startswith(get_model_prefix('Validator'))]
                                 validated_idens = [i for i in idList if not i.startswith(get_model_prefix('Validator'))] # get validators for these items
@@ -1253,6 +1254,47 @@ def request_obj_view(request):
                     obj = get_dynamic_model(item_id, id=item_id)
                     if obj:
                         return JsonResponse({'message' : 'Success', 'data':convert_to_dict(obj)})
+                
+                    prnt('not found', item_id)
+                    return JsonResponse({'message' : 'Not Found', 'itemId':item_id})
+        except Exception as e:
+            return JsonResponse({'message' : 'Fail', 'err' : str(e)})
+        
+@csrf_exempt
+def request_is_valid_view(request):
+    prnt('-request_is_valid_view')
+    if not get_self_node().activated_dt:
+        return JsonResponse({'message' : 'deactivated_node'})
+    if request.method == 'POST':
+        try:
+            if assess_received_header(request.headers):
+                raw_data = request.body.decode('utf-8')
+                received_data = json.loads(raw_data)
+                
+                requested_data = json.loads(received_data.get('request'))
+                received_dt = string_to_dt(request.headers.get('Signed-Dt'))
+                if received_dt < now_utc() + datetime.timedelta(minutes=1) and received_dt >= now_utc() - datetime.timedelta(minutes=4):
+                    item_id = requested_data['itemId']
+                    prnt('item_id',item_id)
+                    from utils.utils import get_pointer_type, is_locked, has_field
+                    if get_pointer_type(item_id) == 'Block':
+                        obj = Block.objects.filter(id=item_id).values('id','validated').first()
+                        if obj:
+                            return JsonResponse({'message' : 'Success', 'is_valid': obj['validated'], 'itemId':obj['id']})
+                    else:
+                        obj = get_dynamic_model(item_id, id=item_id)
+                        if obj:
+                            if is_locked(obj):
+                                is_valid = True
+                            elif has_field(obj, 'Validator_obj') and obj.Validator_obj and obj.Validator_obj.is_valid:
+                                is_valid = True
+                            else:
+                                from utils.locked import verify_obj_to_data
+                                if verify_obj_to_data(obj, obj):
+                                    is_valid = True
+                                else:
+                                    is_valid = False
+                            return JsonResponse({'message' : 'Success', 'is_valid': is_valid, 'itemId':obj.id})
                 
                     prnt('not found', item_id)
                     return JsonResponse({'message' : 'Not Found', 'itemId':item_id})
