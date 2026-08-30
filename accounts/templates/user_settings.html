@@ -1,20 +1,20 @@
 
 {% load static %}
 
-<div class='card user' id='{{ request.user.id }}' style="padding: 10px;">
+<div class='card user' id='{{ user.id }}' style="padding: 10px;">
         <div class='cardContent'>
             <div class='Code'>
-                <h2>{{ request.user.get_userLink_html|safe }}</h2>
+                <h2>{{ user.get_userLink_html|safe }}</h2>
                 
             </div>
             <div class='Details'>
                 
                 <ul>
-                    <li><span><strong>ID</strong> &middot; {{ request.user.id }}</span></li>
-                    <li><span><strong>Created</strong> &middot; {{ request.user.created }} UTC</span></li>
-                    <li><span><strong>Last Update</strong> &middot; {{ request.user.lastUpdate }} UTC</span></li>
+                    <li><span><strong>ID</strong> &middot; {{ user.id }}</span></li>
+                    <li><span><strong>Created</strong> &middot; {{ user.created }} UTC</span></li>
+                    <li><span><strong>Last Update</strong> &middot; {{ user.lastUpdate }} UTC</span></li>
                     <br>
-                    <li class="clickable" onclick="react('modelData','{{request.user.id}}')"><span><strong>View Model Data</strong></span></li>
+                    <li class="clickable" onclick="react('modelData','{{ user.id}}')"><span><strong>View Model Data</strong></span></li>
                     <br>
                     <ul>
                         <li style="display: inline-block; position: relative; margin: 5px;">
@@ -34,7 +34,7 @@
 <div class='bottomDivider'></div>
 <br>
 <div class='bottomDivider'></div>
-<div class='card new_key' id='{{ request.user.id }}' style="padding: 10px;">
+<div class='card new_key' id='{{ user.id }}' style="padding: 10px;">
         <div class='cardContent'>
             <div class='Details'>
                 
@@ -79,7 +79,7 @@
     
 </div>
 <div class='bottomDivider'></div>
-<div class='card keys' id='{{ request.user.id }}' style="padding: 10px;">
+<div class='card keys' id='{{ user.id }}' style="padding: 10px;">
         <div class='cardContent'>
             <br>
             <div class='Code'>

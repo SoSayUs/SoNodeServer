@@ -1113,6 +1113,7 @@ class Update(BaseModel):
     def verify_is_valid(self, use_assigned_val=False):
         from network.models import Validator, sigData_to_hash
         from utils.locked import verify_obj_to_data, get_node_assignment
+        from utils.utils import get_plugin
         if use_assigned_val:
             v = self.Validator_obj
         else:
@@ -1120,7 +1121,7 @@ class Update(BaseModel):
         if v:
             if self.id in v.data and v.data[self.id] == sigData_to_hash(self):
                 if verify_obj_to_data(v, v):
-                    creator_nodes, validator_nodes = get_node_assignment(dt=self.created, chainId=self.networkChain, func=self.func, strings_only=True)
+                    creator_nodes, validator_nodes = get_node_assignment(dt=self.created, chainId=self.networkChain, plugin_id=get_plugin(self.networkChain, id=True), func=self.func, strings_only=True)
                     prnt(f'self.validatorNodeId:{self.validatorNodeId}, validator_nodes:{validator_nodes}')
                     if self.validatorNodeId in validator_nodes:
                         prnt('-verify_is_valid 1',self, True)
@@ -1283,7 +1284,7 @@ class Update(BaseModel):
                 delLog.data[self.id] = jsonData
                 delLog = sign_obj(delLog)
                 chain = Blockchain.objects.filter(genesisId=self.Region_obj.id).first()
-                datapacket = get_latest_dataPacket(chain.id)
+                datapacket = get_latest_dataPacket(self)
                 if datapacket:
                     datapacket.add_item_to_share(delLog)
         self.delete()
@@ -1387,11 +1388,11 @@ class Post(models.Model):
             return 'Bill %s %s' %(self.Bill_obj.NumberCode, self.Bill_obj.ShortTitle)
         elif self.Meeting_obj:
             return '%s %s %s' %(self.Meeting_obj.Chamber, self.Meeting_obj.meeting_type, self.Meeting_obj.DateTime)
-        elif self.Statement_obj:
-            if self.Statement_obj.Person_obj:
-                return '%s Stated %s' %(self.Statement_obj.Person_obj.FullName, self.Statement_obj.DateTime)
+        elif self.pointerType == 'Statement':
+            if self.Pointer_obj.Person_obj:
+                return '%s Stated %s' %(self.Pointer_obj.Person_obj.FullName, self.Pointer_obj.DateTime)
             else:
-                return '%s Stated %s' %(self.Statement_obj.PersonName, self.Statement_obj.DateTime)
+                return '%s Stated %s' %(self.Pointer_obj.PersonName, self.Pointer_obj.DateTime)
         elif self.Motion_obj:
             return 'Bill %s Motion %s' %(self.Motion_obj.billCode, self.Motion_obj.DateTime)
         else:
@@ -1422,6 +1423,7 @@ class Post(models.Model):
         from network.models import Validator
         from utils.locked import verify_obj_to_data, get_node_assignment
         from utils.models import sigData_to_hash
+        from utils.utils import get_plugin
         pointer = self.get_pointer()
         if use_assigned_val:
             v = pointer.Validator_obj
@@ -1433,7 +1435,7 @@ class Post(models.Model):
                     if v.func == 'super' and pointer.func == 'super' and v.CreatorNode_obj.User_obj.assess_super_status(dt=v.created):
                         pointer_valid = True
                     else:
-                        creator_nodes, validator_nodes = get_node_assignment(dt=pointer.created, func=pointer.func, chainId=pointer.networkChain, strings_only=True)
+                        creator_nodes, validator_nodes = get_node_assignment(dt=pointer.created, func=pointer.func, chainId=pointer.networkChain, plugin_id=get_plugin(pointer.networkChain, id=True), strings_only=True)
                         if pointer.validatorNodeId in validator_nodes:
                             pointer_valid = True
 

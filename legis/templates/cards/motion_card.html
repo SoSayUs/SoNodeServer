@@ -8,21 +8,6 @@
         {% include 'utils/person.html' %}
         {% endwith %}
 
-    {% comment %}
-    {% if motion.Sponsor_obj %}
-    <div class='sponsor'>
-        <div>person</div>
-        {% if motion.Sponsor_obj.LogoLink %}
-            <a href={{ motion.Sponsor_obj.get_absolute_url }}><img class='sponsorPic' style='border-bottom:4px solid {{ motion.Sponsor_obj.Party_obj.color }};' src={{ motion.Sponsor_obj.LogoLink }}></a>
-        {% else %}
-            <img class='votePic' src={% static 'img/user-colored.png' %}>
-        {% endif %}
-        <div class='sponsorInfo'>
-            <div>Sponsor:</div>
-            <div><h3><a href={{ motion.Sponsor_obj.get_absolute_url }}>{{ motion.Sponsor_obj.FullName }}</a></h3></div>
-        </div>
-    </div>
-    {% endcomment %}
     
     {% elif motion.Government_obj and motion.Government_obj.LogoLinks and motion.Chamber in motion.Government_obj.LogoLinks %}
         <img class='sponsorPic' src={% static motion.Government_obj.LogoLinks|get_item:motion.Chamber %}>
@@ -69,10 +54,7 @@
                 <li>{{ motion.MotionText|safe }}</li>
         </ul>
     </div>
-    {% endif %} 
-    {% comment %}
-    {% include 'utils/motion_outline.html' %}
-    {% endcomment %}
+    {% endif %}
     
     <div class='Details'>
         <ul class='motionOutline'>

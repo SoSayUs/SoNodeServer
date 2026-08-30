@@ -2,25 +2,20 @@
 
 <div class='drawer1'>
 
+<a href='/' class='navTop'>
 {% if sonet %}
-<a href='/' class='navTop'>   
-    <div class='shadow'></div>
 
-    <div style="display: flex; justify-content: space-between; width: 98%; margin: 0 auto;">
+    <div style="display: flex; margin: 110px 0px;width: 100%;position: unset;">
         <h1 id="sonet-title" style="margin-left: 2%;">{{ sonet.Title }}</h1>
-        <h1 style="font-size: 100%;">{{ sonet.Subtitle }}</h1>
+        <h1 style="font-size: 130%;">{{ sonet.Subtitle }}</h1>
     </div>
 
-</a>
 {% else %}
-<a href='/' class='navTop'>   
-    
-    <div class='shadow'></div>
     <ul>
     <li><h1 id="sonet-title" style="margin-left: 20px;">Sonet</h1> </li> 
     </ul>
-</a>
 {% endif %}
+</a>
 
 <div class='mobileNavigation'>
 <div class="mobileNavContent">
@@ -35,7 +30,7 @@
 
     
 <ul>
-    <li style="font-style: italic; cursor: pointer;" onclick="modalPopUp('So...', 'so_modal')">So...</li>
+    <li style="font-style: italic; cursor: pointer;" onclick="modalPopUp('So...', 'so_modal')"><a>So...</a></li>
     <li style="font-style: italic;"><a href='/'>What is Us</a></li>
     <li style="font-style: italic;"><a href='/values'>For All Things</a></li>
     <br>
@@ -69,7 +64,7 @@
         <ul>
             <br>
             <br>
-            <li style='font-size:130%'><a href='/{{ country.Name|lower }}/legislature'>Legislature</a></li>
+            <li><a href='/{{ country.Name|lower }}/legislature'>Legislature</a></li>
             <ul class='navSubmenu' id='legislature'>    
                 {% if gov %} 
                     {% for i in gov.menuItem_array %}

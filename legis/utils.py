@@ -631,13 +631,14 @@ def summarize_bill(billText, self_nodeId=None):
 
 def verify_bill_spren(spren):
     from utils.models import remove_tags, run_prompt, get_token_count
+    from utils.utils import get_plugin
     from .models import BillText
     from network.models import Validator
     from utils.locked import get_node_assignment
     billText = BillText.objects.filter(id=spren.pointerId).first()
     
     is_valid = True
-    scrapers, validators = get_node_assignment(chainId=spren.Region_obj.id, func='summarize_bills', dt=spren.created, nodeType='intelligence')
+    scrapers, validators = get_node_assignment(chainId=spren.Region_obj.id, func='summarize_bills', plugin_id=get_plugin('legis'), dt=spren.created, nodeType='intelligence')
     if spren.CreatorNode_obj.id not in scrapers:
         is_valid = False
     validator = Validator.objects.filter(jobId=spren.id, func='verify_bill_spren').order_by('created').first()
@@ -735,6 +736,7 @@ def get_scrape_duty(gov=None, receivedDt=None, region=None, gov_level=None, deba
     # requires either gov or region AND gov_level 
     prnt('--get scrape duty',gov,receivedDt,region,gov_level)
     from utils.locked import get_node_assignment
+    from utils.utils import get_plugin
     import pytz
 
     if gov:
@@ -783,7 +785,7 @@ def get_scrape_duty(gov=None, receivedDt=None, region=None, gov_level=None, deba
     # prnt('function_list',function_list)
     master_list = []
     for f in function_list:
-        scrapers, validators = get_node_assignment(chainId=region_id, func=f['function_name'], dt=receivedDt, nodeType='maintainer')
+        scrapers, validators = get_node_assignment(chainId=region_id, func=f['function_name'], dt=receivedDt, plugin_id=get_plugin('legis'), nodeType='maintainer')
         # get_scraping_order(chainId=region_id, func_name=f['function_name'], dt=receivedDt)
         f['scraping_order'] = scrapers
         f['validators'] = validators
@@ -798,7 +800,8 @@ def run_assigned_duties(receivedDt=None, result=None):
     from network.models import EventLog, Tidy, intelligence_funcs
     from posts.models import Post
     from utils.locked import get_node_assignment, hash_obj_id
-    from utils.models import get_self_node, dt_to_string, create_job, round_time
+    from utils.utils import get_self_node, dt_to_string, round_time, get_plugin
+    from utils.models import create_job
     import random
     import django_rq
 
@@ -876,7 +879,7 @@ def run_assigned_duties(receivedDt=None, result=None):
                     meetings = Post.objects.filter(pointerType='Meeting', validated=True, created__gt=receivedDt - datetime.timedelta(days=10), networkChain__in=self_node.chain_array).exclude(Update_obj=None).order_by('-created')
                     for meeting_post in meetings:
                         if not Spren.objects.filter(pointerId=meeting_post.pointerId, pointerType='Meeting', Validator_obj__is_valid=True).exists():
-                            scrapers, validators = get_node_assignment(chainId=meeting_post.Region_obj.id, func=job, dt=receivedDt, nodeType='intelligence')
+                            scrapers, validators = get_node_assignment(chainId=meeting_post.Region_obj.id, func=job, dt=receivedDt, plugin_id=get_plugin('legis'), nodeType='intelligence')
                             if self_node.id in scrapers:
                                 if result:
                                     result['scrape assignment'].append(f'{meeting_post.Region_obj.Name} {job}')
@@ -904,7 +907,7 @@ def run_assigned_duties(receivedDt=None, result=None):
                             if region_id.startswith('regSo') and not job_assigned:
                                 spren = Spren.objects.filter(Region_obj__id=region_id, type='Billtext').exclude(Validator_obj=None).values('pointerId').order_by('-created')[:1000]
                                 if BillText.objects.filter(Region_obj__id=region_id, Validator_obj__is_valid=True, created__gt=receivedDt-datetime.timedelta(days=7)).exclude(id__in=[s['pointerId'] for s in spren]).distinct('pointerId').order_by('pointerId','-created').exists():
-                                    scrapers, validators = get_node_assignment(chainId=region_id, func=job, dt=receivedDt, nodeType='intelligence')
+                                    scrapers, validators = get_node_assignment(chainId=region_id, func=job, dt=receivedDt, plugin_id=get_plugin('legis'), nodeType='intelligence')
                                     if self_node.id in scrapers:
                                         if result:
                                             result['scrape assignment'].append(f'{region_id} {job}')

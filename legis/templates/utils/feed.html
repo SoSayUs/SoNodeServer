@@ -5,6 +5,10 @@
 
 {% if cards %}
     <meta class='pageNum' id='Page: {{feed_list.number }}'>
+    <link rel="stylesheet" href='{% static "css/legis_defaults.css" %}?v=0.1'/>
+    {% if isMobile %}
+        <link rel="stylesheet" href='{% static "css/legis_mobile.css" %}?v=0.1'/>
+    {% endif %}
 
     {% if nav_bar %}
     {% include 'utils/nav_bar.html' %}
@@ -45,7 +49,7 @@
         {% endfor %}
 
     {% elif cards == 'bills_list' %}
-        {% for post in feed_list %} 
+        {% for post in feed_list %}
             {% with bill=post.Pointer_obj %}
             {% with billUpdate=post.Update_obj %}
                 {% include 'cards/bill_card.html' %}
@@ -142,7 +146,7 @@
                 {% endwith %}
             {% elif post.pointerType == 'Statement' %}
                 {% with statementUpdate=post.Update_obj %}
-                {% with statement=post.Statement_obj %}
+                {% with statement=post.Pointer_obj %}
                     {% include 'cards/statement_card.html' %}
                 {% endwith %}
                 {% endwith %}
@@ -167,7 +171,7 @@
             {% for post in feed_list %}
                 {% with r=useractions|get_item:post.id %}
                 {% with statementUpdate=post.Update_obj %}
-                {% with statement=post.Statement_obj %}
+                {% with statement=post.Pointer_obj %}
                     {% include 'cards/statement_card.html' %}
                 {% endwith %}
                 {% endwith %}
@@ -214,7 +218,7 @@
 
 
             {% with updatedMotion=post.Update_obj %}
-            {% with motion=post.Motion_obj %}
+            {% with motion=post.Pointer_obj %}
             {% with v=myRepVotes|get_item:post.id %}
                 {% include 'cards/motion_card.html' %}
             {% endwith %}
@@ -440,14 +444,15 @@
         {% for post in feed_list %}
             {% with r=useractions|get_item:post.id %}
             {% if post.pointerType == 'Bill' %}
-                {% with bill=post.Bill_obj %}
+                {% with bill=post.Pointer_obj %}
                 {% with billUpdate=post.Update_obj %}
                     {% include 'cards/bill_card.html' %}
                 {% endwith %}
                 {% endwith %}
             {% elif post.pointerType == 'Meeting' %}
+
                 {% with meetingUpdate=post.Update_obj %}
-                {% with meeting=post.Meeting_obj %}
+                {% with meeting=post.Pointer_obj %}
                 {% with agenda=meeting.Agenda_obj %}
                     {% include 'cards/meeting_card.html' %}
                 {% endwith %}
@@ -455,13 +460,13 @@
                 {% endwith %}
             {% elif post.pointerType == 'Statement' %}
                 {% with statementUpdate=post.Update_obj %}
-                {% with statement=post.Statement_obj %}
+                {% with statement=post.Pointer_obj %}
                     {% include 'cards/statement_card.html' %}
                 {% endwith %}
                 {% endwith %}
             {% elif post.pointerType == 'Motion' %}
                 {% with updatedMotion=post.Update_obj %}
-                {% with motion=post.Motion_obj %}
+                {% with motion=post.Pointer_obj %}
                 {% with v=myRepVotes|get_item:post.id %}
                     {% include 'cards/motion_card.html' %}
                 {% endwith %}
@@ -523,113 +528,6 @@
         {% endfor %}
 
 
-    {% elif cards == 'user_view' %}
-        {% for r in feed_list %} 
-            {% if r.objType == 'post' %}
-                {% with post=r %}
-                {% if post.agenda %}
-                    {% with a=post.agenda %}
-                        {% include 'cards/agenda_card.html' %}
-                    {% endwith %}
-                {% elif post.bill %}
-                    {% with b=post.bill %}
-                        {% include 'cards/bill_card.html' %}
-                    {% endwith %}
-                {% elif post.billVersion %}
-                    {% with v=post.billVersion %}
-                    {% with b=v.bill %}
-                        {% include 'cards/bill_card.html' %}
-                    {% endwith %}
-                    {% endwith %}
-                {% elif post.Debate_key %}
-                    {% with h=post.Debate_key %}
-                    {% with a=h.agenda %}
-                        {% include 'cards/meeting_card.html' %}
-                    {% endwith %}
-                    {% endwith %}
-                {% elif post.committeeMeeting %}
-                    {% with c=post.committeeMeeting %}
-                        {% include 'cards/committee_card.html' %}
-                    {% endwith %}
-                {% elif post.motion %}
-                    {% with m=post.motion %}
-                    {% with v=myRepVotes|get_item:post.id %}
-                        {% include 'cards/motion_card.html' %}
-                    {% endwith %}
-                    {% endwith %}
-                {% elif post.DebateItem %}
-                    {% with h=post.DebateItem %}
-                        {% include 'cards.DebateItem_card.html' %}
-                    {% endwith %}
-                {% elif post.committeeItem %}
-                    {% with c=post.committeeItem %}
-                        {% include 'cards/committeeItem_card.html' %}
-                    {% endwith %}
-
-                {% endif %}
-                {% endwith %}
-
-            {% elif r.objType == 'person' %}
-                {% with mp=r %}
-                    {% include 'cards/mp_card.html' %}
-                {% endwith %}
-            {% elif r.objType == 'reaction' %}
-                {% with post=r.post %}
-                {% if post.agenda %}
-                    {% with a=post.agenda %}
-                        {% include 'cards/agenda_card.html' %}
-                    {% endwith %}
-                {% elif post.billVersion %}
-                    {% with v=post.billVersion %}
-                    {% with b=v.bill %}
-                        {% include 'cards/bill_card.html' %}
-                    {% endwith %}
-                    {% endwith %}
-                {% elif post.bill %}
-                    {% with b=post.bill %}
-                        {% include 'cards/bill_card.html' %}
-                    {% endwith %}
-                {% elif post.Debate_key %}
-                    {% with h=post.Debate_key %}
-                        {% include 'cards/debate_card.html' %}
-                    {% endwith %}
-                {% elif post.committeeMeeting %}
-                    {% with c=post.committeeMeeting %}
-                        {% include 'cards/committee_card.html' %}
-                    {% endwith %}
-                {% elif post.motion %}
-                    {% with m=post.motion %}
-                    {% with v=myRepVotes|get_item:post.id %}
-                        {% include 'cards/motion_card.html' %}
-                    {% endwith %}
-                    {% endwith %}
-                {% elif post.DebateItem %}
-                    {% with h=post.DebateItem %}
-                        {% include 'cards.DebateItem_card.html' %}
-                    {% endwith %}
-                {% elif post.committeeItem %}
-                    {% with c=post.committeeItem %}
-                        {% include 'cards/committeeItem_card.html' %}
-                    {% endwith %}
-                {% endif %}
-                {% endwith %}
-            {% else %}
-                <div class='card'><h3 style='margin:20px;'>{{ r }}</h3></div>
-
-            {% endif %}
-        {% endfor %}
-
-
-
-        {% comment %}
-            {% include 'utils/paginator.html' %}
-
-            <div id='bottomCard'>
-            {% if feed_list.has_next %}
-                {% include 'utils/bottomFeed.html' %}
-            {% endif %}
-            </div>
-        {% endcomment %}
 
     {% endif %}
 {% endif %}

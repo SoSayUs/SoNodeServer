@@ -1,439 +1,461 @@
-
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Sodium Demo</title>
-</head>
-<body>
-  <h1>Sodium Keypair Sign/Verify Demo</h1>
-  <pre id="output"></pre>
-
-  
-
-  <script type="module">
-    // import { ml_dsa65 } from 'https://esm.sh/@noble/post-quantum@0.2.1/ml-dsa';
-    // import scrypt from 'https://esm.sh/scrypt-js@3.0.0';
-
-    // import { ml_dsa44, ml_dsa65, ml_dsa87 } from 'https://esm.sh/@noble/post-quantum@0.2.1/ml-dsa';
-
-
-    // helpers
-    function toBase64(uint8array) {
-      return btoa(String.fromCharCode(...uint8array));
-    }
-
-    function fromBase64(base64str) {
-      return Uint8Array.from(atob(base64str), c => c.charCodeAt(0));
-    }
-
-    async function getKeyPair(user_id, user_pass, security = 65) {
-      await loadLibs();
-      const { ml_dsa44, ml_dsa65, ml_dsa87 } = _pq;
-      const seed = await deriveKey(user_id, user_pass);
-      const { secretKey, publicKey } = getMLDSA(security).keygen(seed);
-      return [toBase64(secretKey), toBase64(publicKey)];
-    }
-
-    function simpleSign(secretKeyB64, data) {
-      const security = detectSecurityFromSK(secretKeyB64);
-      const sk = fromBase64(secretKeyB64);
-      const message = new TextEncoder().encode(data + '5uHPEF0DPaI4egus4sa6AX');
-      const signature = getMLDSA(security).sign(sk, message);
-      return toBase64(signature);
-    }
-
-    function simpleVerify(publicKeyB64, data, signatureB64) {
-      const security = detectSecurityFromPK(publicKeyB64);
-      const pk = fromBase64(publicKeyB64);
-      const sig = fromBase64(signatureB64);
-      const message = new TextEncoder().encode(data + '5uHPEF0DPaI4egus4sa6AX');
-      return getMLDSA(security).verify(pk, message, sig);
-    }
-
-    // old code below
-
-
-
-    let _pq = null;
-    let _scrypt = null;
-
-    async function loadLibs() {
-      if (!_pq) _pq = await import('https://esm.sh/@noble/post-quantum@0.2.1/ml-dsa');
-      if (!_scrypt) _scrypt = (await import('https://esm.sh/scrypt-js@3.0.0')).default;
-    }
-
-
-
-    function getMLDSA(security) {
-      const { ml_dsa44, ml_dsa65, ml_dsa87 } = _pq;
-      if (security === 44) return ml_dsa44;
-      if (security === 87) return ml_dsa87;
-      return ml_dsa65; // default
-    }
-
-
-
-    async function getKeyPair(user_id, user_pass, security = 65) {
-      await loadLibs();
-      const { ml_dsa44, ml_dsa65, ml_dsa87 } = _pq;
-      const scrypt = _scrypt;
-      const seed = await deriveKey(user_id, user_pass);
-      const { secretKey, publicKey } = getMLDSA(security).keygen(seed);
-      return [
-        Array.from(secretKey).map(b => b.toString(16).padStart(2, '0')).join(''),
-        Array.from(publicKey).map(b => b.toString(16).padStart(2, '0')).join('')
-      ];
-    }
-
-    async function simpleSign(secretKeyHex, data, security = 65) {
-      await loadLibs();
-      const { ml_dsa44, ml_dsa65, ml_dsa87 } = _pq;
-      // const scrypt = _scrypt;
-      const hexStr = secretKeyHex.toString();
-      const sk = new Uint8Array(hexStr.length / 2);
-      for (let i = 0; i < sk.length; i++) {
-        sk[i] = parseInt(hexStr.slice(i * 2, i * 2 + 2), 16);
-      }
-      const message = new TextEncoder().encode(data + '5uHPEF0DPaI4egus4sa6AX');
-      const signature = getMLDSA(security).sign(sk, message);
-      return Array.from(signature).map(b => b.toString(16).padStart(2, '0')).join('');
-    }
-
-    async function simpleVerify(publicKeyHex, data, signatureHex, security = 65) {
-      await loadLibs();
-      const { ml_dsa44, ml_dsa65, ml_dsa87 } = _pq;
-      // const scrypt = _scrypt;
-      const pkStr = publicKeyHex.toString();
-      const sigStr = signatureHex.toString();
-      const pk = new Uint8Array(pkStr.length / 2);
-      for (let i = 0; i < pk.length; i++) {
-        pk[i] = parseInt(pkStr.slice(i * 2, i * 2 + 2), 16);
-      }
-      const sig = new Uint8Array(sigStr.length / 2);
-      for (let i = 0; i < sig.length; i++) {
-        sig[i] = parseInt(sigStr.slice(i * 2, i * 2 + 2), 16);
-      }
-      const message = new TextEncoder().encode(data + '5uHPEF0DPaI4egus4sa6AX');
-      return getMLDSA(security).verify(pk, message, sig);
-    }
-
-
-
-
-
-    async function deriveKey(user_id, user_pass) {
-      // const { ml_dsa44, ml_dsa65, ml_dsa87 } = _pq;
-      const scrypt = _scrypt;
-      const saltHex = CryptoJS.SHA256(user_pass + ":" + user_id).toString(CryptoJS.enc.Hex);
-      const saltBytes = Uint8Array.from(saltHex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
-      const passBytes = new TextEncoder().encode(user_pass);
-
-      return await scrypt.scrypt(passBytes, saltBytes, 262144, 8, 1, 32);
-    }
-
-
-
-
-    
-    function getItem(key) {
-      console.log("-Retrieving item:", key);
-      return openDatabase().then((db) => {
-        return new Promise((resolve, reject) => {
-          const tx = db.transaction('keys', 'readonly');
-          const getReq = tx.objectStore('keys').get(key);
-          getReq.onsuccess = () => resolve(getReq.result);
-          getReq.onerror = () => reject(getReq.error);
-        });
-      });
-    }
-    function storeItem(value, key) {
-      return openDatabase().then((db) => {
-        return new Promise((resolve, reject) => {
-          const tx = db.transaction('keys', 'readwrite');
-          tx.objectStore('keys').put(value, key);
-          tx.oncomplete = resolve;
-          tx.onerror = () => reject(tx.error);
-        });
-      });
-    }
-    function openDatabase() {
-      return new Promise((resolve, reject) => {
-        const request = indexedDB.open('KeyDB', 1);
-
-        request.onupgradeneeded = () => {
-          const db = request.result;
-          if (!db.objectStoreNames.contains('keys')) {
-            db.createObjectStore('keys');
-          }
-        };
-
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-    }
-
-    // make available globally if needed outside this module scope
-    // window.getKeyPair = getKeyPair;
-    // window.simpleSign = simpleSign;
-    // window.simpleVerify = simpleVerify;
-    
-    const keypair = await getKeyPair('user_id', 'user_pass', 65)
-
-
-    const privkey = keypair[0]
-    const pubkey = keypair[1]
-
-
-    console.log('privkey', privkey);
-    console.log('pubkey', pubkey);
-    const sig = await simpleSign(privkey, 'data', 65);
-    console.log("Signature: " + sig);
-
-
-
-
-    const ver = await simpleVerify(pubkey, 'data', sig, 65);
-    console.log("Verified: " + ver);
-    // console.log();
-    // console.log(await simpleVerify('alice', 'password123'));
-
-    // storeItem(keypair[0], 'privkey');
-    // storeItem(keypair[1], 'pubkey');
-
-  </script>
-
-  <!-- CryptoJS still loaded the old way for the SHA256 salt step -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-
-  <!-- Load libsodium-wrappers from CDN -->
-  <!-- <script>
-    import { ml_dsa65 } from '@noble/post-quantum/ml-dsa';
-    import CryptoJS from 'crypto-js';
-    import scrypt from 'scrypt-js'; // npm install scrypt-js
-
-    async function deriveKey(user_id, user_pass) {
-      const saltHex = CryptoJS.SHA256(user_pass + ":" + user_id).toString(CryptoJS.enc.Hex);
-      const saltBytes = Uint8Array.from(saltHex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
-      const passBytes = new TextEncoder().encode(user_pass);
-
-      // scrypt-js returns a Uint8Array
-      const seed = await scrypt.scrypt(passBytes, saltBytes, 262144, 8, 1, 32);
-      return seed; // 32-byte Uint8Array — feeds directly into ML-DSA keygen
-    }
-
-    async function getKeyPair(user_id, user_pass) {
-      const seed = await deriveKey(user_id, user_pass);
-      console.log("Derived Seed (Hex):", Buffer.from(seed).toString('hex'));
-
-      // ml_dsa65.keygen(seed) is fully deterministic — same seed → same keypair, always
-      const { secretKey, publicKey } = ml_dsa65.keygen(seed);
-
-      const privKeyHex = Buffer.from(secretKey).toString('hex');
-      const pubKeyHex = Buffer.from(publicKey).toString('hex');
-
-      console.log("Secret Key:", privKeyHex);
-      console.log("Public Key:", pubKeyHex);
-
-      return [privKeyHex, pubKeyHex];
-    }
-
-    function simpleSign(secretKeyHex, data) {
-      const sk = Uint8Array.from(Buffer.from(secretKeyHex, 'hex'));
-      const message = new TextEncoder().encode(data + '5uHPEF0DPaI4egus4sa6AX');
-
-      const signature = ml_dsa65.sign(sk, message);
-      return Buffer.from(signature).toString('hex');
-    }
-
-    function simpleVerify(publicKeyHex, data, signatureHex) {
-      const pk = Uint8Array.from(Buffer.from(publicKeyHex, 'hex'));
-      const sig = Uint8Array.from(Buffer.from(signatureHex, 'hex'));
-      const message = new TextEncoder().encode(data + '5uHPEF0DPaI4egus4sa6AX');
-
-      return ml_dsa65.verify(pk, message, sig);
-    } -->
-  </script>
-</body>
-</html>
-
-{% comment %}
-
-
-<!DOCTYPE html>
-<html>
-<head>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/elliptic/6.5.4/elliptic.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/dchest/scrypt-async-js@1.3.0/scrypt-async.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script> -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bitcoin Wallet + Transaction</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      background-color: black;
-        color: white;
-    };
-    </style>
+      background: #101d22;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 1.5rem;
+    }
+
+    .wallet-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.25rem;
+      max-width: 420px;
+      width: 100%;
+    }
+
+    /* Business card shape */
+    .card {
+      width: 100%;
+      aspect-ratio: 1.6 / 1;
+      background: #1d2f35;
+      border-radius: 1.25rem;
+      padding: 1.2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 215, 0, 0.06);
+      border: 1px solid rgba(255, 215, 0, 0.08);
+      color: #e5efeb;
+      transition: transform 0.15s ease, box-shadow 0.2s ease;
+      backdrop-filter: blur(4px);
+      background: rgba(26, 45, 52, 0.85);
+    }
+
+    .card-1 {
+      background: rgba(22, 40, 46, 0.92);
+      border-color: rgba(247, 176, 41, 0.25);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(247, 176, 41, 0.12);
+    }
+
+    .card-2 {
+      background: rgba(18, 34, 40, 0.88);
+      border-color: rgba(255, 215, 0, 0.06);
+    }
+
+    .card-3 {
+      background: rgba(14, 28, 34, 0.84);
+      border-color: rgba(255, 215, 0, 0.04);
+    }
+
+    .card-4 {
+      background: rgba(10, 24, 30, 0.92);
+      border-color: rgba(100, 200, 255, 0.12);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(100, 200, 255, 0.08);
+    }
+
+    .card-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card-brand i {
+      font-size: 1.3rem;
+      color: #f7b029;
+    }
+
+    .card-brand span {
+      font-weight: 600;
+      font-size: 0.95rem;
+      letter-spacing: 0.02em;
+      color: #f5e7d3;
+    }
+
+    .chip-badge {
+      font-size: 0.65rem;
+      background: rgba(247, 176, 41, 0.08);
+      padding: 0.15rem 0.7rem;
+      border-radius: 40px;
+      border: 1px solid rgba(247, 176, 41, 0.06);
+      color: #c9b68c;
+      letter-spacing: 0.04em;
+    }
+
+    .balance-main {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .btc-amount {
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: #f7eedd;
+    }
+
+    .btc-amount small {
+      font-size: 0.75rem;
+      font-weight: 400;
+      color: #b2cbc3;
+      margin-left: 0.2rem;
+    }
+
+    .usd-small {
+      font-size: 0.7rem;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 0.1rem 0.7rem;
+      border-radius: 30px;
+      color: #b8d0c8;
+      border: 1px solid rgba(255, 255, 255, 0.02);
+    }
+
+    .address-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 0.3rem 0.9rem;
+      border-radius: 60px;
+      border: 1px solid rgba(255, 215, 0, 0.04);
+      margin-top: 0.2rem;
+    }
+
+    .address-row .addr {
+      font-family: 'SF Mono', 'Menlo', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.02em;
+      color: #d0e0d9;
+      opacity: 0.85;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .address-row i {
+      color: #f7b029;
+      opacity: 0.4;
+      font-size: 0.7rem;
+      margin-left: 0.3rem;
+    }
+
+    .card-footer-mini {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #7d9b94;
+      border-top: 1px solid rgba(255, 255, 255, 0.03);
+      padding-top: 0.5rem;
+      margin-top: 0.2rem;
+    }
+
+    .footer-icons i {
+      margin-left: 0.5rem;
+      opacity: 0.4;
+      font-size: 0.7rem;
+    }
+
+    /* Transaction card styles */
+    .tx-type {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .tx-type .tx-icon {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+    }
+
+    .tx-icon.incoming {
+      background: rgba(0, 200, 100, 0.15);
+      color: #00d47a;
+      border: 1px solid rgba(0, 200, 100, 0.2);
+    }
+
+    .tx-icon.outgoing {
+      background: rgba(255, 100, 80, 0.15);
+      color: #ff6b5a;
+      border: 1px solid rgba(255, 100, 80, 0.2);
+    }
+
+    .tx-details {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+
+    .tx-details .tx-label {
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: #d4e3de;
+    }
+
+    .tx-details .tx-sub {
+      font-size: 0.55rem;
+      color: #7d9b94;
+      font-family: 'SF Mono', 'Menlo', monospace;
+    }
+
+    .tx-amount {
+      text-align: right;
+    }
+
+    .tx-amount .btc {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #f7eedd;
+    }
+
+    .tx-amount .btc.positive {
+      color: #00d47a;
+    }
+
+    .tx-amount .btc.negative {
+      color: #ff6b5a;
+    }
+
+    .tx-amount .usd {
+      font-size: 0.6rem;
+      color: #7d9b94;
+      display: block;
+    }
+
+    .tx-status {
+      font-size: 0.55rem;
+      padding: 0.15rem 0.6rem;
+      border-radius: 30px;
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    .tx-status.confirmed {
+      color: #00d47a;
+      border: 1px solid rgba(0, 200, 100, 0.15);
+    }
+
+    .tx-status.pending {
+      color: #f7b029;
+      border: 1px solid rgba(247, 176, 41, 0.15);
+    }
+
+    .card-2 .btc-amount,
+    .card-3 .btc-amount {
+      opacity: 0.7;
+    }
+    .card-2 .address-row .addr,
+    .card-3 .address-row .addr {
+      opacity: 0.55;
+    }
+    .card-2 .usd-small,
+    .card-3 .usd-small {
+      opacity: 0.5;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.7);
+    }
+
+    @media (max-width: 480px) {
+      .card {
+        aspect-ratio: 1.5 / 1;
+        padding: 1rem 1.2rem;
+        border-radius: 1rem;
+      }
+      .btc-amount {
+        font-size: 1.2rem;
+      }
+      .address-row .addr {
+        font-size: 0.55rem;
+      }
+      .tx-amount .btc {
+        font-size: 0.95rem;
+      }
+    }
+
+    .bg-glow {
+      position: fixed;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(247, 176, 41, 0.03) 0%, transparent 70%);
+      bottom: -100px;
+      left: -100px;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .wallet-stack {
+      position: relative;
+      z-index: 2;
+    }
+  </style>
 </head>
 <body>
+  <div class="bg-glow"></div>
 
-  <h2>scrypt Performance Test</h2>
-  
-    <script type="module">
-        import { scrypt } from 'scrypt-js'; 
-        import sodium from 'libsodium-wrappers';
-        async function main() {
-        // npm: scrypt-js
-            // in browser use <script type=module> and import or use bundler
-            
+  <div class="wallet-stack">
+    <!-- Card 1: Main Wallet -->
+    <div class="card card-1">
+      <div class="card-row">
+        <div class="card-brand">
+          <i class="fab fa-bitcoin"></i>
+          <span>Wallet</span>
+        </div>
+        <div class="chip-badge"><i class="fas fa-circle" style="font-size: 0.4rem; color: #f7b029; margin-right: 4px;"></i> BTC</div>
+      </div>
 
-            async function deriveSeedJS(userId, password, {
-            N = 32768, r = 8, p = 1, outLen = 32
-            } = {}) {
-            const salt = new TextEncoder().encode(userId);
-            const pwd = new TextEncoder().encode(password);
+      <div class="card-row" style="margin-top: 0.2rem;">
+        <div class="balance-main">
+          <span class="btc-amount">0.284 <small>BTC</small></span>
+          <span class="usd-small">≈ $12,840</span>
+        </div>
+      </div>
 
-            const scryptOut = await new Promise((res, rej) => {
-                scrypt(pwd, salt, N, r, p, 64, (error, progress, key) => {
-                if (error) return rej(error);
-                if (key) res(new Uint8Array(key));
-                });
-            });
+      <div class="address-row">
+        <span class="addr">bc1q8v0...3f4a2d</span>
+        <i class="fas fa-copy"></i>
+      </div>
 
-            // HKDF-SHA256 using WebCrypto
-            const key = await crypto.subtle.importKey(
-                'raw', scryptOut, { name: 'HKDF' }, false, ['deriveBits']
-            );
-            const info = new TextEncoder().encode('pq-seed-v1');
-            const bits = await crypto.subtle.deriveBits(
-                { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array([]), info }, key, outLen * 8
-            );
-            return new Uint8Array(bits); // seed of outLen bytes
-            }
+      <div class="card-footer-mini">
+        <span><i class="far fa-clock" style="margin-right: 4px;"></i> active 2m ago</span>
+        <div class="footer-icons">
+          <i class="fas fa-arrow-up"></i>
+          <i class="fas fa-arrow-down"></i>
+          <i class="fas fa-qrcode"></i>
+        </div>
+      </div>
+    </div>
 
-            // npm install libsodium-wrappers
+    <!-- Card 2: Savings -->
+    <div class="card card-2">
+      <div class="card-row">
+        <div class="card-brand">
+          <i class="fab fa-bitcoin" style="opacity: 0.7;"></i>
+          <span style="opacity: 0.8;">savings</span>
+        </div>
+        <div class="chip-badge" style="opacity: 0.6;"><i class="fas fa-microchip"></i></div>
+      </div>
 
-            await sodium.ready;
-            const seed = await deriveSeedJS('alice','password123', { outLen: 32 });
-            const sk = sodium.crypto_sign_seed_keypair(seed); // returns {publicKey, privateKey}
-            const signature = sodium.crypto_sign_detached(new TextEncoder().encode('hello'), sk.privateKey);
-            const ok = sodium.crypto_sign_verify_detached(signature, new TextEncoder().encode('hello'), sk.publicKey);
+      <div class="card-row" style="margin-top: 0.2rem;">
+        <div class="balance-main">
+          <span class="btc-amount">0.042 <small>BTC</small></span>
+          <span class="usd-small">≈ $1,900</span>
+        </div>
+      </div>
 
-        
-        }
+      <div class="address-row" style="opacity: 0.8;">
+        <span class="addr">bc1q5k...9h3m1p</span>
+        <i class="fas fa-copy"></i>
+      </div>
 
-        main();
-    </script>
+      <div class="card-footer-mini" style="opacity: 0.6;">
+        <span><i class="fas fa-lock" style="margin-right: 4px;"></i> cold storage</span>
+        <div class="footer-icons">
+          <i class="fas fa-shield-alt"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: Exchange -->
+    <div class="card card-3">
+      <div class="card-row">
+        <div class="card-brand">
+          <i class="fab fa-bitcoin" style="opacity: 0.5;"></i>
+          <span style="opacity: 0.6;">exchange</span>
+        </div>
+        <div class="chip-badge" style="opacity: 0.4;"><i class="fas fa-arrow-right-arrow-left"></i></div>
+      </div>
+
+      <div class="card-row" style="margin-top: 0.2rem;">
+        <div class="balance-main">
+          <span class="btc-amount" style="opacity: 0.6;">0.008 <small>BTC</small></span>
+          <span class="usd-small" style="opacity: 0.4;">≈ $360</span>
+        </div>
+      </div>
+
+      <div class="address-row" style="opacity: 0.5;">
+        <span class="addr">3J98t...W5e4m</span>
+        <i class="fas fa-copy"></i>
+      </div>
+
+      <div class="card-footer-mini" style="opacity: 0.4;">
+        <span><i class="fas fa-hourglass-half" style="margin-right: 4px;"></i> 2 confirmations</span>
+        <div class="footer-icons">
+          <i class="fas fa-clock"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 4: Transaction (NEW) -->
+    <div class="card card-4">
+      <div class="card-row">
+        <div class="tx-type">
+          <div class="tx-icon incoming">
+            <i class="fas fa-arrow-down"></i>
+          </div>
+          <div class="tx-details">
+            <span class="tx-label">Incoming transaction</span>
+            <span class="tx-sub">from bc1q7k...p3m9n</span>
+          </div>
+        </div>
+        <div class="tx-status confirmed">
+          <i class="fas fa-check-circle" style="margin-right: 3px;"></i> confirmed
+        </div>
+      </div>
+
+      <div class="card-row" style="margin-top: 0.3rem;">
+        <div style="display: flex; flex-direction: column; gap: 0.1rem;">
+          <span style="font-size: 0.55rem; color: #7d9b94;">transaction ID</span>
+          <span style="font-family: 'SF Mono', monospace; font-size: 0.6rem; color: #b2cbc3;">a4f8e2...9c3d1b</span>
+        </div>
+        <div class="tx-amount">
+          <span class="btc positive">+0.015 <small style="font-size: 0.6rem; color: #7d9b94;">BTC</small></span>
+          <span class="usd">≈ $680</span>
+        </div>
+      </div>
+
+      <div class="card-footer-mini" style="border-top-color: rgba(100, 200, 255, 0.08);">
+        <span><i class="far fa-clock" style="margin-right: 4px;"></i> 3 blocks ago</span>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <span style="font-size: 0.5rem; color: #5a7a72;">fee: 0.0001 BTC</span>
+          <i class="fas fa-external-link-alt" style="opacity: 0.3;"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- You can add more transaction cards here if needed -->
+  </div>
 </body>
 </html>
-{% endcomment %}
-
-
-
-
-<!-- <!DOCTYPE html>
-<html>
-<head>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/elliptic/6.5.4/elliptic.min.js"></script>
-  <script>"https://cdnjs.cloudflare.com/ajax/libs/scrypt-js/3.0.1/scrypt.js"</script>
-</head>
-<body>
-  <script>
-    async function deriveKey(user_id, user_pass) {
-      const password = user_pass;
-      const salt = user_id;
-      const N = 16384, r = 8, p = 1, dkLen = 32;
-
-      return new Promise((resolve, reject) => {
-        scrypt(password, salt, {
-          N: N,
-          r: r,
-          p: p,
-          dkLen: dkLen,
-          encoding: 'hex'
-        }, function(derivedKeyHex) {
-          resolve(derivedKeyHex);
-        });
-      });
-    }
-
-    async function main() {
-      const user_id = 'fj8D3h75Hnbe8u';
-      const user_pass = 'jtVE5u8bT&s#';
-
-      const seedHex = await deriveKey(user_id, user_pass);
-      console.log("Derived Seed (Hex):", seedHex);
-
-      const ec = new elliptic.ec('secp256k1');
-      const keyPair = ec.keyFromPrivate(seedHex);
-
-      const privKeyHex = keyPair.getPrivate("hex");
-      const pubKeyHex = keyPair.getPublic().encode("hex"); // uncompressed
-
-      console.log("Private Key:", privKeyHex);
-      console.log("Public Key:", pubKeyHex);
-
-      const msg = "hello world";
-      const msgHash = elliptic.utils.sha256(msg);
-      const signature = keyPair.sign(msgHash, { canonical: true });
-      const sigHex = signature.toDER("hex");
-      console.log("Signature:", sigHex);
-    }
-
-    main();
-  </script>
-</body>
-</html> -->
-
-<!-- 
-<!DOCTYPE html>
-<html>
-<head>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/elliptic/6.5.4/elliptic.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/scrypt-js/3.0.1/scrypt.min.js" integrity="sha512-w1rNNktltLsq7XsNzytxJ9aCl7I0kpDkNfwRaJjfotZKCXZ5b3a8jnbSUA6YN0QvS/UXQmVKXjITrHbsQcvBXw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-</head>
-<body>
-  <script>
-    async function deriveKey(user_id, user_pass) {
-      const password = new TextEncoder().encode(user_pass);
-      const salt = new TextEncoder().encode(user_id);
-      const N = 16384, r = 8, p = 1, dkLen = 32;
-
-      return new Promise((resolve, reject) => {
-        scrypt(password, salt, N, r, p, dkLen, (error, progress, key) => {
-          if (error) reject(error);
-          else if (key) resolve(key);
-        });
-      });
-    }
-
-    async function main() {
-      const user_id = 'fj8D3h75Hnbe8u';
-      const user_pass = 'jtVE5u8bT&s#';
-
-      const keyBytes = await deriveKey(user_id, user_pass);
-      const seedHex = Array.from(keyBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-      console.log("Private Key Seed:", seedHex);
-
-      const ec = new elliptic.ec('secp256k1');
-      const keyPair = ec.keyFromPrivate(seedHex);
-
-      const privKeyHex = keyPair.getPrivate("hex");
-      const pubKeyHex = keyPair.getPublic().encode("hex"); // uncompressed
-
-      console.log("Private Key:", privKeyHex);
-      console.log("Public Key:", pubKeyHex);
-
-      const msg = "hello world";
-      const msgHash = elliptic.utils.sha256(msg);
-      const signature = keyPair.sign(msgHash, { canonical: true });
-      const sigHex = signature.toDER("hex");
-      console.log("Signature:", sigHex);
-    }
-
-    main();
-  </script>
-</body>
-</html> -->

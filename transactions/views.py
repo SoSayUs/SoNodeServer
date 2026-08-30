@@ -26,11 +26,11 @@ def sopay_view(request):
 def wallet_view(request, wallet_id):
     style = request.GET.get('style', 'preload')
     user_id = request.GET.get('user', None)
-    prnt('-sopay_view',style,user_id)
+    prnt('-wallet_view',style,user_id)
 
     view = request.GET.get('view', 'transactions')
     include_nav = request.GET.get('include_nav', False)
-    title = 'SoPay'
+    title = 'Wallet'
     r = default_setup(request, title, plugin='legis')
     if r:
         return r
@@ -40,9 +40,8 @@ def wallet_view(request, wallet_id):
         nav_options = [
             nav_item('link', 'Transactions', '?view=transactions', None),
             nav_item('link', 'Blocks', '?view=blocks', None),
-                # nav_item('button', 'View: %s'%(sort), 'subNavWidget', 'sortForm', fields=['Latest','For You','Trending','Newest'], key='sort'),  
-                nav_item('button', 'Date', 'subNavWidget', 'datePickerForm')
-                ]
+            nav_item('button', 'Date', 'subNavWidget', 'datePickerForm')
+            ]
     if view == 'transactions':
         wallet = Wallet.objects.filter(id=wallet_id).first()
         posts = Transaction.objects.filter(Q(ReceiverWallet_obj=wallet)|Q(SenderWallet_obj=wallet))

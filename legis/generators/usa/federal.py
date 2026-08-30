@@ -105,16 +105,16 @@ runTimes = {
 
 functions = { # in gov_region timezone
     "2025-03-13" : [
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 8, 10, 12, 14, 16, 18, 22], 'cmds' : ['get_bills_us'] },
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [1, 5, 17, 21], 'cmds' : ['get_house_rollcalls_us']},
-    {'date' : ['x'], 'dayOfWeek' : [1,2,3,4,5,6], 'hour' : [3, 7, 16, 23], 'cmds' : ['get_senate_rollcalls_us']},
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [12,13,14], 'cmds' : ['get_house_debates_us','get_senate_debates_us']},
-    ],
-    "2026-01-24" : [
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 8, 10, 12, 14, 16, 18, 22], 'cmds' : ['get_bills_us'] },
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [1, 5, 11, 17, 21], 'cmds' : ['get_house_debates_us', 'get_house_rollcalls_us']},
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [3, 7, 19, 23], 'cmds' : ['get_senate_debates_us', 'get_senate_rollcalls_us']},
-    {'date' : ['x'], 'dayOfWeek' : [1], 'hour' : [14], 'cmds' : ['get_persons_us']},
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 8, 10, 12, 14, 16, 18, 22], 'cmds' : ['get_bills_us'] },
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [1, 5, 17, 21], 'cmds' : ['get_house_rollcalls_us']},
+    # {'date' : ['x'], 'dayOfWeek' : [1,2,3,4,5,6], 'hour' : [3, 7, 16, 23], 'cmds' : ['get_senate_rollcalls_us']},
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [12,13,14], 'cmds' : ['get_house_debates_us','get_senate_debates_us']},
+    # ],
+    # "2026-01-24" : [
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 8, 10, 12, 14, 16, 18, 22], 'cmds' : ['get_bills_us'] },
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [1, 5, 11, 17, 21], 'cmds' : ['get_house_debates_us', 'get_house_rollcalls_us']},
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [3, 7, 19, 23], 'cmds' : ['get_senate_debates_us', 'get_senate_rollcalls_us']},
+    # {'date' : ['x'], 'dayOfWeek' : [1], 'hour' : [14], 'cmds' : ['get_persons_us']},
     ],
 }
 
@@ -2124,7 +2124,7 @@ def add_bill(url=None, log=None, update_dt=None, driver=None, driver_service=Non
         bill, billU, bill_is_new, log = save_and_return(bill, billU, log)
         if new_bill and bill.Person_obj:
             script_test_error(special, 'send alerts')
-            notification, notificationU, notification_is_new = get_model_and_update('Notification', Title=f'{bill.Person_obj.get_field("FullName")} has sponsored bill {bill.NumberCode}', Link=str(bill.get_absolute_url()), targetUsers={'follow_person' : bill.Person_obj.id}, pointerId=bill.id, Country_obj=country, Region_obj=country, Chamber=bill.Chamber, networkChainType=gov.id)
+            notification, notificationU, notification_is_new = get_model_and_update('Notification', Title=f'{bill.Person_obj.get_field("FullName")} has sponsored bill {bill.NumberCode}', Link=str(bill.get_absolute_url()), targetUsers={'follow_person' : bill.Person_obj.id}, pointerId=bill.id, Country_obj=country, Region_obj=country, Chamber=bill.Chamber, networkChain=gov.id)
             notification, notificationU, notification_is_new, log = save_and_return(notification, notificationU, log)
         err = 17
         try:
@@ -2140,10 +2140,10 @@ def add_bill(url=None, log=None, update_dt=None, driver=None, driver_service=Non
                     else:
                         person_id = bill.SponsorCode
                     if UserData.objects.filter(Q(follow_topics__contains=bill.id)|Q(follow_topics__contains=person_id)).count() > 0:
-                        notification, notificationU, notification_is_new = get_model_and_update('Notification', Title=f'Bill {bill.NumberCode} updated - {title}', Link=str(bill.get_absolute_url()), targetUsers={'follow_bill' : bill.id, 'follow_person' : person_id}, pointerId=bill.id, Country_obj=country, Region_obj=country, Chamber=bill.Chamber, networkChainType=gov.id)
+                        notification, notificationU, notification_is_new = get_model_and_update('Notification', Title=f'Bill {bill.NumberCode} updated - {title}', Link=str(bill.get_absolute_url()), targetUsers={'follow_bill' : bill.id, 'follow_person' : person_id}, pointerId=bill.id, Country_obj=country, Region_obj=country, Chamber=bill.Chamber, networkChain=gov.id)
                         notification, notificationU, notification_is_new, log = save_and_return(notification, notificationU, log)
                 elif 'Became Law' in billU.data['Status']:
-                    notification, notificationU, notification_is_new = get_model_and_update('Notification', Title=f'Bill {bill.NumberCode} has become Law - {title}', Link=str(bill.get_absolute_url()), targetUsers={'all_in_country' : country.id}, pointerId=bill.id, Country_obj=country, Region_obj=country, Chamber=bill.Chamber, networkChainType=gov.id)
+                    notification, notificationU, notification_is_new = get_model_and_update('Notification', Title=f'Bill {bill.NumberCode} has become Law - {title}', Link=str(bill.get_absolute_url()), targetUsers={'all_in_country' : country.id}, pointerId=bill.id, Country_obj=country, Region_obj=country, Chamber=bill.Chamber, networkChain=gov.id)
                     notification, notificationU, notification_is_new, log = save_and_return(notification, notificationU, log)
         except Exception as e:
             prnt('create notify fail43',str(e))

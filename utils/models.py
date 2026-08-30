@@ -44,7 +44,7 @@ def check_super_commands():
 
 
 _e_brake_end_dt = None
-_e_brake = 4
+_e_brake = 0
 # 0 = run all
 # 1 = run nothing
 # 2 = resolve blocks
@@ -498,10 +498,10 @@ def list_all_scrapers(plugin='legis'):
     return all_files
 
 
-def create_share_object(func, region, special, dt=None, iden=None, job_dt=None, task=1):
+def create_share_object(func, region, special, dt=None, iden=None, job_dt=None, task=1, plugin=None):
     if not dt:
         dt = now_utc()
-    prnt('-create_share_object', 'func:', func, special, region, dt, iden, job_dt)
+    prnt('--create_share_object', 'func:', func, special, region, dt, iden, job_dt)
     if e_brake(3):
         raise Exception('E_BRAKE')
     if job_dt:
@@ -535,6 +535,7 @@ def create_share_object(func, region, special, dt=None, iden=None, job_dt=None, 
         dp.data['region_name'] = region.Name
         dp.data['region_id'] = region.id
         dp.data['job_id'] = dp.jobId
+        dp.data['plugin_id'] = plugin
         dp.data['shareData'] = []
         dp.Region_obj = region
     dp.data['special'] = special
@@ -556,7 +557,7 @@ def finishScript(log, gov=None, special=None, func=None, log_event=True, send_of
         log = DataPacket.objects.filter(id=log).first()
     if not log or 'completed' in log.func:
         return None
-    prnt('-finishScript', log.data['func'], gov, special)
+    prnt('--finishScript', log.data['func'], gov, special)
     gov_id = None
     if gov and isinstance(gov, models.Model):
         gov_id = gov.id
@@ -589,6 +590,7 @@ def finishScript(log, gov=None, special=None, func=None, log_event=True, send_of
         r = 'unknown'
     log.data['content_length'] = r
     do_save = False
+    prnt('gov_id',gov_id)
     if gov_id:
         if 'gov_id' not in log.data or log.data['gov_id'] != gov_id:
             log.data['gov_id'] = gov_id
@@ -912,104 +914,6 @@ def update_chromeDriver(required_version=None):
         prnt('cmd',cmd)
         result = subprocess.run(cmd, input=systemPass, text=True, capture_output=True)
         prnt('result',result)
-
-def proxy_request(url, country='CA'):
-    prnt('-proxy_request',country,url)
-    import requests
-    self_node = get_self_node()
-    if 'country_code' in self_node.region_data and self_node.region_data['country_code'] == country:
-        prnt('self_run')
-        r = requests.get(url)
-        return r
-    sources = [
-        f"https://proxylist.geonode.com/api/proxy-list?limit=500&page=1&sort_by=lastChecked&sort_type=desc&protocols=http&country={country}",
-        f"https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=1000&country={country}&ssl=all&anonymity=all",
-        f"https://letushide.com/api/proxylist.txt?country={country}&type=http",
-
-        # "https://pubproxy.com/api/proxy?limit=1000&country=CA&type=http",
-        # "https://gimmeproxy.com/api/getProxy?country=CA&protocol=http",
-        # "https://hide.mn/en/proxy-list/countries/canada/",
-    ]
-
-    x = 0
-    for src in sources:
-        x += 1
-        try:
-            prnt()
-            prnt(f"Fetching from {src}")
-            r = requests.get(src, timeout=10)
-            r.raise_for_status()
-            text = r.text.strip()
-            try:
-                js = r.json()
-            except ValueError:
-                js = None
-
-            results = []
-            if js:
-                if "proxy" in js:
-                    # single proxy
-                    results.append(js["proxy"])
-                if "data" in js and isinstance(js["data"], list):
-                    for item in js["data"]:
-                        ip = item.get("ip")
-                        prt = item.get("port") or item.get("proxy_port")
-                        if ip and prt:
-                            results.append(f"{ip}:{prt}")
-            else:
-                for line in text.splitlines():
-                    line = line.strip()
-                    if line and ":" in line and len(line) < 30:
-                        results.append(line)
-            if results:
-                # proxy_list = [line.strip() for line in txt.splitlines() if ":" in line]
-                num = 0
-                for proxy in results:
-                    num += 1
-                    proxies = {"http": f"http://{proxy}", "https": f"http://{proxy}"}
-                    prnt(f"Trying ({x}/{len(sources)}) {num}/{len(results)} ...")
-                    ip1 = "https://httpbin.org/ip"
-                    try:
-                        r = requests.get(ip1, proxies=proxies, timeout=25)
-                        prnt("Success:", r.text)
-
-                        r = requests.get("http://ip-api.com/json", proxies=proxies, timeout=30)
-                        country_code = r.json().get("countryCode")
-                        print('country_code',country_code)
-
-                        # country_code = requests.get("https://ipapi.co/country/", proxies=proxies, verify=False, timeout=60).text.strip()
-                        # prnt('country:',country_code)
-                        if country_code == country:
-                            r = requests.get(url, proxies=proxies, timeout=240)
-                            prnt("Success get")
-                            return r
-                        else:
-                            time.sleep(3)
-
-                    except requests.exceptions.Timeout:
-                        prnt("Request timed out")
-                    except Exception as e:
-                        # prnt("Failed:", e)
-                        pass
-        except Exception as e:
-            prnt("Failed fetch from", src, ":", str(e))
-
-    # use network proxyme request
-    from network.models import Node
-    # would be more secure to select node from get_node_assignment - requires job and dt input - make sure each scraper uses a proxy through a different node by different users
-    nodes = Node.objects.filter(region_data__country_code=country).exclude(activated_dt=None).exclude(Block_obj=None).filter(suspended_dt=None).order_by('-pos')
-    
-    
-    for node in nodes:
-        prnt('trying node',node)
-        content = sign_post_header(data={'country_code':country, 'address':url},  post='post', target_node=node)
-        success, response = connect_to_node(node, 'utils/proxyme', data=None, self_node=None, content=content, headers={}, operatorData=None, timeout=(5,25), get=False, stream=False, node_is_string=False, log_reponse_time=False)
-        prnt('success',success)
-        # prnt('response:',type(response),str(response)[:1000])
-        if success:
-            return response
-
-    return None
 
 
 def create_job(job_func, job_timeout=60, worker='low', clear_chrome_job=False, **kwargs):
@@ -1432,15 +1336,21 @@ def get_latest_dataPacket(chain='All'):
     self_node = get_self_node()
     # chainId = chain
     if isinstance(chain, models.Model):
-        if chain._meta.object_name != 'Blockchain':
-            if has_field(chain, 'networkChain'):
-                chain = Blockchain.objects.filter(id=chain.networkChain).defer('queuedData').first()
-        if chain and chain.genesisId == _OperationsChain_genesisId:
-            chain = 'All'
-        elif chain:
-            chain = chain.id
+        from utils.utils import get_plugin
+        plugin_id = get_plugin(chain, id=True)
+        # if chain._meta.object_name != 'Blockchain':
+        #     if has_field(chain, 'networkChain'):
+        #         chain = Blockchain.objects.filter(id=chain.networkChain).defer('queuedData').first()
+        if has_field(chain, 'Region_obj'):
+            chain = chain.Region_obj.id
         else:
-            return None
+            chain = chain.networkChain
+        # if chain and chain.genesisId == _OperationsChain_genesisId:
+        #     chain = 'All'
+        # elif chain:
+        #     chain = chain.genesisId
+        # else:
+        #     return None
     elif is_id(chain):
         pointer = get_pointer_type(chain)
         if pointer in ['User', 'Node']:
@@ -2615,7 +2525,7 @@ def get_model_and_update(model_name, dt=None, obj=None, new_model=True, **kwargs
 def save_and_return(obj, update, log):
     prntn('--save and return, obj',obj, 'update:',update)
     func = log.data['func']
-    created = string_to_dt(log.data['created'])
+    created = string_to_dt(log.data.get('created', now_utc()))
     def confer(obj):
         field_names = [field.name for field in obj._meta.fields]
         query_kwargs = {field: getattr(obj, field) for field in field_names}
@@ -2652,7 +2562,7 @@ def save_and_return(obj, update, log):
             obj.update_data()
         else:
             obj.save()
-        if obj.id not in log.data['shareData']:
+        if obj.id not in log.data.get('shareData', []):
             log.updateShare(obj)
 
     if update and has_field(obj, 'Block_obj'):
@@ -2779,6 +2689,7 @@ def downscale_to_size(image_bytes, max_bytes=(0.25 * 1024 * 1024)):
 
 def sync_model(xModel, jsonContent, skip_fields=[], do_save=True, opBlock_data={}, force_sync=False, get_missing_blocks=True, skip_verify=False):
     from utils.locked import verify_obj_to_data, convert_to_dict, get_node_assignment
+    from utils.utils import get_plugin
     proceed_to_sync = False
     updatedDB = False
     sigs = []
@@ -2895,7 +2806,7 @@ def sync_model(xModel, jsonContent, skip_fields=[], do_save=True, opBlock_data={
                     prnt('opBlock_data',opBlock_data)
                     # should cross reference with scraper jobs - when should func have been run?
                     
-                    creator_nodes, validator_nodes = get_node_assignment(dt=received_data['created'], chainId=received_data['networkChain'], func=received_data['func'], opBlock_data=opBlock_data, strings_only=True)
+                    creator_nodes, validator_nodes = get_node_assignment(dt=received_data['created'], chainId=received_data['networkChain'], func=received_data['func'], plugin_id=get_plugin(xModel, id=True), opBlock_data=opBlock_data, strings_only=True)
                     
                     if received_data['objType'] == 'Validator':
                         prnt('pp1',received_data['CreatorNode_obj'], received_data.get('validatorType', ''))
@@ -3899,6 +3810,7 @@ def super_share(log=None, gov=None, func=None, val_type='super', job_id=None, ad
     from network.models import DataPacket, Validator
     from posts.models import Region
     items = []
+    objs = []
     approved_funcs = []
     job_time = None
     
@@ -4009,12 +3921,14 @@ def super_share(log=None, gov=None, func=None, val_type='super', job_id=None, ad
                 if proceed:
                     prnt('proceed')
                     obj = None
-                    if has_field(i, 'Validator_obj') and i.Validator_obj:
-                        if has_field(i, 'signed') and i.signed:
-                            processed_data['hashes'][i.id] = sigData_to_hash(i)
-                    elif has_field(i, 'validated') and i.validated:
-                        if has_field(i, 'signed') and i.signed:
-                            processed_data['hashes'][i.id] = sigData_to_hash(i)
+                    # if has_field(i, 'Validator_obj') and i.Validator_obj:
+                    if has_field(i, 'signed') and i.signed:
+                        # prnt('hashes1',i.id)
+                        processed_data['hashes'][i.id] = sigData_to_hash(i)
+                    # elif has_field(i, 'validated') and i.validated:
+                    #     if has_field(i, 'signed') and i.signed:
+                    #         prnt('hashes2',i.id)
+                    #         processed_data['hashes'][i.id] = sigData_to_hash(i)
                     prnt('pro2')
                     prnt('self_node',self_node)
                     i.func = 'super'
@@ -4061,7 +3975,7 @@ def super_share(log=None, gov=None, func=None, val_type='super', job_id=None, ad
 
                         if not dataPacket:
                             prnt('get datapacket')
-                            dataPacket = get_latest_dataPacket(chainId)
+                            dataPacket = get_latest_dataPacket(obj)
                             prnt('dataPacket',dataPacket)
 
                         if not validator:
@@ -4234,7 +4148,7 @@ def share_with_network(items, post=None, datapacket=None, share_node=False):
             if item._meta.object_name != 'Node' or share_node:
                 prnt('get datatotsharfe')
                 if not datapacket:
-                    datapacket = get_latest_dataPacket(network_chain)
+                    datapacket = get_latest_dataPacket(item)
                 if datapacket:
                     datapacket.add_item_to_share(item)
                     prnt('shared',item)
@@ -5728,14 +5642,14 @@ def tasker(dt, test=False):
                 prnt('enact_transaction tx',tx)
                 # result['unvalidated_txs'].append(tx.id)
                 django_rq.get_queue('main').enqueue(tx.enact_transaction, id=tx.id, job_timeout=60, result_ttl=7200)
-        for tx in Transaction.objects.filter(validated=True, ReceiverBlock_obj=None).order_by('ReceiverWallet_obj__id','created').distinct('ReceiverWallet_obj__id'):
+        for tx in Transaction.objects.filter(validated=True).exclude(ReceiverBlock_obj__validated=True).order_by('ReceiverWallet_obj__id','created').distinct('ReceiverWallet_obj__id'):
             if not exists_in_worker('send_for_block_creation', id=tx.id):
-                prnt('send_for_block_creation tx',tx)
+                prnt('send_for_block_creation1 tx',tx)
                 result['unvalidated_txs'].append(tx.id)
                 django_rq.get_queue('main').enqueue(tx.send_for_block_creation, id=tx.id, downstream_worker=False, job_timeout=60, result_ttl=7200)
         for tx in Transaction.objects.filter(validated__isnull=True).order_by('created'):
             if not exists_in_worker('send_for_block_creation', id=tx.id):
-                prnt('send_for_block_creation tx',tx)
+                prnt('send_for_block_creation2 tx',tx)
                 result['unvalidated_txs'].append(tx.id)
                 django_rq.get_queue('main').enqueue(tx.send_for_block_creation, id=tx.id, downstream_worker=False, job_timeout=60, result_ttl=7200)
 
@@ -5747,7 +5661,7 @@ def tasker(dt, test=False):
             if not exists_in_worker('broadcast_dp', queue_name=['chat'], iden=dp.id):
                 django_rq.get_queue('chat').enqueue(dp.broadcast_dp, iden=dp.id, job_timeout=300, result_ttl=7200)
 
-        processes = DataPacket.objects.filter(func__icontains='process', created__lte=now_utc() - datetime.timedelta(minutes=9.5), created__gt=now_utc() - datetime.timedelta(minutes=125)).exclude(func__icontains='completed').defer('data').order_by('created')
+        processes = DataPacket.objects.filter(func__icontains='process', updated_on_node__lte=now_utc() - datetime.timedelta(minutes=9.5), created__gt=now_utc() - datetime.timedelta(minutes=50)).exclude(func__icontains='completed').defer('data').order_by('created')
         if processes:
             for log in processes:
                 prnt('processes log',log)
@@ -6244,11 +6158,20 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
         if self_node and self_node.node_type == 'relay':
             prcs = share_to_all+['blc','val','chn']
             content = [i for i in content if isinstance(i,dict) and get_model_prefix(i['objType']) in prcs]
+        prnt('aa0')
         prnt('stage2- data Len:',len(content))
         opBlock_dict = {'index':{}}
         userVotes = []
         validators = []
         received_invalids = []
+        prnt('aa1')
+        try:
+            prnt('aa2')
+            storedModels, not_found, not_valid = get_data(content, return_model=True, include_related=False, result_as_dict=True, verify_data=False)
+            prnt('***get_data success')
+        except Exception as e:
+            prnt('*** err get_data',str(e))
+        prnt('aa3')
         storedModels, not_found, not_valid = get_data(content, return_model=True, include_related=False, result_as_dict=True, verify_data=False)
         prnt('existing_objs-',len(storedModels))
 
@@ -6961,7 +6884,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
         if log:
             log.completed()
     except Exception as e:
-        prnt('fail process data 9374',str(e))
+        prnt('***fail process data 9374***',str(e))
         if log:
             log.completed(str(e))
     prnt('done process received data databaseUpdated',databaseUpdated)
@@ -6969,7 +6892,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
         return updated_objs
     elif return_updated_count:
         return updated_count
-    return databaseUpdated            
+    return databaseUpdated        
             
 def process_data_packet(received_json):
     prnt('--process_data_packet')
@@ -7064,6 +6987,7 @@ def send_for_validation(log=None, gov=None, force_send=False):
     gov_level = None
     region = None
     chainId = None
+    plugin_id = None
     q = 0
     if is_id(log):
         log = DataPacket.objects.filter(id=log).first()
@@ -7079,6 +7003,26 @@ def send_for_validation(log=None, gov=None, force_send=False):
     elif isinstance(log, models.Model):
         if log._meta.object_name == 'DataPacket':
             func = log.data['func']
+            plugin_id = log.data['plugin_id']
+            if 'job_dt' in log.data:
+                job_time = string_to_dt(log.data['job_dt'])
+                prnt('job_dt1',dt_to_string(job_time))
+            elif log.headers and 'Job-Dt' in log.headers:
+                job_time = string_to_dt(log.headers['Job-Dt'])
+                prnt('job_dt1',dt_to_string(job_time))
+            elif 'created' in log.data:
+                job_time = string_to_dt(log.data['created'])
+                prnt('job_dt2',dt_to_string(job_time))
+            if 'finished' in log.data:
+                job_finished = dt_to_string(log.data['finished'])
+            if 'started' in log.data:
+                job_started = dt_to_string(log.data['started'])
+            if 'job_id' in log.data:
+                job_id = log.data['job_id']
+            elif log.headers and 'Job-Id' in log.headers:
+                job_id = log.headers['Job-Id']
+            else:
+                job_id = hash_obj_id('DataPacket', specific_data=f"{job_time}{func}{log.data['region_id']}")
             if 'shareData' in log.data and log.data['shareData']:
                 items = sorted(log.data['shareData'], key=data_sort_priority)
                 items = get_all_objects(items)
@@ -7092,44 +7036,26 @@ def send_for_validation(log=None, gov=None, force_send=False):
                 items = sorted(data, key=data_sort_priority)
                 items = get_all_objects(items)
                 prnt('func2:',func,len(data))
+            if 'gov_level' in log.data:
+                gov_level = log.data['gov_level']
+            elif items and any(i for i in items if i._meta.object_name == 'Government'):
+                for i in items:
+                    if i._meta.object_name =='Government':
+                        gov = i
+                        gov_level = gov.gov_level # gov_level not really needed
+                        break
+            prnt('gov_level',gov_level)
             if items:
-                if 'job_dt' in log.data:
-                    job_time = string_to_dt(log.data['job_dt'])
-                    prnt('job_dt1',dt_to_string(job_time))
-                elif log.headers and 'Job-Dt' in log.headers:
-                    job_time = string_to_dt(log.headers['Job-Dt'])
-                    prnt('job_dt1',dt_to_string(job_time))
-                elif 'created' in log.data:
-                    job_time = string_to_dt(log.data['created'])
-                    prnt('job_dt2',dt_to_string(job_time))
-                if 'finished' in log.data:
-                    job_finished = dt_to_string(log.data['finished'])
-                if 'started' in log.data:
-                    job_started = dt_to_string(log.data['started'])
-                if 'job_id' in log.data:
-                    job_id = log.data['job_id']
-                elif log.headers and 'Job-Id' in log.headers:
-                    job_id = log.headers['Job-Id']
-                else:
-                    job_id = hash_obj_id('DataPacket', specific_data=f"{job_time}{func}{log.data['region_id']}")
-                if 'gov_level' in log.data:
-                    gov_level = log.data['gov_level']
-                elif any(i for i in items if i._meta.object_name == 'Government'):
-                    for i in items:
-                        if i._meta.object_name =='Government':
-                            gov = i
-                            gov_level = gov.gov_level # gov_level not really needed
-                            break
-                region_name = log.data['region_name']
-                region_id = log.data['region_id']
-                from posts.models import Region
-                region = Region.objects.filter(id=region_id).first()
-                
+        
                 q = 2
                 if 'created' in log.data:
                     job_time = string_to_dt(log.data['created'])
                 
                 func = log.data['func']
+            region_name = log.data['region_name']
+            region_id = log.data['region_id']
+            from posts.models import Region
+            region = Region.objects.filter(id=region_id).first()
 
         else:
             q = 3
@@ -7145,7 +7071,13 @@ def send_for_validation(log=None, gov=None, force_send=False):
         log = None
         pass
     else:
-        creator_nodes, validator_nodes = get_node_assignment(dt=job_time, func=func, chainId=region.id, strings_only=False, nodeType='maintainer')
+        if not log.data.get('plugin_id', None):
+            if items:
+                from utils.utils import get_plugin
+                log.data['plugin_id'] = get_plugin(items[0], id=True)
+            else:
+                log.data['plugin_id'] = None
+        creator_nodes, validator_nodes = get_node_assignment(dt=job_time, func=func, chainId=region.id, plugin_id=log.data['plugin_id'], strings_only=False, nodeType='maintainer')
         prnt('validator_nodes',str(validator_nodes))
         if validator_nodes:
             validator_node = validator_nodes[0]
@@ -7215,7 +7147,7 @@ def send_for_validation(log=None, gov=None, force_send=False):
                 log.headers = {'Packet-Id':packet_id, 'Senderid':self_node_id, 'Job-Id':job_id, 'Task':str(log.task), 'Job-Dt':dt_to_string(job_time), 'Dt':dt_to_string(now_utc()), 'Func':func, 'Region-Id':region.id if region else None}
                 log.save(update_fields=['headers'])
 
-            data_to_send = {'type':'for_validation', 'packet_id':packet_id, 'job_started':job_started, 'job_finished':job_finished, 'func':func, 'senderId':self_node_id, 'region_id':region.id, 'gov_level':gov_level, 'scrapers':[s for s in creator_nodes], 'validator':validator_node, 'region_name':region.Name, 'content_length':content_length, 'content': compressed_data}
+            data_to_send = {'type':'for_validation', 'packet_id':packet_id, 'job_started':job_started, 'job_finished':job_finished, 'func':func, 'plugin_id':plugin_id, 'senderId':self_node_id, 'region_id':region.id, 'gov_level':gov_level, 'scrapers':[s for s in creator_nodes], 'validator':validator_node, 'region_name':region.Name, 'content_length':content_length, 'content': compressed_data}
             sending_data = sign_for_sending(data_to_send)
             data_to_send = {}
             compressed_data = None
@@ -7246,7 +7178,7 @@ def send_for_validation(log=None, gov=None, force_send=False):
                 sending_data = None
                 if validator_node != self_node_id:
                     compressed_data = json.dumps(iden_list)
-                    data_to_send = {'type':'job_completed', 'packet_id':packet_id, 'job_started':job_started, 'job_finished':job_finished, 'func':func, 'senderId':self_node_id, 'region_id':region.id, 'gov_level':gov_level, 'scrapers':[s for s in creator_nodes], 'validator':validator_node, 'region_name':region.Name, 'content_length':content_length, 'content': compressed_data}
+                    data_to_send = {'type':'job_completed', 'packet_id':packet_id, 'job_started':job_started, 'job_finished':job_finished, 'func':func, 'plugin_id':plugin_id, 'senderId':self_node_id, 'region_id':region.id, 'gov_level':gov_level, 'scrapers':[s for s in creator_nodes], 'validator':validator_node, 'region_name':region.Name, 'content_length':content_length, 'content': compressed_data}
                     sending_data = sign_for_sending(data_to_send)
                     completed, response = connect_to_node(validator_node, 'network/receive_event', sending_data, headers=log.headers)
             if log:
@@ -7391,8 +7323,7 @@ def send_post(url, data_str, headers=None, timeout=(10, 60)):
 
     body_bytes = (data_str or '').encode("utf-8")
     total_size = len(body_bytes)
-    prnt('total_size',total_size)
-    prnt(to_megabytes(data_str),'MB')
+    prnt('total_size',total_size,to_megabytes(data_str),'MB')
 
     # Single part
     if total_size <= MAX_SIZE:
@@ -7579,7 +7510,7 @@ def connect_to_node(node, url, data=None, self_node=None, content={}, headers={}
                 if not content:
                     post_type = 'get' if get else 'stream' if stream else 'post'
                     content = sign_post_header(data=data, headers=headers, operatorData=operatorData, self_node=self_node, target_node=node, post=post_type, address_type=address_type)
-                prnt("content['headers']",content['headers'])
+                # prnt("content['headers']",content['headers'])
                 response = send_post(f"{http}://{ip}/{url}", content['body'], headers=content['headers'], timeout=timeout)
                 
             elapsed_time = time.time() - start_time
@@ -7590,9 +7521,9 @@ def connect_to_node(node, url, data=None, self_node=None, content={}, headers={}
                     return True, response
                 return False, response
             else:
-                prnt('response.elapsed.total_seconds()',response.elapsed.total_seconds() if response else None)
+                # prnt('response.elapsed.total_seconds()',response.elapsed.total_seconds() if response else None)
                 if response and response.status_code == 200:
-                    prnt('success connection')
+                    # prnt('success connection')
                     try:
                         r_json = response.json()
                         if 'message' in r_json and r_json['message'].lower() == 'success' and 'nodeId' in r_json:

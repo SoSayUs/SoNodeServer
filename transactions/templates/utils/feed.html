@@ -4,8 +4,12 @@
 
 
 
+
+
 {% if cards %}
     <meta class='pageNum' id='Page: {{feed_list.number }}'>
+    <link rel="stylesheet" href='{% static "css/tx_defaults.css" %}?v=0.1'/>
+
 
     {% if nav_bar %}
     {% include 'utils/nav_bar.html' %}
@@ -30,59 +34,22 @@
     {% if cards == 'sopay_list' %}
 
         {% for post in feed_list %}
-            <div class='card' id='{{ post.id }}'>
-                <div class='cardContent'>
-                    <div class='Info'>
-                        <div class='Details'>
-                            <div class='title shorten2'><a href='wallet/{{ post.id }}' >Wallet: {{ post.Name }}</a></div>
-                            <div class='title'><a href='' >ID: {{ post.id }}</a></div>
-                        </div>
-                    </div>
-
-                    <div class='TextContent'>
-                        <ul class='Text'>
-                            <li style='margin-top:15px;'>{{ post.value }}</li>
-                            <li style='margin-top:15px;'>{{ post.lastUpdate }}</li>
-                        </ul>
-                    </div>
-                </div>
-            
-            <div class="miniMore", title='More' onclick="react('more','{{post.id}}')"><span class="material-icons">more_horiz</span></div>
-            </div>
-            <div class='bottomDivider'></div>
+            {% include 'cards/wallet_card.html' %}
         {% endfor %}
 
     {% elif cards == 'wallet_txs' %}
 
         {% for post in feed_list %}
-            <div class='card' id='{{ post.id }}'>
-                <div class='cardContent'>
-                    <div class='Info'>
-                        <div class='Details'>
-                            <div class='title shorten2'><a href='' >Sender: {{ post.SenderWallet_obj }}</a></div>
-                            <div class='title shorten2'><a href='' >Receiver: {{ post.ReceiverWallet_obj }}</a></div>
-                            <div class='title'><a href='' >ID: {{ post.id }}</a></div>
-                        </div>
-                    </div>
-
-                    <div class='TextContent'>
-                        <ul class='Text'>
-                            <li style='margin-top:15px;'>value: {{ post.token_value }}</li>
-                            <li style='margin-top:15px;'>re: {{ post.regarding }}</li>
-                            <li style='margin-top:15px;'>enacted: {{ post.enacted }}</li>
-                        </ul>
-                    </div>
-                </div>
-            
-            <div class="miniMore", title='More' onclick="react('more','{{post.id}}')"><span class="material-icons">more_horiz</span></div>
-            </div>
-            <div class='bottomDivider'></div>
+            {% include 'cards/tx_card.html' %}
         {% endfor %}
 
     {% elif cards == 'wallet_blocks' %}
 
         {% for post in feed_list %}
             <div class='card' id='{{ post.id }}'>
+                <div class='profile'>
+                    <span class="material-symbols-outlined">crop_square</span>
+                </div>
                 <div class='cardContent'>
                     <div class='Info'>
                         <div class='Details'>

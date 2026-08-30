@@ -45,10 +45,10 @@
                     {% with subs.0 as terms %}
                     {% with subs.1 as more %}
                     {% for s in terms %}
-                        <li class='subtitle2 shorten1' style='display:inline-block; margin-right: 2px;'><span>{{ s }},</span></li>
+                        <li class='subtitle shorten1' style='display:inline-block; margin-right: 2px;'><span>{{ s }},</span></li>
                     {% endfor %}
                     {% if more %}
-                        <li title="{% for s in billUpdate|get_updated_field:'subjects' %}{{s}}, {% endfor %}" class='subtitle2 shorten1' style='display:inline-block; cursor: pointer; margin-right: 2px;'>+{{ more }} more</li>
+                        <li title="{% for s in billUpdate|get_updated_field:'subjects' %}{{s}}, {% endfor %}" class='subtitle shorten1' style='display:inline-block; cursor: pointer; margin-right: 2px;'>+{{ more }} more</li>
                     {% endif %}
                     {% endwith %}
                     {% endwith %}

@@ -94,6 +94,7 @@ def process_gathered_data(received_data, override_completed=False):
         gov_level = received_data['gov_level']
         region_name = received_data['region_name']
         region_id = received_data['region_id']
+        plugin_id = received_data['plugin_id']
         region = Region.objects.filter(id=region_id).first()
 
         blockchain = Blockchain.objects.filter(genesisId=region_id).only('id','genesisType','genesisId').first()
@@ -128,7 +129,7 @@ def process_gathered_data(received_data, override_completed=False):
             scraper_list = [{'function_name':func, 'region_id':region_id, 'scraping_order':[sender_node.id], 'validators':[self_node.id]}]
             approved_funcs = [func]
         elif func in intelligence_funcs:
-            scrapers, validators = get_node_assignment(chainId=region_id, func=func, dt=job_dt, nodeType='intelligence')
+            scrapers, validators = get_node_assignment(chainId=region_id, func=func, dt=job_dt, plugin_id=plugin_id, nodeType='intelligence')
             approved_funcs = []
             if self_node.id in scrapers or self_node.id in validators:
                 approved_funcs = [func]
@@ -306,7 +307,7 @@ def process_gathered_data(received_data, override_completed=False):
                     break
 
     q += '19'
-    from utils.utils import get_data, connect_to_node
+    from utils.utils import connect_to_node
     validator = sign_obj(validator)
     obj_list = [convert_to_dict(validator)]
     for i in content:
@@ -345,8 +346,6 @@ def process_gathered_data(received_data, override_completed=False):
     prnt('done comparing posts',result)
     dp.notes[dt_to_string(now_utc())] = {'result':result}
     dp.save(update_fields=['notes'])          
-
-
 
 def process_posts_for_validating(received_json, override_completed=False):
     from utils.models import process_received_dp, decompress_data,prnt, now_utc, e_brake
@@ -459,7 +458,7 @@ def process_posts_for_validating(received_json, override_completed=False):
             approved_funcs = [func]
         elif func in intelligence_funcs:
             prnt('p2')
-            scrapers, validators = get_node_assignment(chainId=region_id, func=func, dt=job_dt, nodeType='intelligence')
+            scrapers, validators = get_node_assignment(chainId=region_id, func=func, dt=job_dt, plugin_id=plugin_id, nodeType='intelligence')
             prnt('scrapers',scrapers)
             prnt('validators',validators)
             prnt('self_node.id',self_node.id)
@@ -553,7 +552,7 @@ def process_posts_for_validating(received_json, override_completed=False):
                                                     w += '4'
                                                     if not network_chain:
                                                         network_chain, obj, commit_chain = find_or_create_chain_from_object(obj)
-                                                        dataPacket = get_latest_dataPacket(network_chain)
+                                                        dataPacket = get_latest_dataPacket(obj)
                                                         plugin_id = Plugin.objects.filter(app_name=obj._meta.app_label).values('id').first()['id']
                                                     if obj and has_field(obj, 'Validator_obj') and (not obj.Validator_obj or not obj.Validator_obj.signed or not obj.Validator_obj.is_valid):
                                                         w += 'a'
@@ -670,13 +669,13 @@ def process_posts_for_validating(received_json, override_completed=False):
                                                                         longer_text, shorter_text = (text1, text2) if len(text1) > len(text2) else (text2, text1)
                                                                         result += f"Extra characters in longer text: {longer_text[len(shorter_text):]}"
                                                                     return result
-                                                                prnt('---items do not match', obj)
+                                                                prnt('----items do not match', obj)
                                                                 mismatches.append(z['id'])
                                                                 err_data = {'id':z['id'],'now':dt_to_string(now_utc()),'mismatch_field':f.name, 'z-valid':verify_obj_to_data(None, z, user=sender_node.User_obj), 'obj-valid':verify_obj_to_data(None, obj, user=sender_node.User_obj),'field_comparison': compare_texts(str(sort_for_sign(attr)),str(sort_for_sign(z_field)))}
 
                                                             else:
                                                                 w += '8'
-                                                                prnt('---items match', obj)
+                                                                prnt('----items match', obj)
                                                                 matches += 1
                                                                 if not self_is_validator:
                                                                     w += 'A'
@@ -784,7 +783,7 @@ def process_posts_for_validating(received_json, override_completed=False):
                                                                 w += 'g'
                                                                 if not network_chain:
                                                                     network_chain, obj, commit_chain = find_or_create_chain_from_object(obj)
-                                                                    dataPacket = get_latest_dataPacket(network_chain)
+                                                                    dataPacket = get_latest_dataPacket(obj)
                                                                 if not validator and len(val_objs) >= required_matches:
                                                                     w += 'h'
                                                                     if job_id:
@@ -1075,9 +1074,9 @@ def process_posts_for_validating(received_json, override_completed=False):
     return result
 
 def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, broadcast_if_unknown=False, downstream_worker=True, handle_discrepancies=True, backcheck=False, get_missing_blocks=True, next_block=None, next_block_must_val=True, only_if_unkown=False, block_id=None):
-    from utils.models import get_objType, prntDebug, create_job, sigData_to_hash, get_operator_obj, now_utc, prnt, string_to_dt, e_brake, logEvent, request_items, get_chain_id
+    from utils.models import get_objType, prntDebug, create_job, sigData_to_hash, get_operator_obj, now_utc, prnt, prntn, string_to_dt, e_brake, logEvent, request_items, get_chain_id
     from network.utils import resolve_block_differences, retrieve_missing_blocks, send_missing_blocks
-    prnt('---check_validation_consensus',block, now_utc(),do_mark_valid,handle_discrepancies,'next_block:',next_block)
+    prntn('---check_validation_consensus',block, now_utc(),do_mark_valid,handle_discrepancies,'next_block:',next_block)
     from network.models import Blockchain, Block, Validator, Node, _OperationsChain_genesisId
     # return is_valid, consensus_found, validators
     if e_brake(2):
@@ -1341,7 +1340,7 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
                     prnt('hard false')
                     return False, True, []
             genesis_id = val_obj.ReceiverWallet_obj.id
-            networkChainId = val_obj.senderChainGenId
+            networkChainId = val_obj.networkChain
             block_id = val_obj.senderBlockId
             block_created_dt = string_to_dt(val_obj.created)
             block_dt = block_created_dt
@@ -1594,20 +1593,34 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
             carry_on = False
             if 'BlockReward' in block.Transaction_obj.regarding:
                 if block.Transaction_obj.regarding['BlockReward'] == block.id:
-                    # inputted region block with reward
+                    # inputted block with reward
                     carry_on = True
                     if not block.Transaction_obj.SenderBlock_obj:
                         block.Transaction_obj.SenderBlock_obj = block
                         block.Transaction_obj.save(update_fields=['SenderBlock_obj'])
                 elif block.Blockchain_obj.genesisId == block.Transaction_obj.ReceiverWallet_obj.id:
                     # inputted wallet reward block
-                    # below will check validators of corresponding region block
-                    transaction_is_valid, transaction_consensus_found, transaction_validators = check_validators(block.Transaction_obj, {'block_delay':region_block_delay,'next_block':next_block,'block':block}, do_mark_valid=False, broadcast_if_unknown=broadcast_if_unknown)
-                    prnt('transaction_is_valid',transaction_is_valid,'transaction_consensus_found',transaction_consensus_found)
-                    if not transaction_consensus_found:
-                        return False, False, []
-                    if transaction_is_valid and transaction_consensus_found:
-                        carry_on = True
+                    # below will check validators of corresponding reward block
+
+                    if not block.Transaction_obj.SenderBlock_obj:
+                        from utils.utils import request_is_valid, get_chain_id
+                        if request_is_valid(block.Transaction_obj.senderBlockId, vals=10, chain=get_chain_id(block.Transaction_obj.networkChain)):
+                            # should get SenderBlock_obj validators?
+                            prnt('request_is_valid result True')
+                            # return True, True, []
+                            carry_on = True
+                        else:
+                            invalidate(block, note='request_is_valid_false1', strike=False, opBlock_data={})
+                            prnt('request_is_valid result False')
+                            return False, False, []
+
+                    else:
+                        transaction_is_valid, transaction_consensus_found, transaction_validators = check_validators(block.Transaction_obj, {'block_delay':region_block_delay,'next_block':next_block,'block':block}, do_mark_valid=False, broadcast_if_unknown=broadcast_if_unknown)
+                        prnt('transaction_is_valid',transaction_is_valid,'transaction_consensus_found',transaction_consensus_found)
+                        if not transaction_consensus_found:
+                            return False, False, []
+                        if transaction_is_valid and transaction_consensus_found:
+                            carry_on = True
                     
             if not carry_on:
                 prnt('p2 transaction_err1',block.id)
@@ -1653,24 +1666,56 @@ def validate_block(block, creator_nodes=None, opBlock_data=None, create_validato
             elif prev_block.validated == None:
                 return None, None, None # wait for result of prev_block
             
+            if block.Transaction_obj:
+                if block.Transaction_obj.senderBlockId != block.id:
+                    sender_block = Block.objects.filter(id=block.Transaction_obj.senderBlockId).first()
+                    if sender_block and not sender_block.validated:
+                        hard_pass = True
+                        fail_reason = 77
+                    elif not sender_block:
+                        from utils.utils import request_is_valid, get_chain_id
+                        # should not hardcode vals=10 here, should check num of vals with consensus percent like in check_validation_consensus
+                        if not request_is_valid(block.Transaction_obj.senderBlockId, vals=10, chain=get_chain_id(block.Transaction_obj.networkChain)):
+                            hard_pass = True
+                            fail_reason = 78
+                        
+                if 'BlockReward' in block.Transaction_obj.regarding:
+                    if block.Transaction_obj.regarding['BlockReward'] == block.id and 'Rewards' in block.Transaction_obj.ReceiverWallet_obj.Name:
+                        transaction_type = 'sender'
+                    elif block.Transaction_obj.ReceiverWallet_obj and block.Transaction_obj.ReceiverWallet_obj.id == block.Blockchain_obj.genesisId and 'Rewards' in block.Transaction_obj.ReceiverWallet_obj.Name:
+                        # hard_pass = False
+                        transaction_type = 'receiver'
+                    else:
+                        hard_pass = True
+                        fail_reason = 72
+                elif not block.Transaction_obj.SenderWallet_obj:
+                    fail_reason = 73
+                    hard_pass = True
+                elif block.Transaction_obj.ReceiverWallet_obj == block.Blockchain_obj:
+                    transaction_type = 'receiver'
+                elif block.Transaction_obj.SenderWallet_obj == block.Blockchain_obj:
+                    transaction_type = 'sender'
+                else:
+                    fail_reason = 74
+                    hard_pass = True
+
             
             prnt(' block.get_previous_hash()', block.get_previous_hash())
             prnt('block.prv_hash',block.prv_hash)
             if not hard_pass and block.get_previous_hash() == block.prv_hash:
                 fail_reason = 2
                 target_hash = sigData_to_hash(block, exclude_fields=['signed'])
-                received_hash = block.hash
-                prnt('received_hash',received_hash,'target_hash',target_hash)
-                if received_hash == target_hash:
+                prnt('received_hash',block.hash,'target_hash',target_hash)
+                if block.hash == target_hash:
                     fail_reason = 3
                     if not creator_nodes:
                         if block.Transaction_obj:
                             if transaction_type == 'sender':
                                 creator_nodes, validator_nodes = get_node_assignment(block.Transaction_obj, opBlock_data=opBlock_data)
                             elif transaction_type == 'receiver':
-                                creator_nodes, validator_nodes = get_node_assignment(block, return_receiverTransaction=True, opBlock_data=opBlock_data)
-                            else:
-                                creator_nodes, validator_nodes = get_node_assignment(block, opBlock_data=opBlock_data)
+                                creator_nodes, validator_nodes = get_node_assignment(block, chainId=block.Transaction_obj.receiverNetworkChain, opBlock_data=opBlock_data)
+                            # else:
+                            #     creator_nodes, validator_nodes = get_node_assignment(block, opBlock_data=opBlock_data)
                         else:
                             creator_nodes, validator_nodes = get_node_assignment(block, opBlock_data=opBlock_data)
                     prnt('creator_nodes',creator_nodes,'block.CreatorNode_obj',block.CreatorNode_obj)
@@ -1696,71 +1741,49 @@ def validate_block(block, creator_nodes=None, opBlock_data=None, create_validato
                     
                     if proceed_to_valid:
                         fail_reason = 705
-                        if block.Transaction_obj:
-                            fail_reason = 706
-                            carry_on = False
-                            if 'BlockReward' in block.Transaction_obj.regarding:
-                                fail_reason = 707
-                                
-                                if block.Transaction_obj.regarding['BlockReward'] == block.id and 'Rewards' in block.Transaction_obj.ReceiverWallet_obj.Name:
-                                    fail_reason = 708
-                                    if block.Transaction_obj.token_value == calculate_reward(block.DateTime, prev_block):
-                                        fail_reason = 709
-                                        from posts.models import Region
-                                        if not Region.objects.filter(id=block.Blockchain_obj.rewardsData['regionId'], Block_obj__validated=True, is_supported=True).exists():
-                                            hard_pass = True
-                                            fail_reason = 760
-                                            prnt('fail_reason',fail_reason)
-                                        else:
-            
-                                            if any(prefix for prefix in reward_models if block.Blockchain_obj.genesisId.startswith(prefix)):
-                                                from legis.models import Government
-                                                gov = Government.objects.filter(id=block.Blockchain_obj.genesisId, Validator_obj__is_valid=True, Region_obj__is_supported=True, Region_obj__Validator_obj__is_valid=True).first()
-                                                if not gov or not gov.StartDate:
-                                                    hard_pass = True
-                                                    fail_reason = 761
-                                                    prnt('fail_reason',fail_reason)
-                                                
-                                                from network.models import Blockchain
-                                                future_govs = Government.objects.filter(Region_obj=gov.Region_obj, StartDate__gte=gov.StartDate, Validator_obj__is_valid=True).exclude(id=gov.id).values('id')
-                                                if future_govs and Blockchain.objects.filter(genesisId__in=[g['id'] for g in future_govs], chain_length__gt=0).exists():
-                                                    hard_pass = True
-                                                    prnt('fail_reason',fail_reason)
-                                                    fail_reason = 762
-                                                
-                                                if not future_govs and block.Blockchain_obj.chain_length == 0:
-                                                    prev_gov = Government.objects.filter(Region_obj=gov.Region_obj, StartDate__lt=gov.StartDate, Validator_obj__is_valid=True).order_by('-StartDate').first()
-                                                    if prev_gov and not prev_gov.EndDate:
-                                                        hard_pass = True
-                                                        fail_reason = 763
-                                                        prnt('fail_reason',fail_reason)
-                                                    elif prev_gov and prev_gov.EndDate:
-                                                        if not prev_gov.Block_obj or not (prev_gov.id in prev_gov.Block_obj.data and check_commit_data(prev_gov, prev_gov.Block_obj.data[prev_gov.id])):
-                                                            hard_pass = True
-                                                            fail_reason = 764
-                                                            prnt('fail_reason',fail_reason)
-                                            else:
+                        if block.Transaction_obj and 'BlockReward' in block.Transaction_obj.regarding:
+                            fail_reason = 707
+                            if block.Transaction_obj.regarding['BlockReward'] == block.id and 'Rewards' in block.Transaction_obj.ReceiverWallet_obj.Name:
+                                fail_reason = 708
+                                if block.Transaction_obj.token_value == calculate_reward(block.DateTime, prev_block):
+                                    fail_reason = 709
+                                    from posts.models import Region
+                                    if not Region.objects.filter(id=block.Blockchain_obj.rewardsData['regionId'], Block_obj__validated=True, is_supported=True).exists():
+                                        hard_pass = True
+                                        fail_reason = 760
+                                        prnt('fail_reason',fail_reason)
+                                    else:
+        
+                                        if any(prefix for prefix in reward_models if block.Blockchain_obj.genesisId.startswith(prefix)):
+                                            from legis.models import Government
+                                            gov = Government.objects.filter(id=block.Blockchain_obj.genesisId, Validator_obj__is_valid=True, Region_obj__is_supported=True, Region_obj__Validator_obj__is_valid=True).first()
+                                            if not gov or not gov.StartDate:
                                                 hard_pass = True
-                                                fail_reason = 765
-                                                # transaction_type = 'sender'
+                                                fail_reason = 761
+                                                prnt('fail_reason',fail_reason)
+                                            
+                                            from network.models import Blockchain
+                                            future_govs = Government.objects.filter(Region_obj=gov.Region_obj, StartDate__gte=gov.StartDate, Validator_obj__is_valid=True).exclude(id=gov.id).values('id')
+                                            if future_govs and Blockchain.objects.filter(genesisId__in=[g['id'] for g in future_govs], chain_length__gt=0).exists():
+                                                hard_pass = True
+                                                prnt('fail_reason',fail_reason)
+                                                fail_reason = 762
+                                            
+                                            if not future_govs and block.Blockchain_obj.chain_length == 0:
+                                                prev_gov = Government.objects.filter(Region_obj=gov.Region_obj, StartDate__lt=gov.StartDate, Validator_obj__is_valid=True).order_by('-StartDate').first()
+                                                if prev_gov and not prev_gov.EndDate:
+                                                    hard_pass = True
+                                                    fail_reason = 763
+                                                    prnt('fail_reason',fail_reason)
+                                                elif prev_gov and prev_gov.EndDate:
+                                                    if not prev_gov.Block_obj or not (prev_gov.id in prev_gov.Block_obj.data and check_commit_data(prev_gov, prev_gov.Block_obj.data[prev_gov.id])):
+                                                        hard_pass = True
+                                                        fail_reason = 764
+                                                        prnt('fail_reason',fail_reason)
+                                        else:
+                                            hard_pass = True
+                                            fail_reason = 765
             
-                                elif block.Transaction_obj.ReceiverWallet_obj and block.Transaction_obj.ReceiverWallet_obj.id == block.Blockchain_obj.genesisId and 'Rewards' in block.Transaction_obj.ReceiverWallet_obj.Name:
-                                    hard_pass = False
-                                    transaction_type = 'receiver'
-                                else:
-                                    hard_pass = True
-                                    fail_reason = 72
-            
-                            elif not block.Transaction_obj.SenderWallet_obj:
-                                fail_reason = 73
-                                hard_pass = True
-                            elif block.Transaction_obj.ReceiverWallet_obj == block.Blockchain_obj:
-                                transaction_type = 'receiver'
-                            elif block.Transaction_obj.SenderWallet_obj == block.Blockchain_obj:
-                                transaction_type = 'sender'
-                            else:
-                                fail_reason = 74
-                                hard_pass = True
 
                         if not hard_pass:
                             fail_reason = 99
@@ -2091,7 +2114,8 @@ def validate_obj(obj=None, pointer=None, validators=None, save_obj=True, update_
     if pointer and not obj and save_obj:
         obj = Post.objects.filter(pointerId=pointer.id).first()
     if obj and has_field(obj, 'validated') and not obj.validated and obj.id or pointer and update_pointer and not pointer.Validator_obj or obj and obj.id and has_field(obj, 'Validator_obj') and not obj.Validator_obj:
-        from utils.models import prntDebug, sigData_to_hash, string_to_dt, find_or_create_chain_from_object, has_method, get_model, logEvent, declare_var, round_time, get_timeData, request_items, get_objType
+        from utils.utils import prntDebug, sigData_to_hash, string_to_dt, has_method, get_model, logEvent, declare_var, round_time, get_timeData, request_items, get_objType, get_plugin
+        from utils.models import find_or_create_chain_from_object
         from network.models import Validator, max_validation_window
         validators = declare_var(validators, {})
         if obj and get_objType(obj) == 'Post':
@@ -2123,7 +2147,7 @@ def validate_obj(obj=None, pointer=None, validators=None, save_obj=True, update_
                         proceed = True
                 else:
                 
-                    creator_nodes, validator_nodes = get_node_assignment(dt=round_time(dt=string_to_dt(get_timeData(target, sort=['lastUpdate','created']))), func=target.func, chainId=target.networkChain, plugin_id=get_plugin(target), opBlock_data=opBlock_data, nodeType='maintainer')
+                    creator_nodes, validator_nodes = get_node_assignment(dt=round_time(dt=string_to_dt(get_timeData(target, sort=['lastUpdate','created']))), plugin_id=get_plugin(target, id=True), func=target.func, chainId=target.networkChain, opBlock_data=opBlock_data, nodeType='maintainer')
                     prnt('creator_nodes',creator_nodes)
                     prnt('validator_nodes',validator_nodes)
                     prnt('target.validatorNodeId',target.validatorNodeId)
@@ -2131,10 +2155,10 @@ def validate_obj(obj=None, pointer=None, validators=None, save_obj=True, update_
                     vals = []
                     for val in validators:
                         if val.CreatorNode_obj.id in creator_nodes:
-                            prnt('val',val.id,'is in creator_nodes')
+                            # prnt('val',val.id,'is in creator_nodes')
                             vals.append(val)
                         if val.CreatorNode_obj.id == validator_nodes[0] and val.validatorType == 'scraper' and target.id in val.data:
-                            prnt('val',val.id,'is in validator_nodes')
+                            # prnt('val',val.id,'is in validator_nodes')
                             validator = val
                     if not vals and validator:
                         vals = list(Validator.objects.filter(id__in=validator.Validator_array))
@@ -2183,7 +2207,7 @@ def validate_obj(obj=None, pointer=None, validators=None, save_obj=True, update_
                         proceed = True
                 elif validators:
                     # maybe should check that target was scraped at appropriate time
-                    creator_nodes, validator_nodes = get_node_assignment(dt=round_time(dt=string_to_dt(get_timeData(target, sort=['lastUpdate','created']))), chainId=target.networkChain, plugin_id=get_plugin(target), func=target.func, opBlock_data=opBlock_data, nodeType='maintainer')
+                    creator_nodes, validator_nodes = get_node_assignment(dt=round_time(dt=string_to_dt(get_timeData(target, sort=['lastUpdate','created']))), chainId=target.networkChain, plugin_id=get_plugin(target, id=True), func=target.func, opBlock_data=opBlock_data, nodeType='maintainer')
                     prnt('creator_nodes, validator_nodes',creator_nodes, validator_nodes)
                     prnt('target.validatorNodeId',target.validatorNodeId)
                     prnt('validators',validators)
@@ -2380,10 +2404,14 @@ def validate_obj(obj=None, pointer=None, validators=None, save_obj=True, update_
     prnt('rturn False', err)
     return False
 
-def get_broadcast_list(seed, dt=None, region_id=None, relevant_nodes={}, seed_nodes=[], important_nodes=None, excluded_nodes=None, included_nodes=[], peer_count=None, loop=False, all_nodes=False, include_relays=False, opBlock_data={}):
+def get_broadcast_list(seed, dt=None, region_id=None, plugin_id=None, relevant_nodes=None, seed_nodes=None, important_nodes=None, excluded_nodes=None, included_nodes=None, peer_count=None, loop=False, all_nodes=False, include_relays=False, opBlock_data=None):
     from django.db import models
-    from utils.models import is_id, get_dynamic_model, round_time, now_utc, dt_to_string,prnt
+    from utils.utils import is_id, get_dynamic_model, round_time, now_utc, dt_to_string, prnt, declare_var, get_plugin
     from network.models import Node, universalChains, _OperationsChain_genesisId
+    opBlock_data = declare_var(opBlock_data, {})
+    relevant_nodes = declare_var(relevant_nodes, {})
+    seed_nodes = declare_var(seed_nodes, [])
+    included_nodes = declare_var(included_nodes, [])
     if not important_nodes:
         important_nodes = []
     if not excluded_nodes:
@@ -2435,22 +2463,20 @@ def get_broadcast_list(seed, dt=None, region_id=None, relevant_nodes={}, seed_no
                 recipients = []
                 count = 0
                 j = 1
-                # for j in range(1, peer_count+1): 
                 while count < peer_count and j < total:
-                    if loop:
-                        recipient = ordered_ids[(i + j) % total]
-                    else:
-                        if i + j < total:
-                            recipient = ordered_ids[i + j]
+                    recipient = ordered_ids[(i + j) % total]
+                    if recipient not in excluded_nodes:
+                        if recipient in nodes:
+                            recipients.append(nodes[recipient])
+                            count += 1
                         else:
-                            break
-                    if recipient in nodes and nodes[recipient] not in excluded_nodes:
-                        # prnt('nodes[recipient]',nodes[recipient])
-                        # if 'addr' in nodes[recipient]:
-                        #     recipients.append(nodes[recipient]['addr'])
-                        # else:
-                        recipients.append(nodes[recipient])
-                        count += 1
+                            n = Node.objects.filter(id=recipient).first()
+                            if n:
+                                addr = n.return_address()
+                            else:
+                                addr = ''
+                            recipients.append(addr)
+                            count += 1
                     j += 1
                 if node_id not in broadcast_map:
                     broadcast_map[node_id] = recipients
@@ -2537,7 +2563,7 @@ def get_broadcast_list(seed, dt=None, region_id=None, relevant_nodes={}, seed_no
                     include_relays = True
                 if not relevant_nodes:
                     if not opBlock_data:
-                        opBlock_data = get_relevant_nodes(dt=seed.DateTime, obj=seed, genesisId=seed.Blockchain_obj.genesisId, include_relays=include_relays)
+                        opBlock_data = get_relevant_nodes(dt=seed.DateTime, obj=seed, genesisId=seed.Blockchain_obj.genesisId, plugin_id=get_plugin(seed.networkChain, id=True), include_relays=include_relays)
                     relevant_nodes = opBlock_data['relevant_nodes']
                 if not seed_nodes and not important_nodes:
                     seed_nodes, important_nodes = get_node_assignment(chainId=region_id, obj=seed, dt=dt)
@@ -2553,10 +2579,10 @@ def get_broadcast_list(seed, dt=None, region_id=None, relevant_nodes={}, seed_no
                 dt = round_time(dt=seed.created, dir='down', amount='evenhour')
                 if not relevant_nodes:
                     if not opBlock_data:
-                        opBlock_data = get_relevant_nodes(dt=dt, obj=seed, include_relays=include_relays)
+                        opBlock_data = get_relevant_nodes(dt=dt, obj=seed, plugin_id=get_plugin(seed, id=True), include_relays=include_relays)
                     relevant_nodes = opBlock_data['relevant_nodes']
                 if not seed_nodes and not important_nodes:
-                    seed_nodes, important_nodes = get_node_assignment(chainId=region_id, obj=seed, dt=dt)
+                    seed_nodes, important_nodes = get_node_assignment(chainId=region_id, obj=seed, dt=dt, plugin_id=get_plugin(seed, id=True))
         elif seed._meta.object_name == 'Node':
             if not dt:
                 dt = round_time(dt=seed.lastUpdate, dir='down', amount='10mins')
@@ -2579,14 +2605,16 @@ def get_broadcast_list(seed, dt=None, region_id=None, relevant_nodes={}, seed_no
                 dt = round_time(dt=seed.lastUpdate, dir='down', amount='10mins')
             elif not dt:
                 dt = round_time(dt=now_utc(), dir='down', amount='10mins')
+            if not plugin_id and is_id(seed.networkChain):
+                plugin_id = get_plugin(seed.networkChain, id=True)
             if not relevant_nodes:
                 if not opBlock_data:
-                    opBlock_data = get_relevant_nodes(genesisId=region_id, obj=seed, dt=dt, include_relays=include_relays)
+                    opBlock_data = get_relevant_nodes(genesisId=region_id, obj=seed, dt=dt, plugin_id=plugin_id, include_relays=include_relays)
                 relevant_nodes = opBlock_data['relevant_nodes']
         seed_text = seed.id
     elif isinstance(seed, str) and region_id and dt:
         if not opBlock_data:
-            opBlock_data = get_relevant_nodes(genesisId=region_id, dt=dt, include_relays=include_relays)
+            opBlock_data = get_relevant_nodes(genesisId=region_id, dt=dt, plugin_id=plugin_id, include_relays=include_relays)
             prnt('opBlock_data::',opBlock_data)
         if not seed_nodes and not important_nodes:
             seed_nodes, important_nodes = get_node_assignment(chainId=region_id, func=seed, dt=dt, opBlock_data=opBlock_data)
@@ -2623,7 +2651,7 @@ def get_broadcast_list(seed, dt=None, region_id=None, relevant_nodes={}, seed_no
 
 def get_relevant_nodes(dt=None, genesisId=None, chains=None, blockchain=None, plugin_id=None, obj=None, for_user=False, include_relays=False, exclude_list=None, opBlock=None, strings_only=True, sublist='', first_block_override=False, node_ids_only=False):
     from utils.models import now_utc, get_timeData, testing, round_time, prnt
-    prnt('--get_relevant_nodes - strings_only:',strings_only,'genesisId',genesisId,'blockchain',blockchain,'chains',chains,'obj',obj,'dt',dt,'include_relays',include_relays,'exclude_list',exclude_list,'first_block_override',first_block_override)
+    prnt('--get_relevant_nodes - strings_only:',strings_only,'genesisId',genesisId,'plugin_id',plugin_id,'blockchain',blockchain,'chains',chains,'obj',obj,'dt',dt,'include_relays',include_relays,'exclude_list',exclude_list,'first_block_override',first_block_override)
     if not exclude_list:
         exclude_list = []
     if not dt and obj:
@@ -2812,16 +2840,17 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
             genesis_obj = get_dynamic_model(block.Blockchain_obj.genesisId, id=block.Blockchain_obj.genesisId)
             if not has_field(genesis_obj, 'Block_obj'):
                 # genesis obj must be on a chain to start a chain
-                prnt('stoppage 1 for gen obj',genesis_obj)
+                prnt('stoppage 1b for gen obj',genesis_obj)
                 proceed = False
-            elif genesis_obj.Block_obj.Blockchain_obj == block.Blockchain_obj and block.index == 1 and not genesis_obj._meta.object_name in ['Sonet']:
+            elif not genesis_obj.Block_obj or genesis_obj.Block_obj.Blockchain_obj == block.Blockchain_obj and block.index == 1 and not genesis_obj._meta.object_name in ['Sonet']:
                 # Sonet is only genesis obj that starts a new tree
-                prnt('stoppage 2 for gen obj',genesis_obj, genesis_obj.Block_obj)
+                prnt('stoppage 2b for gen obj',genesis_obj, genesis_obj.Block_obj)
+                block.Blockchain_obj.add_item_to_queue(genesis_obj, force_add=True)
                 proceed = False
             elif not genesis_obj._meta.object_name in ['Sonet'] and (not genesis_obj.Block_obj or not genesis_obj.Block_obj.validated):
                 if block.index == 1:
                     # genesis obj must be on a block before startings its chain
-                    prnt('stoppage 3 for gen obj',genesis_obj, genesis_obj.Block_obj)
+                    prnt('stoppage 3b for gen obj',genesis_obj, genesis_obj.Block_obj)
                     proceed = False
         if not proceed:
             if genesis_obj:
@@ -2912,7 +2941,7 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
         vals = Validator.objects.filter(data__overlap=requested_validators, is_valid=True).order_by('-created')
         if vals:
             for i in requested_validators:
-                creator_nodes, validator_nodes = get_node_assignment(dt=i.created, chainId=i.networkChain, func=i.func)
+                creator_nodes, validator_nodes = get_node_assignment(dt=i.created, chainId=i.networkChain, plugin_id=get_plugin(i, id=True), func=i.func)
 
                 for val in vals:
                     # prnt('val',val)
@@ -2946,8 +2975,9 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
                 get_missing_blocks = True
             node_data = operatorData['myNodes'][operatorData['local_nodeId']]
             operatorData.clear()
-            if not 'do_not_sync_block_content' in node_data['meta'] and 'chainData' in node_data['meta'] and 'supported' in node_data['meta']['chainData'] and node_data['meta']['chainData']['supported'] != '':
-                if block.Blockchain_obj.genesisId in node_data['meta']['chainData']['supported'] or block.Blockchain_obj.genesisType in node_data['meta']['chainData']['supported']:
+            if not 'do_not_sync_block_content' in node_data['meta'] and 'chainData' in node_data['meta']:
+                supported = node_data['meta']['chainData'].get('supported_regions', []) + node_data['meta']['chainData'].get('plugin_regions', [])
+                if block.Blockchain_obj.genesisId in supported:
                     chain_supported = True
         except Exception as e:
             prnt('err 5607', str(e))
@@ -3033,6 +3063,38 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
                                     except Exception as e:
                                         prnt('***error*** validate_obj4', str(e))
                                         pass
+            else:
+                from utils.utils import fetch_obj_data, get_model
+                from utils.models import set_model_attrs
+                temp_val = Validator(id='12345678901234567890', is_valid=True)
+                for i in fetch_idens:
+                    obj_dict = fetch_obj_data(i)
+                    if obj_dict:
+                        xModel = get_model(obj_dict['objType'])()
+                        prnt('xModel',type(xModel),xModel)
+                        obj, sigs, updatedDB = set_model_attrs(xModel, obj_dict, get_missing_blocks=False)
+                        prnt('objobj',type(obj),obj)
+
+                        if obj.id in block.data or obj.id in block.extraData:
+                            is_valid = verify_obj_to_data(xModel, obj_dict)
+                            prnt('is_valid',is_valid)
+                            if has_field(obj, 'validated'):
+                                obj.validated = True
+                            if has_field(obj, 'Validator_obj'):
+                                obj.Validator_obj = temp_val
+                            if is_valid and (not has_method(obj, 'block_conditions') or obj.block_conditions()):
+                                prnt('p1')
+                                if obj.id in block.data and check_commit_data(obj, block.data[obj.id]) or obj.id in block.extraData and check_commit_data(obj, block.extraData[obj.id]):
+                                    if obj.id not in obj_idens:
+                                        obj_idens.append(obj.id)
+                                    # if obj.id not in problem_idens:
+                                    #     problem_idens.remove(obj.id)
+                    
+                        # check against commit_data
+                        # check sig
+                        # check val would be good
+                        # remove_from problem idens
+                        # add to obj_idens
         if chain_supported and 'unsupported_chain' in block.notes:
             prnt('retrieve_missing p4')
             del block.notes['unsupported_chain']
@@ -3711,70 +3773,54 @@ def position_sort(starting_position, pattern, active_set, number_of_matches, max
     prnt('matches',matches)
     return matches
 
-def position_sort_old(starting_id, pattern, nodes_dict, number_of_matches, max_pos=None):
-    from utils.models import prnt
-    prnt('-position_sort')
-
-    def find_matches(active_set, starting_position, pattern, max_pos, number_of_matches):
-        prnt('find_matches',active_set,'starting_position',starting_position,'pattern',pattern,'max_pos',max_pos,'number_of_matches',number_of_matches)
-        tries = 0
-        saltA = 0
-        saltB = 1
-        matches = {}
-        total_tries = 500
-        if max_pos > total_tries:
-            total_tries = max_pos
-        current_pos = starting_position + pattern
-        while len(matches) < number_of_matches:
-            tries += 1
-            current_pos = ((current_pos - 1) % max_pos) + 1
-            if current_pos in active_set and current_pos not in matches:
-                matches[current_pos] = active_set[current_pos]
-
-            current_pos += (pattern + saltA)
-
-            if current_pos > max_pos:
-                saltA = (saltA + saltB) % max_pos
-                saltB = (saltB + 7) % max_pos
-
-            if len(matches) == len(active_set) or tries == total_tries:
-                break
-        if len(matches) < number_of_matches and number_of_matches <= len(active_set):
-            # print('ROUND TWO',tries)
-            current_pos = starting_position
-            tries = 0
-            while len(matches) < number_of_matches:
-                tries += 1
-                if current_pos in active_set and current_pos not in matches:
-                    matches[current_pos] = active_set[current_pos]
-                current_pos += 1
-                if current_pos > max_pos:
-                    current_pos = 1
-                if tries == max_pos:
-                    break
-        # print('\nmatches_len:',len(matches),'/',number_of_matches,'\nlen(active_set):',len(active_set),'\ntries:',tries)
-        return [matches[i] for i in matches]
+def mulberry32(seed):
+    from utils.utils import prnt
+    prnt('-mulberry32',seed)
+    def string_to_seed(s):
+        h = 0x811C9DC5  # FNV offset basis
+        for ch in s:
+            h ^= ord(ch)
+            h = (h * 0x01000193) & 0xFFFFFFFF  # FNV prime
+        return h
+    try:
+        seed = string_to_seed(seed)
+    except:
+        pass
     
-    active_set = {value['pos']:iden for iden, value in nodes_dict.items()}
-    # prnt('active_set',active_set)
-    starting_pos = nodes_dict[starting_id]['pos']
-    # prnt('starting_pos',starting_pos)
-    if not max_pos:
-        from network.models import Node
-        highest_node = Node.objects.exclude(Block_obj=None).order_by('-pos').values('pos').first()
-        # prnt('highest_node',highest_node)
-        max_pos = highest_node['pos']
-    # prnt('max_pos',max_pos)
-    node_match_idens = find_matches(active_set, starting_pos, pattern, max_pos, number_of_matches)
-    prnt('position_sort node_match_idens',node_match_idens)
-    # prnt('result:',{iden:nodes_dict[iden]['addr'] for iden in node_match_idens})
-    # return {iden:nodes_dict[iden]['addr'] for iden in node_match_idens}
-    return node_match_idens
+
+    state = seed & 0xFFFFFFFF
+    def rng():
+        nonlocal state
+        state = (state + 0x6D2B79F5) & 0xFFFFFFFF
+        t = state
+        t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+        t = (t ^ (t + (((t ^ (t >> 7)) * (t | 61)) & 0xFFFFFFFF))) & 0xFFFFFFFF
+        return ((t ^ (t >> 14)) & 0xFFFFFFFF) / 4294967296
+    return rng
+
+def cross_language_shuffle(arr, seed):
+    result = list(arr)
+    rng = mulberry32(seed)
+    for i in range(len(result) - 1, 0, -1):
+        j = int(rng() * (i + 1))
+        result[i], result[j] = result[j], result[i]
+    return result
 
 def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=None, return_receiverTransaction=False, full_validator_list=False, full_creator_list=False, strings_only=False, include_relays=False, opBlock_data=None, nodeType=''):
+    
+    # takes obj or (chainId, dt, func)
+    # recommended to input plugin_id to narrow list
+    # if not plugin_id entered, get plugin_from obj if obj, not for func input
+
+    # tx will default to senderWallet_obj.networkChain unless receiver_networkChain is entered into chainId field
+    # senderWallet_obj.networkChain == sender user
+    # for tx - get nodes for sopay plugin list, sort according to genessisId
+
+    # obj can get dt and networkchain for input fields to match (chainId, dt, func) format - make func something as well
+
     import random
     from network.models import get_required_validator_count
-    from utils.models import round_time, dt_to_string, prnt, string_to_dt, declare_var, get_chain_id, has_method
+    from utils.utils import get_plugin, round_time, dt_to_string, prnt, string_to_dt, declare_var, get_chain_id, has_method, get_model_prefix, get_pointer_type, get_model, has_field
     opBlock_data = declare_var(opBlock_data, {})
     prnt('----get_node_assignment obj:', obj, 'dt',dt, 'func',func, 'strings:', strings_only,'chainId',chainId,'opBlock_data',opBlock_data,'return_receiverTransaction',return_receiverTransaction)
 
@@ -3786,8 +3832,6 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=No
         seed_hash = hashlib.sha256(seed_input.encode('utf-8')).hexdigest()
         seed_int = int(seed_hash, 16)
         rng = random.Random(seed_int)
-        # node_ids.sort()
-        # shuffled_nodes = node_ids.copy()
         shuffled_nodes = node_ids.copy()
         rng.shuffle(shuffled_nodes)
         prnt('shuffled_nodes',shuffled_nodes)
@@ -3820,9 +3864,10 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=No
                 prnt('node_assignment_error',str(e))
 
     if obj and obj._meta.object_name == 'Block' or obj and obj._meta.object_name == 'Transaction':
-
+        prnt('p1')
         if obj._meta.object_name == 'Block' and not obj.Transaction_obj or obj._meta.object_name == 'Block' and 'BlockReward' in obj.Transaction_obj.regarding and obj.Transaction_obj.regarding['BlockReward'] == obj.id:
-            
+            # is block, includes tx maybe reward sender block
+            prnt('p2')
             from network.models import _OperationsChain_genesisId
             if obj.networkChain == _OperationsChain_genesisId:
                 dt = string_to_dt(obj.DateTime) - datetime.timedelta(minutes=20) # block is created 20 mins early
@@ -3831,6 +3876,8 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=No
                 if not dt:
                     dt = string_to_dt(obj.DateTime)
                 shuffle_seed = obj.id
+            if not plugin_id:
+                plugin_id = get_plugin(obj.networkChain, id=True)
             if obj.networkChain in ['Sonet',_OperationsChain_genesisId]:
                 include_relays = True
             if not valid_node_ids_received:
@@ -3858,58 +3905,122 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=No
             return creator_nodes, validator_nodes
 
         else:
+            prnt('p3')
+            # is transaction or ReceiverBlock of tx
             block = None
             if obj._meta.object_name == 'Block' and obj.Transaction_obj:
                 block = obj
                 obj = obj.Transaction_obj
             if obj._meta.object_name == 'Transaction' and 'BlockReward' in obj.regarding and obj.regarding['BlockReward']:
                 
-                if return_receiverTransaction:
-                    shuffle_seed = obj.id # shuffle seed for ReceiverBlock_obj is tx.id for determining ReceieverBlock creator
-                    if not dt and block:
-                        dt = block.DateTime
-                    elif not dt and obj.ReceiverBlock_obj:
+                if chainId:
+                    prnt('p4')
+                    if not plugin_id:
+                        from utils.utils import get_plugin
+                        plugin_id = get_plugin(obj, id=True)
+    
+                    if not dt and obj.ReceiverBlock_obj:
                         dt = obj.ReceiverBlock_obj.DateTime
-
-                    from network.models import Plugin
-                    plugin = Plugin.objects.filter(app_name='transactions').exclude(Block_obj=None).values('id').first()
-                    from accounts.models import User
-                    user = User.objects.filter(id=obj.ReceiverWallet_obj.networkChain).values('nodeCreatorId','pattern').first()
-                    # position_sort requires strings_only=True to receive "pos"
-                    opBlock_data = get_relevant_nodes(dt=dt, genesisId=plugin['id'], plugin_id=plugin_id, sublist='maintainer', strings_only=True, include_relays=False)
+                    elif not dt:
+                        dt = obj.created
+                    # get list by transactions plugin, sorts by user (tx.ReceiverWallet_obj.networkChain)
+                    if not valid_node_ids_received:
+                        opBlock_data = get_relevant_nodes(dt=dt, genesisId=plugin_id, sublist='maintainer', strings_only=True, include_relays=False)
                     prnt('opBlock_data',opBlock_data)
-                    node_ids = position_sort(user['nodeCreatorId'], user['pattern'], {d['pos']:n for n, d in opBlock_data['relevant_nodes'].items()}, opBlock_data['opData']['number_of_peers'])
-                    valid_node_ids_received = True
+                    model_name = get_pointer_type(chainId)
+                    model = get_model(get_pointer_type(chainId))
+                    if model_name == 'User':
+                        user = model.objects.filter(id=chainId).only('nodeCreatorId','pattern').first()
+                    elif has_field(model, 'User_obj'):
+                        gen_obj = model.objects.filter(id=chainId).only('User_obj').first()
+                        user = gen_obj.User_obj
+                    else:
+                        prnt('assignment path 1f',obj)
+                        return [], []
 
-                elif block: # block is RecevierBlock - same as inputting obj=tx and return_receiverTransaction=True
+                    node_ids = position_sort(user.nodeCreatorId, user.pattern, {d['pos']:n for n, d in opBlock_data['relevant_nodes'].items()}, opBlock_data['opData']['number_of_peers'])
+
+                    if full_validator_list:
+                        required_validators = len(node_ids)
+                    else:
+                        required_validators = get_required_validator_count(obj=obj, node_ids=node_ids, opBlock_data=opBlock_data)
+
+                    node_ids = cross_language_shuffle(node_ids, dt_to_string(dt))
+
+                    creator_nodes = node_ids[:opBlock_data['opData']['block_creator_count']]
+                    validator_nodes = list(reversed(node_ids[-required_validators:]))
+                    prnt('assignment path 1b',obj,creator_nodes, validator_nodes)
+                    return creator_nodes, validator_nodes
+
+                    # if return_receiverTransaction:
+                    #     shuffle_seed = obj.id # shuffle seed for ReceiverBlock_obj is tx.id for determining ReceieverBlock creator
+                    #     if not dt and block:
+                    #         dt = block.DateTime
+                    #     elif not dt and obj.ReceiverBlock_obj:
+                    #         dt = obj.ReceiverBlock_obj.DateTime
+
+                    #     from network.models import Plugin
+                    #     plugin = Plugin.objects.filter(app_name='transactions').exclude(Block_obj=None).values('id').first()
+                    #     from accounts.models import User
+                    #     user = User.objects.filter(id=obj.ReceiverWallet_obj.networkChain).values('nodeCreatorId','pattern').first()
+                    #     # position_sort requires strings_only=True to receive "pos"
+                    #     opBlock_data = get_relevant_nodes(dt=dt, genesisId=plugin['id'], plugin_id=plugin_id, sublist='maintainer', strings_only=True, include_relays=False)
+                    #     prnt('opBlock_data',opBlock_data)
+                    #     node_ids = position_sort(user['nodeCreatorId'], user['pattern'], {d['pos']:n for n, d in opBlock_data['relevant_nodes'].items()}, opBlock_data['opData']['number_of_peers'])
+                    #     valid_node_ids_received = True
+
+                elif block and obj.regarding['BlockReward'] == block.id: # block is RecevierBlock - same as inputting obj=tx and chainId = tx.receiverwallet_networkChain
+                    prnt('p5')
                     shuffle_seed = obj.id
-                    chain = block.networkChain
+                    chain = get_chain_id(block.networkChain)
                     if not dt:
                         dt = block.DateTime
 
                 else:
                     shuffle_seed = obj.senderBlockId # tx can determine SenderBlock creators and validators
-                    chain = get_chain_id(obj.senderChainGenId)
+                    chain = get_chain_id(obj.networkChain)
+                    prnt('p6')
+                # if not dt:
+                #     dt = obj.created
+                # if not valid_node_ids_received:
+                #     # consider for consistency:
+                #     # required_validators, opBlock_data = block.get_required_validator_count(return_node_data=True)
+                #     opBlock_data = get_relevant_nodes(dt=dt, obj=obj, blockchain=chain, plugin_id=plugin_id, strings_only=strings_only, include_relays=include_relays)
+                #     node_ids = [i for i in opBlock_data['relevant_nodes']]
 
                 if not dt:
                     dt = obj.created
+                # is sender, tx has reward
+                # get nodes by block, shuffle by tx.id
                 if not valid_node_ids_received:
-                    # consider for consistency:
-                    # required_validators, opBlock_data = block.get_required_validator_count(return_node_data=True)
                     opBlock_data = get_relevant_nodes(dt=dt, obj=obj, blockchain=chain, plugin_id=plugin_id, strings_only=strings_only, include_relays=include_relays)
                     node_ids = [i for i in opBlock_data['relevant_nodes']]
 
+                # model = get_model('User')
+                # user = model().objects.filter(id=chainId).values('nodeCreatorId','pattern').first()
+                # node_ids = position_sort(user['nodeCreatorId'], user['pattern'], {d['pos']:n for n, d in opBlock_data['relevant_nodes'].items()}, opBlock_data['opData']['number_of_peers'])
+
+                # if full_validator_list:
+                #     required_validators = len(node_ids)
+                # else:
+                #     required_validators = get_required_validator_count(obj=obj, node_ids=node_ids, opBlock_data=opBlock_data)
+
+                # creator_nodes = shuffled_nodes[:opBlock_data['opData']['block_creator_count']]
+                # validator_nodes = list(reversed(shuffled_nodes[-required_validators:]))
+                # prnt('assignment path 1c',obj,creator_nodes, validator_nodes)
+                # return creator_nodes, validator_nodes
+            
                 shuffled_nodes = shuffle_nodes(shuffle_seed, dt, node_ids)
                 if full_validator_list:
                     required_validators = len(node_ids)
                     # prnt('required_validators2',required_validators)
                 else:
                     required_validators = get_required_validator_count(obj=obj, node_ids=node_ids, opBlock_data=opBlock_data)
-                prnt('required_validators1',required_validators)
+                # prnt('required_validators1',required_validators)
 
                 creator_nodes = shuffled_nodes[:opBlock_data['opData']['block_creator_count']]
                 validator_nodes = list(reversed(shuffled_nodes[-required_validators:]))
-                prnt('assignment path 1b',obj,creator_nodes, validator_nodes)
+                prnt('assignment path 1c',obj,creator_nodes, validator_nodes)
                 return creator_nodes, validator_nodes
 
             else: # user to user transaction - to be completed later
@@ -3941,61 +4052,33 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=No
 
                 return [], []
 
-            creator_nodes = shuffled_nodes[:opBlock_data['opData']['block_creator_count']]
-            validator_nodes = list(reversed(shuffled_nodes[-required_validators:]))
-            prnt('assignment path 2',obj,creator_nodes, validator_nodes)
-            return creator_nodes, validator_nodes
 
     elif has_method(obj, 'get_assignment'):
         return obj.get_assignment()
-
     elif obj and obj._meta.object_name == 'DataPacket':
         chain_list = [obj.chainId]
 
         if not dt:
             dt = round_time(dt=obj.created, dir='down', amount='10mins')
-        # if not valid_node_ids_received:
-        #     node_ids, number_of_peers, relevant_nodes = get_relevant_nodes(dt=dt, blockchain=obj.chainId, strings_only=strings_only)
         if obj.Node_obj:
             if strings_only:
                 creator_nodes.append(obj.Node_obj.id)
             else:
                 creator_nodes.append(obj.Node_obj)
-        # date_int = date_to_int(dt)
-        # starting_position = hash_to_int(obj.id, len(node_ids))
-
-
         if not valid_node_ids_received:
             node_ids = get_relevant_nodes(dt=dt, blockchain=obj.networkChain, plugin_id=plugin_id, strings_only=strings_only, node_ids_only=True, include_relays=include_relays)
         shuffled_nodes = shuffle_nodes(obj.id, dt, node_ids)
         return shuffled_nodes, []
-
-        # creator_nodes = shuffled_nodes[:available_creators]
-        # validator_nodes = shuffled_nodes[-required_validators]
-        # return creator_nodes, validator_nodes
-        
     elif obj and obj._meta.object_name == 'Validator':
-        # chain = Blockchain.objects.filter(id=obj.networkChain).first()
-        # chain_list = [chain.genesisId]
         dt = round_time(dt=obj.created, dir='down', amount='10mins')
         if not valid_node_ids_received:
-            node_ids = get_relevant_nodes(dt=dt, blockchain=obj.networkChain, plugin_id=plugin_id, strings_only=strings_only, node_ids_only=True)
-        # date_int = date_to_int(dt)
-        # starting_position = hash_to_int(obj.id, len(node_ids))
-
+            node_ids = get_relevant_nodes(dt=dt, blockchain=obj.networkChain, plugin_id=plugin_id, strings_only=strings_only, node_ids_only=True, include_relays=include_relays)
         shuffled_nodes = shuffle_nodes(obj.id, dt, node_ids)
         return shuffled_nodes, []
- 
     elif obj and obj._meta.object_name == 'Node':
         chain_list = obj.chain_array
         if not dt:
             dt = round_time(dt=obj.lastUpdate, dir='down', amount='10mins')
-        # if not valid_node_ids_received:
-        #     node_ids, number_of_peers, relevant_nodes = get_relevant_nodes(dt=dt, strings_only=strings_only)
-        # date_int = date_to_int(dt)
-        # starting_position = hash_to_int(obj.id, len(node_ids))
-
-
         if not valid_node_ids_received:
             node_ids = get_relevant_nodes(dt=dt, strings_only=strings_only, plugin_id=plugin_id, node_ids_only=True, include_relays=include_relays)
         shuffled_nodes = shuffle_nodes(obj.id, dt, node_ids)
@@ -4027,7 +4110,11 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=No
         return user_assigned_nodes, validator_nodes
         
     elif obj:
-        dt = round_time(dt=obj.created, dir='down', amount='10mins')
+        if not dt:
+            dt = round_time(dt=obj.created, dir='down', amount='10mins')
+        if not plugin_id:
+            from utils.utils import get_plugin
+            plugin_id = get_plugin(obj, id=True)
         if not valid_node_ids_received:
             # likely returns full active node list
             node_ids = get_relevant_nodes(dt=dt, obj=obj, plugin_id=plugin_id, strings_only=strings_only, node_ids_only=True, include_relays=include_relays)
@@ -4042,7 +4129,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=No
         if isinstance(chainId, models.Model):
             chainId = chainId.id
         else:
-            from utils.models import get_model_prefix
+            # from utils.models import 
             if not chainId.startswith(get_model_prefix('Blockchain')):
                 chainId = Blockchain.objects.filter(genesisId=chainId).values('id').first()['id']
         if func in intelligence_funcs or nodeType == 'intelligence':
@@ -4414,7 +4501,7 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
     try:
 
         if isinstance(data, str):
-            prnt('0a')
+            # prnt('0a')
             try:
                 data = json.loads(data)
                 # get_signing_data(data) often inputted. returns string. dict is required to remove sig
@@ -4425,11 +4512,11 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
                 except:
                     pass
         elif isinstance(data, models.Model):
-            prnt('0b')
+            # prnt('0b')
             # data = convert_to_dict(data)
             data = json.loads(get_signing_data(data))
         if isinstance(public_key, models.Model) and public_key._meta.object_name == 'UserPubKey':
-            prnt('a1')
+            # prnt('a1')
             target_keys = resolve_target_keys(data, signature)
             if target_keys is None or public_key.id in target_keys:
                 public_key_data = {public_key.id:{'pubKey':public_key.publicKey}}
@@ -4439,7 +4526,7 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
                 prnt('a1 - key not in target_keys')
                 return False
         elif is_id(public_key):
-            prnt('a2')
+            # prnt('a2')
             from accounts.models import UserPubKey
             target_keys = resolve_target_keys(data, signature)
             if target_keys is not None and public_key not in target_keys:
@@ -4452,7 +4539,7 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
                 if signature and isinstance(signature, str):
                     public_key_data[public_key]['signature'] = signature
         elif isinstance(public_key, str):
-            prnt('a3')
+            # prnt('a3')
             target_keys = resolve_target_keys(data, signature)
             upk_id = hash_upk_id(public_key)
             if target_keys is None or upk_id in target_keys:
@@ -4552,20 +4639,20 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
             if len(public_key_data) != len(upk_data):
                 prnt('upk count fail 2')
                 return False
-        else:
-            prnt('a6')
+        # else:
+            # prnt('a6')
         
         # prnt('b2')
 
         if isinstance(data, dict):
-            prnt('p0')
+            # prnt('p0')
             if skip_sort:
                 sorted_data = data
             else:
                 sorted_data = sort_for_sign(data)
-            prnt('sorted_data',sorted_data)         
+            # prnt('sorted_data',sorted_data)         
             if 'signed' in sorted_data:
-                prnt('p1')
+                # prnt('p1')
                 if signature and isinstance(signature, dict):
                     sign_dict = signature
                 elif 'signed' in data:
@@ -4573,23 +4660,23 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
                 adjusted_signed = {}
 
                 for dt, sig_data in sign_dict.items():
-                    prnt('dt',dt)
-                    prnt('pk',str(sig_data['pk'])[:50])
-                    prnt('sig_data',sig_data)
-                    prnt('public_key_data',print_dict_truncated(public_key_data))
+                    # prnt('dt',dt)
+                    # prnt('pk',str(sig_data['pk'])[:50])
+                    # prnt('sig_data',sig_data)
+                    # prnt('public_key_data',print_dict_truncated(public_key_data))
 
                     pk = sig_data['pk']
                     proceed = False
                     if pk in public_key_data:
-                        prnt('aa')
+                        # prnt('aa')
                         proceed = True
                     elif signature and 'sig' in sig_data and sig_data['sig'] == signature:
                         proceed = True
-                        prnt('ab')
+                        # prnt('ab')
                     elif 'publicKey' in sig_data and any(i for i in public_key_data if public_key_data[i] == sig_data['publicKey']):
                         proceed = True
-                        prnt('ac')
-                    prnt('proceed',proceed)
+                        # prnt('ac')
+                    # prnt('proceed',proceed)
                     if not proceed:
                         return False
                     elif proceed:
@@ -4645,17 +4732,17 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
                 prnt('p6b',type(public_key_data))
                 
             data = json.dumps(sorted_data, separators=(',', ':'))
-        prnt('b3',type(data))
+        # prnt('b3',type(data))
 
         if not isinstance(data, str):
-            prnt('b3a')
+            # prnt('b3a')
             try:
                 data = get_signing_data(data)
             except:
                 pass
         # data is now the correctly-ordered JSON string, no suffix yet
         # base_payload = json.loads(data)
-        prnt('public_key_data',print_dict_truncated(public_key_data))
+        # prnt('public_key_data',print_dict_truncated(public_key_data))
 
         is_valid = False
         for upk_id, key_data in public_key_data.items():
@@ -5494,13 +5581,19 @@ def hash_obj_id(obj, verify=False, specific_data=None, return_data=False, model=
             try:
                 obj = json.loads(obj)
             except:
+                err = 1001
                 pass
             if not model:
+                err = 1002
                 if 'objType' in obj:
+                    err = 1003
                     model = get_model(obj['objType'])()
                 elif 'id' in obj:
+                    err = 1004
                     model = get_model(obj['id'])()
+            err = 1005
             if model:
+                err = 1006
                 if not version:
                     version = int(obj['modlVer'])
                 err = 101

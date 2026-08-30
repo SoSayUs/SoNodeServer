@@ -87,92 +87,6 @@
 
 
 
-    {% elif cards == 'home_list' %}
-        {% for post in feed_list %}
-            {% with r=useractions|get_item:post.id %}
-            {% if post.pointerType == 'Bill' %}
-                {% with bill=post.Bill_obj %}
-                {% with billUpdate=post.Update_obj %}
-                    {% include 'cards/bill_card.html' %}
-                {% endwith %}
-                {% endwith %}
-            {% elif post.pointerType == 'Meeting' %}
-                {% with meetingUpdate=post.Update_obj %}
-                {% with meeting=post.Meeting_obj %}
-                {% with agenda=meeting.Agenda_obj %}
-                    {% include 'cards/meeting_card.html' %}
-                {% endwith %}
-                {% endwith %}
-                {% endwith %}
-            {% elif post.pointerType == 'Statement' %}
-                {% with statementUpdate=post.Update_obj %}
-                {% with statement=post.Statement_obj %}
-                    {% include 'cards/statement_card.html' %}
-                {% endwith %}
-                {% endwith %}
-            {% elif post.pointerType == 'Motion' %}
-                {% with updatedMotion=post.Update_obj %}
-                {% with motion=post.Motion_obj %}
-                {% with v=myRepVotes|get_item:post.id %}
-                    {% include 'cards/motion_card.html' %}
-                {% endwith %}
-                {% endwith %}
-                {% endwith %}
-
-
-            {% elif post.billVersion %}
-                {% with v=post.billVersion %}
-                {% with b=v.bill %}
-                    {% include 'cards/bill_card.html' %}
-                {% endwith %}
-                {% endwith %}
-            {% elif post.Debate_key %}
-                {% with h=post.Debate_key %}
-                <!-- <p>{{h.Terms}}</p> -->
-                {% with a=h.agenda %}
-                    {% include 'cards/meeting_card.html' %}
-                {% endwith %}
-                {% endwith %}
-            {% elif post.committeeMeeting %}
-                {% with c=post.committeeMeeting %}
-                    {% include 'cards/committee_card.html' %}
-                {% endwith %}
-            {% elif post.motion %}
-                {% with m=post.motion %}
-                {% with v=myRepVotes|get_item:post.id %}
-                    {% include 'cards/motion_card.html' %}
-                {% endwith %}
-                {% endwith %}
-            {% elif post.DebateItem %}
-                {% with h=post.DebateItem %}
-                    {% include 'cards/DebateItem_card.html' %}
-                {% endwith %}
-            {% elif post.committeeItem %}
-                {% with c=post.committeeItem %}
-                    {% include 'cards/committeeItem_card.html' %}
-                {% endwith %}
-            
-            {% elif post.person %}
-                {% with mp=post.person %}
-                    {% include 'cards/mp_card.html' %}
-                {% endwith %}
-            {% elif post.party %}
-                {% with c=post.party %}
-                    {% include 'cards/party_card.html' %}
-                {% endwith %}
-            {% elif post.district %}
-                {% with c=post.district %}
-                    {% include 'cards/riding_card.html' %}
-                {% endwith %}
-            {% elif post.riding %}
-                {% with c=post.riding %}
-                    {% include 'cards/riding_card.html' %}
-                {% endwith %}
-            
-            {% endif %}
-            {% endwith %}
-        {% endfor %}
-
 
     {% elif cards == 'user_view' %}
         {% for r in feed_list %} 
@@ -274,6 +188,8 @@
     {% elif cards == 'backend' %}
 
             <div class='card'>
+                <div style="margin-right: 50px;">
+                </div>
                 <div class='cardContent'>
                     <div class='Info'>
                         <div class='Details'>
@@ -291,6 +207,8 @@
             <div class='bottomDivider'></div>
                 
             <div class='card'>
+                <div style="margin-right: 50px;">
+                </div>
                 <div class='cardContent'>
                     <div class='Info'>
                         <div class='Details'>
@@ -308,6 +226,8 @@
             <div class='bottomDivider'></div>
             {% if user.is_superuser %}
                 <div class='card'>
+                <div style="margin-right: 50px;">
+                </div>
                     <div class='cardContent'>
                         <div class='Info'>
                             <div class='Details'>
@@ -328,6 +248,9 @@
 
         {% for post in feed_list %}
             <div class='card' id='{{ post.id }}'>
+                <div class='profile'>
+                    <span class="material-symbols-outlined">auto_awesome_motion</span>
+                </div>
                 <div class='cardContent'>
                     <div class='Info'>
                         <div class='Details'>
@@ -354,6 +277,9 @@
 
         {% for post in feed_list %}
             <div class='card' id='{{ post.id }}'>
+                <div class='profile'>
+                    <span class="material-symbols-outlined">crop_square</span>
+                </div>
                 <div class='cardContent'>
                     <div class='Info'>
                         <div class='Details'>

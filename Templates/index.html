@@ -3,8 +3,7 @@
 
 <div id='index'>
 {% if sonet %}
-    <a href='/' class='navTop'>   
-        <div class='shadow'></div>
+    <a href='/' class='navTop'>
         <img id='logo' src={% static sonet.LogoLink %}>
         <div class="net-title-container">
         {% if sonet.Title == 'Nonet' %}
@@ -18,8 +17,7 @@
     </a>
 {% else %}
 
-    <div class='navTop'>   
-        <div class='shadow'></div>
+    <div class='navTop'>
         <br>
         <br>
         <h1><span style="cursor: pointer;" onclick="modalPopUp('Login', '/accounts/login-signup')">CREATE</span></h1>

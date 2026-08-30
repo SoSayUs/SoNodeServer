@@ -56,6 +56,7 @@
                     var newList = new Array();
                     var remove_paginator = true
                     var remove_paginator_border = false
+
                     for (f = 0; f < new_cards.length; f++){
                         if (remove_paginator && f < 5 && new_cards[f].classList && new_cards[f].classList.contains('pagination')) {
                             remove_paginator = false
@@ -63,7 +64,8 @@
                         } else if (remove_paginator_border && new_cards[f].classList && new_cards[f].classList.contains('bottomDivider')) {
                             remove_paginator_border = false
                         } else {
-                            newList.push(new_cards[f])
+                            el = sanitizeWithException(new_cards[f], ["react", "modalPopUp", "direct_to"]);
+                            newList.push(el)
                         };
                     };
                     $('#feed').append(newList);

@@ -88,9 +88,16 @@ def default_setup(request, title=None, region=None, plugin=None):
     else:
         return False
     
-def default_context(request, setlist, cards='', nav_options=None, sort='Latest', view='Latest', paginate=True):
+def default_context(request, setlist, cards='', nav_options=None, sort='Latest', view='Latest', paginate=True, pointers=None):
     if paginate:
-        setlist = paginater(setlist, request.GET.get('page', 1), request)
+        setlist = paginater(setlist, request.GET.get('page', 1), pointers=pointers)
+    elif pointers:
+        objs = {obj.id:obj for obj in pointers}
+        prnt('zzz',objs)
+        for p in setlist:
+            prnt('p.pointerId',p.pointerId)
+            if p._meta.object_name == 'Post' and p.pointerId in objs:
+                p.Pointer_obj = objs[p.pointerId]
     context = {
         'view': request.GET.get('view', view),
         'sort': request.GET.get('sort', sort),
@@ -296,25 +303,32 @@ def get_cookies(request, received_cxt, country=None, gov=None):
     # prnt('utils.py UserData', userData)
     nodeData = {}
     from network.models import Block, Sonet, NodeRecord
-    latest_opBlock = Block.objects.filter(networkChain='Operations', validated=True).values('id','DateTime','opData').order_by('-index').first()
+    sonet = Sonet.objects.values('Title','Subtitle','LogoLink','created','Domain').first()
+    if not sonet:
+        sonet = {'Title' : 'Nonet', 'LogoLink' : "img/default_logo.png", 'Domain':''}
+        nodeData['sonetInitializedDatetime'] = dt_to_string(now_utc())
+    else:
+        nodeData['sonetInitializedDatetime'] = dt_to_string(sonet['created'])
+    nodeData['Domain'] = sonet['Domain']
+    latest_opBlock = Block.objects.filter(networkChain='Nodes', validated=True).values('id','DateTime','opData').order_by('-index').first()
     if latest_opBlock:
         prnt('latest_opBlock',latest_opBlock['id'])
         nodeData['blockId'] = latest_opBlock['id']
         nodeData['blockDatetime'] = dt_to_string(latest_opBlock['DateTime'])
         nodeData['max_pos'] = latest_opBlock['opData']['max_pos']
-        nodeRecord = NodeRecord.objects.filter(networkChain='master', Block_obj_id=latest_opBlock['id'], is_valid=True).values('data').first()
+        nodeRecord = NodeRecord.objects.filter(pointerId='Nodes', Block_obj_id=latest_opBlock['id'], is_valid=True).values('data').first()
         if nodeRecord:
             nodeData['id_data'] = nodeRecord['data']
     else:
         from network.models import _OperationsChain_genesisId, Blockchain, Node
-        nodes = Node.objects.exclude(activated_dt=None).filter(suspended_dt=None)
+        nodes = Node.objects.exclude(activated_dt=None).filter(suspended_dt=None).order_by('created')
         if nodes:
             nodeChain = Blockchain.objects.filter(genesisId=_OperationsChain_genesisId).first()
             if nodeChain:
                 nodeChain.add_item_to_queue(list(nodes))
         
         nodeData['blockId'] = 'none'
-        nodeData['blockDatetime'] = dt_to_string(now_utc())
+        nodeData['blockDatetime'] = nodeData['sonetInitializedDatetime']
         nodeData['max_pos'] = 1
                 
     if 'id_data' not in nodeData or not nodeData['id_data']:
@@ -326,13 +340,6 @@ def get_cookies(request, received_cxt, country=None, gov=None):
 
     # prnt('returning nodeData',json.dumps(nodeData))
 
-    sonet = Sonet.objects.values('Title','Subtitle','LogoLink','created','Domain').first()
-    if not sonet:
-        sonet = {'Title' : 'Nonet', 'LogoLink' : "img/default_logo.png", 'Domain':''}
-        nodeData['sonetInitializedDatetime'] = dt_to_string(now_utc())
-    else:
-        nodeData['sonetInitializedDatetime'] = dt_to_string(sonet['created'])
-    nodeData['Domain'] = sonet['Domain']
 
     context = {
         "sonet": sonet,
@@ -340,8 +347,8 @@ def get_cookies(request, received_cxt, country=None, gov=None):
         "theme": theme,
         "notifications": notifications,
         'isMobile': mobile,
-        'xRequest': xRequest,
-        'iphone': iphone,
+        # 'xRequest': xRequest,
+        # 'iphone': iphone,
     }
     return {**context, **get_paginator_url(request, received_cxt)}
 
@@ -839,7 +846,7 @@ def get_useractions(user, setlist):
     else:
         return {}
 
-def paginater(queryset_list, page, request):
+def paginater(queryset_list, page, pointers=None):
     if not queryset_list:
         return None
     if 'id=' in str(page):
@@ -870,22 +877,28 @@ def paginater(queryset_list, page, request):
         except:
             pass
     if any(p._meta.object_name == 'Post' for p in queryset):
-        from utils.utils import get_model
-        obj_types = {}
-        for p in queryset:
-            if p._meta.object_name == 'Post' and p.pointerType:
-                if p.pointerType not in obj_types:
-                    obj_types[p.pointerType] = []
-                obj_types[p.pointerType].append(p.pointerId)
-        if obj_types:
-            objs = {}
-            for objType, iden_list in obj_types.items():
-                z = {obj.id:obj for obj in get_model(objType).objects.filter(id__in=iden_list)}
-                objs = objs | z
-            if objs:
-                for p in queryset:
-                    if p._meta.object_name == 'Post' and p.pointerId in objs:
-                        p.Pointer_obj = objs[p.pointerId]
+        if pointers:
+            objs = {obj.id:obj for obj in pointers}
+            for p in queryset:
+                if p._meta.object_name == 'Post' and p.pointerId in objs:
+                    p.Pointer_obj = objs[p.pointerId]
+        else:
+            from utils.utils import get_model
+            obj_types = {}
+            for p in queryset:
+                if p._meta.object_name == 'Post' and p.pointerType:
+                    if p.pointerType not in obj_types:
+                        obj_types[p.pointerType] = []
+                    obj_types[p.pointerType].append(p.pointerId)
+            if obj_types:
+                objs = {}
+                for objType, iden_list in obj_types.items():
+                    z = {obj.id:obj for obj in get_model(objType).objects.filter(id__in=iden_list)}
+                    objs = objs | z
+                if objs:
+                    for p in queryset:
+                        if p._meta.object_name == 'Post' and p.pointerId in objs:
+                            p.Pointer_obj = objs[p.pointerId]
 
     return queryset
 
