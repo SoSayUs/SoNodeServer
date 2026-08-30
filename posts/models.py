@@ -16,6 +16,7 @@ from utils.locked import sign_obj, hash_obj_id
 from utils.utils import (
     get_plugin
 )
+from network.models import _EarthChain_genesisId
 
 import random
 import pytz
@@ -514,8 +515,8 @@ class SupportedObjsManager(models.Manager):
 
 class Region(BaseModel):
     networkChain = models.CharField(max_length=50, default="Region", blank=True)
-    commitChain = models.CharField(max_length=50, default="ParentRegion", blank=True)
-    latestVer = 1
+    commitChain = models.CharField(max_length=50, default=_EarthChain_genesisId, blank=True)
+    latestVer = 2
     modlVer = models.IntegerField(default=latestVer)
     ParentRegion_obj = models.ForeignKey('posts.Region', blank=True, null=True, on_delete=models.SET_NULL)
     nameType = models.CharField(max_length=20, default="Country", blank=True) # Continent, Country, Province, State, Territory, County, City, Ward - modifiable/user facing
@@ -553,7 +554,9 @@ class Region(BaseModel):
     def commit_data(self, version=None):
         if not version:
             version = self.modlVer
-        if int(version) >= 1:
+        if int(version) >= 2:
+            return ['hash','ParentRegion_obj','Name','nameType']
+        elif int(version) >= 1:
             return ['ParentRegion_obj','Name','nameType']
         
     def lowerName(self):

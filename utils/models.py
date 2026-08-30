@@ -5655,8 +5655,8 @@ def tasker(dt, test=False):
 
         self_node = Node.objects.filter(id=self_node_id).values('chain_array','region_array','plugin_array').first()
         prnt('self_node',self_node)
-
-        dataPackets = DataPacket.objects.filter(Node_obj__id=self_node_id, func='share').filter(Q(networkChain__in=self_node['chain_array']+['All'])|Q(Region_obj__id__in=self_node['chain_array'])).exclude(networkChain=_OperationsChain_genesisId).exclude(data={}).defer('data','notes')
+        prnt("self_node['chain_array']+['All']",self_node['chain_array']+['All'])
+        dataPackets = DataPacket.objects.filter(Node_obj__id=self_node_id, func='share').filter(Q(networkChain__in=self_node['plugin_array']+self_node['region_array']+['All'])|Q(Region_obj__id__in=self_node['region_array'])).exclude(networkChain=_OperationsChain_genesisId).exclude(data={}).defer('data','notes')
         for dp in dataPackets:
             if not exists_in_worker('broadcast_dp', queue_name=['chat'], iden=dp.id):
                 django_rq.get_queue('chat').enqueue(dp.broadcast_dp, iden=dp.id, job_timeout=300, result_ttl=7200)
@@ -5699,11 +5699,12 @@ def tasker(dt, test=False):
         prnt("self_node['plugin_array']",self_node['plugin_array'])
         if dt.minute in _block_creation_times or test==True:
             block_assigned = False
-            from network.models import Sonet, universalChains, _SonetChain_genesisName, reward_models
+            from network.models import Sonet, universalChains, _SonetChain_genesisName, _EarthChain_genesisId, reward_models
             universalChains.remove(_OperationsChain_genesisId)
             universalChains.remove(_SonetChain_genesisName)
             s = Sonet.objects.values('id').first()
             universalChains.append(s['id'])
+            universalChains.append(_EarthChain_genesisId)
             prnt('universalChains',universalChains)
             chains = Blockchain.objects.filter(genesisId__in=universalChains, last_block_datetime__lte=dt - datetime.timedelta(minutes=block_time_delay()-10)).exclude(queuedData={}).defer('queuedData')
             for chain in chains:

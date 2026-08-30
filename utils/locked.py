@@ -3131,7 +3131,7 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
     if update_items and block.validated:
         checked_idens = []
         from utils.models import seperate_by_type, dynamic_bulk_update, get_model, chunk_list
-        for model_name, iden_list in seperate_by_type(obj_idens, include_only={'has_field':['Block_obj']}, exclude={'fields':[{'commitChain':f'!{block.Blockchain_obj.genesisType}'}]}).items():
+        for model_name, iden_list in seperate_by_type(obj_idens, include_only={'has_field':['Block_obj']}, exclude={'fields':[{'commitChain':f'!{block.Blockchain_obj.genesisId}'}]}).items():
             prnt('model_name',model_name,'iden_list',iden_list)
             checked_idens += iden_list
             if model_name == 'Validator':

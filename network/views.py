@@ -1556,7 +1556,10 @@ def receive_data(request, dp_name='func', packet_creator='from_header', model_ty
     dt = request.headers.get("dt")
     signed_dt = request.headers.get("Signed-Dt")
     prnt('dt',dt,'signed_dt',signed_dt,'part_number',part_number,'is_last',is_last,'sender_id',sender_id,'packet_id',packet_id)
+    prnt('request.headers',request.headers)
     region_id = request.headers.get("Region-Id")
+    plugin_id = request.headers.get("Pluginid")
+    prnt('plugin_id',plugin_id)
     func = request.headers.get("func")
     task = int(request.headers.get("task", 1))
     job_id = request.headers.get("Job-Id")
@@ -1670,7 +1673,7 @@ def get_chain_data_view(request):
             sonet = get_signing_data(Sonet.objects.first())
         except:
             sonet = None
-        return JsonResponse({'mandatoryChains' : json.dumps(mainChain_data), 'specialChains' : json.dumps(specialChains), 'regionChains' : json.dumps(regions), 'plugins' : json.dumps(plugin_data), 'sonet' : sonet})
+        return JsonResponse({'mandatoryChains' : json.dumps(mainChain_data), 'specialChains' : json.dumps(specialChains), 'regionChains' : json.dumps(regions), 'plugins' : json.dumps(plugin_data), 'sonet' : sonet, 'earthId': _EarthChain_genesisId})
     
 def get_plugin_data_view(request):
     prnt('-get_plugin_data_view')

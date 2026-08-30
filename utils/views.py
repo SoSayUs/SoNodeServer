@@ -120,7 +120,9 @@ def set_object_data_view(request):
                 prnt('set super object..',objData_json)
                 x = 'x5'
                 superKeys = get_superuser_keys(data=objData_json)
+                prnt('superKeys',superKeys)
                 sig_data = get_sigData(objData_json)
+                prnt("sig_data['pk']",sig_data['pk'])
                 if sig_data['pk'] in superKeys or objData_json['objType'] == 'Wallet': # later change to allow user modded items such as plugins - not with super share - wallet bypass for network setup
                     prnt('is super')
                     obj = get_or_create_model(objData_json['objType'], id=objData_json['id'])
