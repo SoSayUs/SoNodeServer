@@ -302,7 +302,7 @@ def receive_user_login_view(request):
                         
             dt = string_to_dt(userData['lastUpdate'])
             now = now_utc()
-            if dt >= now - datetime.timedelta(seconds=10) and dt < now + datetime.timedelta(seconds=10):
+            if dt >= now - datetime.timedelta(seconds=90) and dt < now + datetime.timedelta(seconds=90):
 
                 user = User.objects.filter(id=userData['id']).defer('signed').first()
                 if user:
@@ -319,7 +319,7 @@ def receive_user_login_view(request):
                             iden = hash_upk_id(userPublicKey)
                         prnt('iden',iden)
                         upk = UserPubKey.objects.filter(User_obj__id=user.id, id=iden, end_life_dt=None, keyType='account').only('publicKey').first()
-                        if upk and string_to_dt(userData['lastUpdate']) > now_utc() - datetime.timedelta(seconds=90):
+                        if upk:
                             prnt('upk fouund:',upk)
                             is_valid = upk.verify(userData, userSignature, userPublicKey)
                             prnt('Login_is_valid', is_valid)

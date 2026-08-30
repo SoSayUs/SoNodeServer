@@ -64,21 +64,25 @@ def get_broadcast_list_view(request, iden=None):
         return JsonResponse({'message': 'failed2', 'err': str(e) + 'A:' + A + '__' + str(obj_json)})
 
 @csrf_exempt
-def get_current_node_list_view(request):
-    prnt('-get_current_node_list_view')
+def get_current_node_list_view(request, pointer):
+    prnt('-get_current_node_list_view', pointer)
     try:
-        if not get_self_node().activated_dt:
+        if not get_self_node().activeNode:
             return JsonResponse({'message' : 'deactivated_node'})
-        from utils.locked import get_relevant_nodes
-        from network.models import NodeRecord, _EarthChain_genesisId
-        dt = now_utc()
-        record = NodeRecord.objects.filter(pointerId=_EarthChain_genesisId, DateTime__lte=dt, is_valid=True).first()
-        node_data = get_relevant_nodes(include_relays=True, strings_only=True)
-        addresses = {}
-        for key, value in node_data['relevant_nodes'].items():
-            addresses[key] = value
 
-        return JsonResponse({'message' : 'Success', 'node_data' : json.dumps(record.data), 'node_addresses' : json.dumps(addresses)})
+        from utils.locked import get_relevant_nodes
+        from utils.utils import is_id
+        from network.models import NodeRecord, _EarthChain_genesisId
+        if not pointer or not is_id(pointer):
+            pointer = _EarthChain_genesisId
+        dt = now_utc()
+        record = NodeRecord.objects.filter(pointerId=pointer, DateTime__lte=dt, is_valid=True).first()
+        node_data = get_relevant_nodes(include_relays=True, strings_only=True)
+        # addresses = {}
+        # for key, value in node_data['relevant_nodes'].items():
+        #     addresses[key] = value
+
+        return JsonResponse({'message' : 'Success', 'node_data' : json.dumps(record.data), 'node_addresses' : json.dumps(node_data['relevant_nodes'])})
     except Exception as e:
         prnt('get_current_node_list_view err',str(e))
         return JsonResponse({'message' : 'Fail', 'error' : str(e)})
@@ -636,17 +640,30 @@ def request_data_view(request):
                     from utils.models import is_id, to_megabytes, logEvent, compress_data, get_model_prefix, seperate_by_type, sigData_to_hash
                     from utils.locked import check_commit_data, verify_obj_to_data
                     if obj_type == 'Blockchain':
-                        genesisId = requested_data['genesisId']
+                        genesisId = requested_data.get('genesisId',None)
+                        prnt('genesisId',genesisId)
                         try:
-                            if is_id(genesisId):
-                                chain = Blockchain.objects.filter(genesisId=genesisId).first()
+                            if genesisId:
+                                if is_id(genesisId):
+                                    chain = Blockchain.objects.filter(genesisId=genesisId).first()
+                                else:
+                                    chain = Blockchain.objects.filter(genesisName=genesisId).first()
                             else:
-                                chain = Blockchain.objects.filter(genesisName=genesisId).first()
+                                items = requested_data.get('items',None)
+                                prnt('items',items)
+                                if items:
+                                    chain_id = items[0]
+                                    chain = Blockchain.objects.filter(id=chain_id).first()
+                            prnt('chain',chain)
                             if not chain:
                                 return JsonResponse({'message' : 'Not Found', 'type':obj_type, 'genesisId' : genesisId})
                             else:
                                 gen = chain.get_genesis_pointer()
+                                prnt('gen',gen)
                                 return JsonResponse({'message' : 'Success', 'type':obj_type, 'content' : json.dumps([convert_to_dict(gen)]), 'blockchain_obj' : json.dumps(convert_to_dict(chain))})
+
+
+
                         except Exception as e:
                             return JsonResponse({'message' : 'Not Found', 'type':obj_type, 'genesisId' : genesisId, 'error' : str(e)})
                     elif obj_type == 'Block':
@@ -1221,14 +1238,8 @@ def request_data_view(request):
                 return JsonResponse({'message' : 'Fail', 'err' : 'header assessment'})
     except Exception as ex:
         e = str(ex)
-        prnt('request data fail 10',str(e))
+        prnt('request data fail 10',str(e),'requested_data',requested_data)
         pass
-    try:
-        if not e:
-            e = 'wtf?'
-    except Exception as e:
-        e = 'wtf@!'
-        prnt('e',e)
     try:
         return JsonResponse({'message' : 'Fail', 'err' : str(e) + ' -- ' + err})
     except Exception as e:

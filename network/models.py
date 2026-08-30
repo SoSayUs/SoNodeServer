@@ -3362,9 +3362,9 @@ class Blockchain(models.Model):
         if self.genesisId == _OperationsChain_genesisId:
             obj = Node.objects.all().order_by('created').first()
         elif is_id(self.genesisId):
-            obj = get_dynamic_model(self.genesisType, id=self.genesisId)
+            obj = get_dynamic_model(self.genesisId, id=self.genesisId)
         else:
-            model = get_model(self.genesisType)
+            model = get_model(self.genesisId)
             if model:
                 obj = model.objects.all().order_by('added_to_node').first()
             else:
@@ -3373,6 +3373,7 @@ class Blockchain(models.Model):
                     obj = User.objects.all().order_by('added_to_node').first()
                 elif self.genesisType == 'Keys':
                     obj = UserPubKey.objects.all().order_by('added_to_node').first()
+        prntDebug('-get_genesis_pointer',obj)
         return obj
 
     def rebuild_records(self):
@@ -3739,7 +3740,7 @@ class Blockchain(models.Model):
                             # genesis obj must be on a chain to start a chain
                             prnt('stoppage 1a for gen obj',genesis_obj)
                             proceed = False
-                        elif not genesis_obj.Block_obj or genesis_obj.Block_obj.Blockchain_obj == block.Blockchain_obj and block.index == 1 and not genesis_obj._meta.object_name in ['Sonet']:
+                        elif (not genesis_obj.Block_obj or genesis_obj.Block_obj.Blockchain_obj == block.Blockchain_obj and block.index == 1) and not genesis_obj._meta.object_name in ['Sonet']:
                             # Sonet is only genesis obj that starts a new tree
                             prnt('stoppage 2a for gen obj',genesis_obj, genesis_obj.Block_obj)
                             block.Blockchain_obj.add_item_to_queue(genesis_obj, force_add=True)

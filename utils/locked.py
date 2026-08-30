@@ -2842,7 +2842,7 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
                 # genesis obj must be on a chain to start a chain
                 prnt('stoppage 1b for gen obj',genesis_obj)
                 proceed = False
-            elif not genesis_obj.Block_obj or genesis_obj.Block_obj.Blockchain_obj == block.Blockchain_obj and block.index == 1 and not genesis_obj._meta.object_name in ['Sonet']:
+            elif (not genesis_obj.Block_obj or genesis_obj.Block_obj.Blockchain_obj == block.Blockchain_obj and block.index == 1) and not genesis_obj._meta.object_name in ['Sonet']:
                 # Sonet is only genesis obj that starts a new tree
                 prnt('stoppage 2b for gen obj',genesis_obj, genesis_obj.Block_obj)
                 block.Blockchain_obj.add_item_to_queue(genesis_obj, force_add=True)
