@@ -480,47 +480,47 @@ def receive_data_view(request):
     prnt('-receive_data_view')
     try:
         if request.method == 'POST':
-            if assess_received_header(request.headers):
-                func = 'process_received_data'
-                if assess_received_header(request.headers, return_is_self=True) or Block.objects.filter(Blockchain_obj__genesisId=_OperationsChain_genesisId, validated=True).count() == 0:
-                    self_node = None
-                    self_node_id = get_operator_obj('self_nodeId')
-                    prnt('self_node_id',self_node_id)
-                    if self_node_id:
-                        self_node = Node.objects.filter(id=self_node_id).only('id').first()
-                    if self_node:
-                        prnt('self_nodexx',self_node.id)
-                        packet_creator = self_node.id
-                    elif not Block.objects.filter(Blockchain_obj__genesisId=_OperationsChain_genesisId, validated=True).count():
-                        packet_creator = None
-                    else:
-                        packet_creator = 'from_header'
-                    prnt('packet_creator',packet_creator)
-
-                    run_as_worker = True
-                    if run_as_worker:
-                        dp, is_last = receive_data(request, dp_name='process_received_data', packet_creator=packet_creator)
-                        prnt('last:',is_last,'dp',dp,'dpfunc:',dp.func)
-                        if is_last and dp and "completed" not in dp.func:
-                            if 'received_data' not in dp.func:
-                                dp.func = dp.func + '_' + func
-                                dp.save()
-                            queue = django_rq.get_queue("main")
-                            if not exists_in_worker('process_received_data', queue=queue, id=dp.id):
-                                queue.enqueue(process_received_data, dp.id, downstream_worker=False, skip_log_check=True, get_missing_blocks=False, override_completed=True, job_timeout=3000, result_ttl=3600)
-
-                            return JsonResponse({'message' : 'Success', 'iden': dp.id})
+            # if assess_received_header(request.headers):
+            func = 'process_received_data'
+            if assess_received_header(request.headers, return_is_self=True) or Block.objects.filter(Blockchain_obj__genesisId=_OperationsChain_genesisId, validated=True).count() == 0:
+                self_node = None
+                self_node_id = get_operator_obj('self_nodeId')
+                prnt('self_node_id',self_node_id)
+                if self_node_id:
+                    self_node = Node.objects.filter(id=self_node_id).only('id').first()
+                if self_node:
+                    prnt('self_nodexx',self_node.id)
+                    packet_creator = self_node.id
+                elif not Block.objects.filter(Blockchain_obj__genesisId=_OperationsChain_genesisId, validated=True).count():
+                    packet_creator = None
                 else:
-                    dp, is_last = receive_data(request, dp_name='process_received_data')
+                    packet_creator = 'from_header'
+                prnt('packet_creator',packet_creator)
+
+                run_as_worker = True
+                if run_as_worker:
+                    dp, is_last = receive_data(request, dp_name='process_received_data', packet_creator=packet_creator)
                     prnt('last:',is_last,'dp',dp,'dpfunc:',dp.func)
                     if is_last and dp and "completed" not in dp.func:
                         if 'received_data' not in dp.func:
                             dp.func = dp.func + '_' + func
                             dp.save()
-                        queue = django_rq.get_queue('low')
+                        queue = django_rq.get_queue("main")
                         if not exists_in_worker('process_received_data', queue=queue, id=dp.id):
-                            queue.enqueue(process_received_data, dp.id, job_timeout=600, result_ttl=3600)
-                    return JsonResponse({'message' : 'Success', 'iden': dp.id})
+                            queue.enqueue(process_received_data, dp.id, downstream_worker=False, skip_log_check=True, get_missing_blocks=False, override_completed=True, job_timeout=3000, result_ttl=3600)
+
+                        return JsonResponse({'message' : 'Success', 'iden': dp.id})
+            # else:
+            #     dp, is_last = receive_data(request, dp_name='process_received_data')
+            #     prnt('last:',is_last,'dp',dp,'dpfunc:',dp.func)
+            #     if is_last and dp and "completed" not in dp.func:
+            #         if 'received_data' not in dp.func:
+            #             dp.func = dp.func + '_' + func
+            #             dp.save()
+            #         queue = django_rq.get_queue('low')
+            #         if not exists_in_worker('process_received_data', queue=queue, id=dp.id):
+            #             queue.enqueue(process_received_data, dp.id, job_timeout=600, result_ttl=3600)
+            #     return JsonResponse({'message' : 'Success', 'iden': dp.id})
 
     except Exception as e:
         return JsonResponse({'message' : 'Fail', 'error' : str(e)})
