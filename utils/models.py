@@ -2287,7 +2287,7 @@ def dynamic_bulk_update(model_name=None, model=None, update_data=None, items_fie
             getattr(model, model_manager).filter(**kwargs).update(**update_data)
             # model.objects.filter(**kwargs).update(**update_data)
             items = 'N/A'
-            err = err + 'fini1'
+            err = err + 'fin1'
         elif items_field_update:
             if 'updated_on_node' not in items_field_update:
                 err = err + 'D'
@@ -2306,7 +2306,7 @@ def dynamic_bulk_update(model_name=None, model=None, update_data=None, items_fie
                     err = err + 'f'
                     prnt('items_field_update',items_field_update)
                     getattr(model, model_manager).bulk_update(items, items_field_update)
-                    err = err + 'fini2'
+                    err = err + 'fin2'
                 except Exception as e:
                     err = err + 'G'
                     if compensate_save and compensate_save_handle(str(e), retrieve_missing=retrieve_missing):
@@ -2327,7 +2327,7 @@ def dynamic_bulk_update(model_name=None, model=None, update_data=None, items_fie
                             getattr(model, model_manager).bulk_update(items, bulk_update_fields_no_foreignKey)
                             err = err + 'L'
                             getattr(model, model_manager).bulk_update(items, bulk_update_fields_only_foreignKey)
-                            err = err + 'finixxx'
+                            err = err + 'finxxx'
 
         prntDebug('dynamic_bulk_update prog:',err)
         if return_items:
