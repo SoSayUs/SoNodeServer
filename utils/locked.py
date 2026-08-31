@@ -2843,6 +2843,7 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
         proceed = True
         if is_id(block.Blockchain_obj.genesisId):
             genesis_obj = get_dynamic_model(block.Blockchain_obj.genesisId, id=block.Blockchain_obj.genesisId)
+            prnt('c2d:'.convert_to_dict(genesis_obj))
             if not has_field(genesis_obj, 'Block_obj'):
                 # genesis obj must be on a chain to start a chain
                 prnt('stoppage 1b for gen obj',genesis_obj)
@@ -2891,6 +2892,7 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
         total_found += len(storedModels)
         for x in storedModels:
             prnt('x',x)
+            prnt('c2d:'.convert_to_dict(x))
             if x._meta.object_name == 'Validator':
                 eligible = True
             else:
@@ -2911,7 +2913,7 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
                     if x.id in block_data:
                         i_dt = get_timeData(x)
                         if not has_method(x, 'block_conditions') or x.block_conditions():
-                            prnt('zc')
+                            prnt('zc',x.id)
                             if check_commit_data(x, block_data[x.id]): 
                                 obj_idens.append(x.id)
                             else:
