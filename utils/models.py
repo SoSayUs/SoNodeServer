@@ -3034,7 +3034,7 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                             if not getattr(obj, f.name) or getattr(obj, f.name).id != data[f.name]:
                                 from network.models import Block, Blockchain, Node, mandatoryChains
                                 block = Block.objects.filter(id=data[f.name]).first()
-                                prnt('block532:',block)
+                                prnt('block532:',block, block.validated)
                                 if not block:
                                     chain = Blockchain.objects.filter(id=data['networkChain']).values('genesisId').first()
                                     if chain:
