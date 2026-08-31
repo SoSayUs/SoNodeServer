@@ -543,7 +543,7 @@ class Region(BaseModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Region', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'networkChain': 'Region', 'commitChain': 'ParentRegion', 'modlVer': 1, 'ParentRegion_obj': None, 'nameType': 'Country', 'Name': '', 'AbbrName': None, 'FullName': None, 'ImgLinks': None, 'timezone': 'US/Eastern', 'Wiki': None, 'is_supported': False, 'lastUpdate': None, 'data': None, 'signed': {}}
+            return {'objType': 'Region', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'networkChain': 'Region', 'commitChain': 'ParentRegion', 'modlVer': 2, 'ParentRegion_obj': None, 'nameType': 'Country', 'Name': '', 'AbbrName': None, 'FullName': None, 'ImgLinks': None, 'timezone': 'US/Eastern', 'Wiki': None, 'is_supported': False, 'lastUpdate': None, 'data': None, 'signed': {}}
             
     def get_hash_to_id(self, version=None):
         if not version:

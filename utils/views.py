@@ -230,7 +230,7 @@ def get_object_data_view(request, obj_type='Region'):
                         from utils.locked import skip_sign_fields
                         latest_fields = obj.get_version_fields(version=obj.latestVer)
                         latest_signing_fields = {key:value for key, value in latest_fields.items() if key not in skip_sign_fields}
-                        return JsonResponse({'message' : 'Success', 'signing_obj' : get_signing_data(obj, sort_data=False), 'model_obj':json.dumps(convert_to_dict(obj)), 'latest_fields':json.dumps(latest_fields), 'latest_signing_fields':json.dumps(latest_singing_fields)})
+                        return JsonResponse({'message' : 'Success', 'signing_obj' : get_signing_data(obj, sort_data=False), 'model_obj':json.dumps(convert_to_dict(obj)), 'latest_fields':json.dumps(latest_fields), 'latest_signing_fields':json.dumps(latest_signing_fields)})
                     
                     elif if_empty:
                         obj = create_dynamic_model(obj_type, id=obj_id)

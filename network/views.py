@@ -1587,7 +1587,7 @@ def receive_data(request, dp_name='func', packet_creator='from_header', model_ty
             jobId=job_id,
             task=task,
             created=now_utc(),
-            headers=dict(request.headers),
+            # headers=dict(request.headers),
             data={},
         )
     dp.Node_obj_id = packet_creator

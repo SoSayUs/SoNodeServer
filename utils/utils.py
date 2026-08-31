@@ -406,6 +406,7 @@ def get_latest_dataPacket(chain='All'):
     if dataPacket and not dataPacket.Node_obj and self_node:
         dataPacket.Node_obj = self_node
         dataPacket.save()
+    prnt('returned dataPacket',dataPacket)
     return dataPacket
 
 def get_node_list(sort='-lastUpdate'):

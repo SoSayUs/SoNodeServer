@@ -611,7 +611,7 @@ class DataPacket(models.Model):
     
 
     def __str__(self):
-        return f'DATAPACKET:{self.id} chain:{self.networkChain}'
+        return f'DATAPACKET:{self.id}_chain:{self.networkChain}_chainName:{self.chainName}_func:{self.func}'
     
     class Meta:
         ordering = ["-updated_on_node","-created"]
@@ -779,7 +779,7 @@ class DataPacket(models.Model):
                 headers = self.headers
             else:
                 prnt('p2')
-                headers = {'Packet-Id':packet_id, 'Packet-Origin-Dt':dt_to_string(now), 'Packet-Creator':self_node_id, 'Seedid':self_node_id, 'Senderid':self_node_id, 'Dt':now_str, 'Chainid':self.networkChain, 'Region-Id':self.Region_obj.id if self.Region_obj else None, 'Pluginid': None}
+                headers = {'Packet-Id':packet_id, 'Packet-Origin-Dt':dt_to_string(now), 'Packet-Creator':self_node_id, 'Seedid':self_node_id, 'Senderid':self_node_id, 'Dt':now_str, 'Chainid':self.networkChain, 'Region-Id':self.Region_obj.id if self.Region_obj else 'Val:N', 'Pluginid': 'Val:N'}
             prnt('headers:',headers)
             if target_node:
                 broadcast_list = {self_node_id:[target_node]}
@@ -4617,8 +4617,9 @@ class Tidy:
                         #     query |= Q(data__has_key=key)
                         # vals = Validator.objects.filter(is_valid=True).filter(query).order_by('-created')
                         # prnt('vals',vals)
-                        vals = Validator.objects.filter(is_valid=True, data__has_any_keys=[i.id for i in objs]).order_by('-created')
+                        vals = Validator.objects.filter(is_valid=True, data__has_any_keys=[i.id for i in objs]).order_by('created')
                         val_count += len(vals)
+                        prnt('vals',val_count)
                         if vals:
                             val_map = {obj: val for val in vals for obj in val.data.keys()}
                             for obj in objs:
@@ -4626,19 +4627,19 @@ class Tidy:
                                     prnt('*** error unvalidator 832', obj)
                                 else:
                                     # creator_nodes, validator_nodes = get_scraping_order(dt=obj.created, chainId=obj.blockchainId, func_name=obj.func)
-                                    creator_nodes, validator_nodes = get_node_assignment(dt=obj.created, chainId=obj.networkChain, func=obj.func, plugin_id=get_plugin(obj, id=True))
+                                    # creator_nodes, validator_nodes = get_node_assignment(dt=obj.created, chainId=obj.networkChain, func=obj.func, plugin_id=get_plugin(obj, id=True))
                                     val_found = False
                                     val = val_map.get(obj.id)
-                                    if val and val.CreatorNode_obj.id in validator_nodes and obj.id in val.data:
-                                        if validate_obj(obj=None, pointer=obj, validators=[val], opBlock_data={}):
-                                        # if val.data[obj.id] == sigData_to_hash(obj):
-                                            validated += 1
-                                            val_found = True
-                                            # obj.Validator_obj = val
-                                            # super(get_model(obj._meta.object_name), obj).save()
-                                            # blockchain, obj, secondChain = find_or_create_chain_from_object(obj)
-                                            # if blockchain:
-                                            #     blockchain.add_item_to_queue(obj)
+                                    # if val and val.CreatorNode_obj.id in validator_nodes and obj.id in val.data:
+                                    if validate_obj(obj=None, pointer=obj, validators=[val], opBlock_data={}):
+                                    # if val.data[obj.id] == sigData_to_hash(obj):
+                                        validated += 1
+                                        val_found = True
+                                        # obj.Validator_obj = val
+                                        # super(get_model(obj._meta.object_name), obj).save()
+                                        # blockchain, obj, secondChain = find_or_create_chain_from_object(obj)
+                                        # if blockchain:
+                                        #     blockchain.add_item_to_queue(obj)
                                     if not val_found and getattr(obj, time_field) < dt - datetime.timedelta(days=2) or not obj.signed and has_field(obj, 'created') and obj.created < dt - datetime.timedelta(hours=8):
                                         if obj._meta.object_name == obj.networkChain:
                                             del_chains.append(obj.id)
@@ -4713,6 +4714,7 @@ class Tidy:
         def run_me(model_name):
             prnt('run_me',model_name)
             model = get_model(model_name)
+            prnt("model",model)
             if model_name == 'Post':
                 uncommitted_posts = list(model.objects.filter(blockId=None, created__lte=dt - datetime.timedelta(hours=hours)).iterator(chunk_size=500))
             elif model_name == 'Update':
@@ -4727,7 +4729,7 @@ class Tidy:
             
             while uncommitted_posts and runs < 20:
                 runs += 1
-            # if uncommitted_posts:
+                # if uncommitted_posts:
                 prnt('has uncommitted_posts',runs)
                 logEvent(f'uncommitted_posts, model_name:{model_name} run:{runs}', log_type='Tasks')
                 obj_idens = []
@@ -4803,6 +4805,7 @@ class Tidy:
                         obj_iden = p.pointerId
                     else:
                         obj_iden = p.id
+                    next = True
                     if obj_iden in has_block:
                         # or has_field(p, 'Update_obj') and p.Update_obj and p.Update_obj.id in has_block:
                         prnt('opt1')
@@ -4818,12 +4821,14 @@ class Tidy:
                                             # has_block[p.pointerId].data[p.pointerId] == get_commit_data(pointer):
                                             pointer.Block_obj = has_block[p.pointerId]
                                             super(get_model(pointer._meta.object_name), pointer).save()
+                                            next = False
                         elif has_field(p, 'Block_obj'):
                             if not p.Block_obj or (p.id not in p.Block_obj.data or not check_commit_data(p, p.Block_obj.data[p.id]) and p.id not in p.Block_obj.extraData or not check_commit_data(p, p.Block_obj.extraData[p.id])):
                                 if has_block[p.id].validated:
                                     if p.id in has_block[p.id].data and check_commit_data(p, has_block[p.id].data[p.id]) or p.id in has_block[p.id].extraData and check_commit_data(p, has_block[p.id].extraData[p.id]):
                                         p.Block_obj = has_block[p.id]
                                         super(get_model(p._meta.object_name), p).save()
+                                        next = False
                             # else:
                                 # prnt('get_commit_data(p)',get_commit_data(p))
                                 # prnt('has_block[p.id].data[p.id]',has_block[p.id].data[p.id])
@@ -4831,8 +4836,8 @@ class Tidy:
                         # if p.Update_obj and has_field(p.Update_obj,'Block_obj') and not p.Update_obj.Block_obj:
                         #     p.Update_obj.Block_obj = has_block[p.Update_obj.id]
                         #     super(get_model(pointer._meta.object_name), pointer).save()
-                
-                    elif obj_iden in obj_idens:
+                    prnt('next',next)
+                    if obj_iden in obj_idens or next:
                         prnt('opt2')
                         if p._meta.object_name == 'Post':
                             pointer = p.get_pointer()

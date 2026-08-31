@@ -1366,6 +1366,7 @@ def get_latest_dataPacket(chain='All'):
     if dataPacket and not dataPacket.Node_obj and self_node:
         dataPacket.Node_obj = self_node
         dataPacket.save()
+    prnt('returned dataPacket',dataPacket)
     return dataPacket
 
 def get_node_list(sort='-lastUpdate'):
@@ -2720,7 +2721,7 @@ def sync_model(xModel, jsonContent, skip_fields=[], do_save=True, opBlock_data={
     try:
         if not force_sync:
             prnt('pq1')
-            if is_locked(xModel):
+            if is_locked(xModel) and not has_field(xModel, 'lastUpdate'):
                 prnt('return sync is locked')
                 return xModel, [], is_valid, False
             if has_field(xModel, 'lastUpdate') and xModel.lastUpdate and 'lastUpdate' in received_data:
@@ -6435,7 +6436,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                             val_err += '3'
                             obj, sigs, valid_obj, updatedDB = sync_model(obj, i, do_save=False, force_sync=force_sync, get_missing_blocks=get_missing_blocks)
 
-                elif not force_sync and is_locked(obj) and not has_field(obj, 'is_modifiable'):
+                elif not force_sync and is_locked(obj) and not has_field(obj, 'lastUpdate'):
                     valid_obj = True
                     val_err += 'X'
                 else:
@@ -7256,8 +7257,9 @@ def assess_received_header(header, return_is_self=False, if_self_active=False, a
     prnt('failed assess header', err)
     return False
 
-def sign_post_header(data={}, headers=None, operatorData=None, self_node=None, target_node=None, post='post', address_type=None):
+def sign_post_header(data=None, headers=None, operatorData=None, self_node=None, target_node=None, post='post', address_type=None):
     prnt('-sign_post_header',target_node)
+    data = declare_var(data, {})
     if post:
         if not headers:
             headers = {}
@@ -7511,7 +7513,7 @@ def connect_to_node(node, url, data=None, self_node=None, content={}, headers={}
                 if not content:
                     post_type = 'get' if get else 'stream' if stream else 'post'
                     content = sign_post_header(data=data, headers=headers, operatorData=operatorData, self_node=self_node, target_node=node, post=post_type, address_type=address_type)
-                # prnt("content['headers']",content['headers'])
+                prnt("content['headers']",content['headers'])
                 response = send_post(f"{http}://{ip}/{url}", content['body'], headers=content['headers'], timeout=timeout)
                 
             elapsed_time = time.time() - start_time
@@ -7575,9 +7577,11 @@ def connect_to_node(node, url, data=None, self_node=None, content={}, headers={}
         return False, response
     
 
-def downstream_broadcast(broadcast_list, url, sendingData, headers={}, operatorData=None, self_node=None, target_node_id=None, skip_self=False, timeout=(50,60), stream=False, exclude=[]):
+def downstream_broadcast(broadcast_list, url, sendingData, headers=None, operatorData=None, self_node=None, target_node_id=None, skip_self=False, timeout=(50,60), stream=False, exclude=None):
     prnt('--downstream_broadcast now_utc:', now_utc(), url, broadcast_list, 'exclude:',exclude)
     prnt('data',str(sendingData)[:1000])
+    headers = declare_var(headers, {})
+    exclude = declare_var(exclude, [])
     from django.db.models import Model
     from network.models import Node
     import requests

@@ -2650,7 +2650,7 @@ def get_broadcast_list(seed, dt=None, region_id=None, plugin_id=None, relevant_n
     return broadcast_map
 
 def get_relevant_nodes(dt=None, genesisId=None, chains=None, blockchain=None, plugin_id=None, obj=None, for_user=False, include_relays=False, exclude_list=None, opBlock=None, strings_only=True, sublist='', first_block_override=False, node_ids_only=False):
-    from utils.models import now_utc, get_timeData, testing, round_time, prnt
+    from utils.utils import now_utc, get_timeData, testing, round_time, prnt, value_is_none
     prnt('--get_relevant_nodes - strings_only:',strings_only,'genesisId',genesisId,'plugin_id',plugin_id,'blockchain',blockchain,'chains',chains,'obj',obj,'dt',dt,'include_relays',include_relays,'exclude_list',exclude_list,'first_block_override',first_block_override)
     if not exclude_list:
         exclude_list = []
@@ -2661,6 +2661,8 @@ def get_relevant_nodes(dt=None, genesisId=None, chains=None, blockchain=None, pl
     elif not dt:
         prnt('a2')
         dt = now_utc()
+    if genesisId == 'All':
+        genesisId = 'Master'
     record = None
     node_ids = []
 
@@ -2750,8 +2752,11 @@ def get_relevant_nodes(dt=None, genesisId=None, chains=None, blockchain=None, pl
             prnt('record',record)
             if record:
                 prnt('record.data',record.data)
-                node_ids = [n for n in record.data[sublist] if n not in exclude_list]
-                if plugin_id:
+                if sublist in record.data:
+                    node_ids = [n for n in record.data[sublist] if n not in exclude_list]
+                else:
+                    node_ids = [n for n in record.data['active'] if n not in exclude_list]
+                if not value_is_none(plugin_id):
                     plugin_record = NodeRecord.objects.filter(pointerId=plugin_id, DateTime__lte=dt, is_valid=True).first()
                     prnt('plugin record',plugin_record)
                     if plugin_record:
@@ -2763,17 +2768,17 @@ def get_relevant_nodes(dt=None, genesisId=None, chains=None, blockchain=None, pl
                 sublist = 'active'
             chains_data = Blockchain.objects.filter(id__in=chains).values('genesisId')
             for record in NodeRecord.objects.filter(pointerId__in=[i['genesisId'] for i in chains_data], DateTime__lte=dt, is_valid=True):
-                for node_iden in record.data[sublist]:
+                for node_iden in record.data.get(sublist, []):
                     if node_iden not in node_ids and node_iden not in exclude_list:
                         node_ids.append(node_iden)
         elif sublist and sublist in ['relay']:
             record = NodeRecord.objects.filter(pointerId=_OperationsChain_genesisId, DateTime__lte=dt, is_valid=True).first()
             if record:
-                node_ids = [n for n in record.data[sublist] if n not in exclude_list]
+                node_ids = [n for n in record.data.get(sublist,[]) if n not in exclude_list]
         elif sublist:
             record = NodeRecord.objects.filter(pointerId=_OperationsChain_genesisId, DateTime__lte=dt, is_valid=True).first()
             if record:
-                node_ids = [n for n in record.data['abilities'][sublist] if n not in exclude_list]
+                node_ids = [n for n in record.data['abilities'].get(sublist,[]) if n not in exclude_list]
 
         else:
             prnt('else',dt)
@@ -2893,7 +2898,7 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
                     eligible = for_commitment(i, genesis_obj, block)
                 except:
                     eligible = True
-            if eligible and uncommitted_required and has_field(x, 'Block_obj') and x.Block_obj and x.id in block.data and x.Block_obj != block and x.id != block.Blockchain_obj.genesisId and check_commit_data(x, x.Block_obj.data[x.id]):
+            if eligible and uncommitted_required and has_field(x, 'Block_obj') and x.Block_obj and x.id in block.data and x.Block_obj != block and x.id != block.Blockchain_obj.genesisId and check_commit_data(x, x.Block_obj.data[x.id]) and not has_field(x, 'lastUpdate'):
                 eligible = False
             if not eligible:
                 prnt('x ineligible (has Block_obj):', x.Block_obj)
@@ -5199,7 +5204,20 @@ def check_commit_data(target, data, return_err=False, return_obj=False):
         success = True
     if success and has_method(obj, 'commit_data'):
         for i in obj.commit_data():
-            if i != 'hash':
+            prnt('commit_data obj',i)
+            if i == 'hash':
+                if is_model:
+                    sigHash = sigData_to_hash(obj)
+                else:
+                    sigHash = sigData_to_hash(obj_data)
+                if 'hash' not in data or data['hash'] != sigHash:
+                    success = False
+                    err = 9
+                    prnt(f'check_commit fail8 f hash,')
+                    prnt(f'xxxx- {str(convert_to_dict(xxxx, withold_fields=False))[:700]}')
+                    if return_err:
+                        logEvent(f'check_commit_error8: f,hash', log_type='Errors')
+            else:
                 if has_field(obj, i, exclude_method=True):
                     if is_model:
                         attr = getattr(obj, i)

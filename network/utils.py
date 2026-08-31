@@ -371,7 +371,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                             val_err += '3'
                             obj, sigs, valid_obj, updatedDB = sync_model(obj, i, do_save=False, force_sync=force_sync, get_missing_blocks=get_missing_blocks)
 
-                elif not force_sync and is_locked(obj) and not has_field(obj, 'is_modifiable'):
+                elif not force_sync and is_locked(obj) and not has_field(obj, 'lastUpdate'):
                     valid_obj = True
                     val_err += 'X'
                 else:
