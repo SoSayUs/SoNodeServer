@@ -5204,7 +5204,7 @@ def check_commit_data(target, data, return_err=False, return_obj=False):
         success = True
     if success and has_method(obj, 'commit_data'):
         for i in obj.commit_data():
-            prnt('commit_data obj',i)
+            # prnt('commit_data obj',i)
             if i == 'hash':
                 if is_model:
                     sigHash = sigData_to_hash(obj)
