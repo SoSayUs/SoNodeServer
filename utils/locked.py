@@ -2898,7 +2898,7 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
                     eligible = for_commitment(i, genesis_obj, block)
                 except:
                     eligible = True
-            if eligible and uncommitted_required and has_field(x, 'Block_obj') and x.Block_obj and x.id in block.data and x.Block_obj != block and x.id != block.Blockchain_obj.genesisId and check_commit_data(x, x.Block_obj.data[x.id]) and not has_field(x, 'lastUpdate'):
+            if eligible and uncommitted_required and has_field(x, 'Block_obj') and x.Block_obj and x.id in block.data and x.Block_obj != block and x.id != block.Blockchain_obj.genesisId and check_commit_data(x, x.Block_obj.data[x.id]):
                 eligible = False
             if not eligible:
                 prnt('x ineligible (has Block_obj):', x.Block_obj)
