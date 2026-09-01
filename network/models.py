@@ -3290,7 +3290,7 @@ class Blockchain(models.Model):
     queuedData = models.JSONField(default=dict, blank=True, null=True)
 
     def __str__(self):
-        if len(self.genesisId) > 10:
+        if self.genesisId and len(self.genesisId) > 10:
             return f'chn:{self.genesisName}/{self.genesisType}/{str(self.genesisId)[5:17]}'
         else:
             return f'chn:{self.genesisName}/{self.genesisType}'

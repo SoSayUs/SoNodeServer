@@ -45,7 +45,7 @@ def check_super_commands():
 
 _e_brake_end_dt = None
 _e_brake = 0
-# 0 = run all
+# 0 = run all!
 # 1 = run nothing
 # 2 = resolve blocks
 # 3 = resolve blocks/txs/posts, stop all scrapers
@@ -2917,7 +2917,7 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
     if debug:
         prnt('fields',fields)
         prnt('data',data)
-    superFields = {'is_supported':['True',True], 'isVerified':'any', 'is_superuser':'any', 'is_staff':'any', 'is_admin':'any', 'fcm_capable':'any', 'ai_capable':'any', 'validated':'any', 'abilities':'any', 'keyType':['guardian','super'], 'node_level':['super'], 'node_type':['intelligence']}
+    superFields = {'is_supported':['True',True], 'isVerified':'any', 'is_superuser':'any', 'is_staff':'any', 'is_admin':'any', 'fcm_capable':'any', 'ai_capable':'any', 'validated':'any', 'abilities':['cloudflare'], 'keyType':['guardian','super'], 'node_level':['super'], 'node_type':['intelligence']}
     for f in fields:
         try:
             if f.name not in data:
@@ -2929,7 +2929,7 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                 proceed = True
                 if f.name in superFields:
                     prnt('field is super field', f.name, superFields[f.name], data[f.name])
-                    if superFields[f.name] == 'any' or data[f.name] in superFields[f.name] or getattr(obj, f.name) in superFields[f.name]:
+                    if superFields[f.name] == 'any' or data[f.name] in superFields[f.name] or getattr(obj, f.name) in superFields[f.name] or isinstance(data[f.name], dict) and any(item in superFields[f.name] for item in data[f.name].keys()):
                         prnt('is in super field', superFields[f.name], data[f.name], getattr(obj, f.name))
                         proceed = False
                         from utils.locked import detect_security
@@ -3034,7 +3034,7 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                             if not getattr(obj, f.name) or getattr(obj, f.name).id != data[f.name]:
                                 from network.models import Block, Blockchain, Node, mandatoryChains
                                 block = Block.objects.filter(id=data[f.name]).first()
-                                prnt('block532:',block, block.validated)
+                                prnt('block532:',block)
                                 if not block:
                                     chain = Blockchain.objects.filter(id=data['networkChain']).values('genesisId').first()
                                     if chain:

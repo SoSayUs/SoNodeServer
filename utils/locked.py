@@ -1114,7 +1114,7 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
     if opBlock:
         prnt('opBlockAAA',opBlock)
         try:
-            prnt('opBlock.opData',opBlock['opData'])
+            # prnt('opBlock.opData',opBlock['opData'])
             block_creation_times = opBlock['opData']['block_creation_times']
             if block.Blockchain_obj.genesisType == 'Wallet' and 'walletBlock_time_delay' in opBlock['opData']:
                 block_delay = opBlock['opData']['walletBlock_time_delay']
@@ -2751,7 +2751,7 @@ def get_relevant_nodes(dt=None, genesisId=None, chains=None, blockchain=None, pl
             record = NodeRecord.objects.filter(pointerId=genesisId, DateTime__lte=dt, is_valid=True).first()
             prnt('record',record)
             if record:
-                prnt('record.data',record.data)
+                # prnt('record.data',record.data)
                 if sublist in record.data:
                     node_ids = [n for n in record.data[sublist] if n not in exclude_list]
                 else:
@@ -2760,7 +2760,7 @@ def get_relevant_nodes(dt=None, genesisId=None, chains=None, blockchain=None, pl
                     plugin_record = NodeRecord.objects.filter(pointerId=plugin_id, DateTime__lte=dt, is_valid=True).first()
                     prnt('plugin record',plugin_record)
                     if plugin_record:
-                        prnt('plugin record.data',plugin_record.data)
+                        # prnt('plugin record.data',plugin_record.data)
                         node_ids = [n for n in plugin_record.data[sublist] if n in node_ids]
 
         elif chains:

@@ -7,7 +7,7 @@ urlpatterns = [
     path('declare_node_state', chain_views.declare_node_state_view),
     re_path('get_broadcast_list/(?P<iden>(.*))', chain_views.get_broadcast_list_view),
     path('get_broadcast_list', chain_views.get_broadcast_list_view),
-    re_path('get_current_node_list/(?P<pointer>(.*))', chain_views.get_current_node_list_view, {'pointer': None}, name='pointer_default'),
+    re_path(r'^get_current_node_list/(?:(?P<pointer>.+))?/?$', chain_views.get_current_node_list_view),
     path('get_plugin_data', chain_views.get_plugin_data_view),
     path('get_chain_data', chain_views.get_chain_data_view),
     path('request_chain_path', chain_views.request_chain_path_view),

@@ -76,15 +76,15 @@ typical = ['get_house_agendas', 'get_senate_agendas', 'get_todays_xml_agenda',
 
 functions = { # in gov_region timezone
     "2025-03-13" : [
-    # # {'date' : [1], 'dayOfWeek' : ['x'], 'hour' : [2], 'cmds' : ['get_house_expenses']},
-    # {'date' : ['x'], 'dayOfWeek' : [6,2], 'hour' : [5], 'cmds' : ['get_house_persons', 'get_senate_persons']},
-    # # # mon - sat
-    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [8, 10, 12, 18, 24], 'cmds' : ['get_house_agendas'] },
-    # # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [8, 10, 12, 18, 24], 'cmds' : ['get_house_agendas', 'get_senate_agendas', 'get_todays_xml_agenda'] },
-    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [3, 7, 10, 12, 13, 15, 17, 20, 23], 'cmds' : ['get_bills'] },
-    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 6, 12, 18, 22], 'cmds' : ['get_house_debates', 'get_house_motions']},
-    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [4, 8, 13, 19, 23], 'cmds' : ['get_senate_debates', 'get_senate_motions']},
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [0, 24], 'cmds' : ['get_senate_debates']},
+    # {'date' : [1], 'dayOfWeek' : ['x'], 'hour' : [2], 'cmds' : ['get_house_expenses']},
+    {'date' : ['x'], 'dayOfWeek' : [6,2], 'hour' : [5], 'cmds' : ['get_house_persons', 'get_senate_persons']},
+    # # mon - sat
+    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [8, 10, 12, 18, 24], 'cmds' : ['get_house_agendas'] },
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [8, 10, 12, 18, 24], 'cmds' : ['get_house_agendas', 'get_senate_agendas', 'get_todays_xml_agenda'] },
+    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [3, 7, 10, 12, 13, 15, 17, 20, 23], 'cmds' : ['get_bills'] },
+    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 6, 12, 18, 22], 'cmds' : ['get_house_debates', 'get_house_motions']},
+    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [4, 8, 13, 19, 23], 'cmds' : ['get_senate_debates', 'get_senate_motions']},
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [0, 24], 'cmds' : ['get_senate_debates']},
     ],
 }
 

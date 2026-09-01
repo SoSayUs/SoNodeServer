@@ -64,7 +64,7 @@ def get_broadcast_list_view(request, iden=None):
         return JsonResponse({'message': 'failed2', 'err': str(e) + 'A:' + A + '__' + str(obj_json)})
 
 @csrf_exempt
-def get_current_node_list_view(request, pointer):
+def get_current_node_list_view(request, pointer=None):
     prnt('-get_current_node_list_view', pointer)
     try:
         if not get_self_node().activeNode:

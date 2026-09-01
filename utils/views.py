@@ -1533,15 +1533,36 @@ def tester_queue_view(request):
             prnt('HELLLOO!!')
             import django_rq
             queue = django_rq.get_queue('low')
-            queue.enqueue(tester_queue, job_timeout=1200)
+            # queue.enqueue(tester_queue, job_timeout=1200)
             # queue.enqueue(tester_queue, job_timeout=3600)
             from network.models import Blockchain, reward_models, _OperationsChain_genesisId
             # from posts.models import Region
-            from transactions.models import Wallet
+            from transactions.models import Wallet,Transaction
             # from utils.locked import check_commit_data
             from utils.models import get_data
             from utils.utils import get_plugin
             self_node = get_self_node()
+
+            # iden = 'blcSocbcXIwOgPOjXK4PhZX3'
+            # b = Block.objects.filter(id=iden).first()
+            # prnt('b',b)
+            # get_node_assignment()
+            # t = Transaction.objects.filter(id='1traSo2JwQl0UcjiUjNfC4Sj03gM').first()
+            # super(Transaction, t).delete()
+            # c = Blockchain.objects.filter(id='chnSooFpPwz4jIOOvrGljnee').first()
+            # super(Blockchain, c).delete()
+            w = Wallet.objects.filter(id='1walSomun8c2BnloWBKQNNTZa').first()
+            super(Wallet, w).delete()
+            # :----get_node_assignment obj:,TX:1traSo2JwQl0UcjiUjNfC4Sj03gM_re:{'GenesisId': '2govSogivlgJQwMYxxaTLgUHA', 'BlockReward': 'blcSoef2zNOWSitKb7LuKcUi'},to:WALLET:USER:Sozed-Rewards-nodSo3Zpgzzsx4WhmCL/11900.369700101204000-tokens.True,dt,2026-09-01 02:40:00+00:00,func,None,strings:,False,chainId,usrSooJxz0vP0tRH7mIIgaVv,opBlock_data,{},return_receiverTransaction,False
+            # ~:p1
+            # ~:p3
+            # ~:p4
+            # ~:--get_relevant_nodes - strings_only:,True,genesisId,plgSo7lWixyinnqjYOhuepby,plugin_id,None,blockchain,None,chains,None,obj,None,dt,2026-09-01 02:40:00+00:00,include_relays,False,exclude_list,None,first_block_override,False
+            # ~:dt,2026-09-01 02:40:00+00:00
+            # ~:get opBlock,Nodes,2026-09-01 02:40:00+00:00
+            # ~:op2
+            # ~:genesisId,plgSo7lWixyinnqjYOhuepby,sublist,maintainer
+            # ~:record,NODERECORD: nrecSojEIuO4gzeOFGa3mIZZN
 
 
                 
