@@ -618,19 +618,10 @@ def get_latest_dataPacket(chain='All'):
     # chainId = chain
     if isinstance(chain, models.Model):
         plugin_id = get_plugin(chain, id=True)
-        # if chain._meta.object_name != 'Blockchain':
-        #     if has_field(chain, 'networkChain'):
-        #         chain = Blockchain.objects.filter(id=chain.networkChain).defer('queuedData').first()
         if has_field(chain, 'Region_obj'):
             chain = chain.Region_obj.id
         else:
             chain = chain.networkChain
-        # if chain and chain.genesisId == _OperationsChain_genesisId:
-        #     chain = 'All'
-        # elif chain:
-        #     chain = chain.genesisId
-        # else:
-        #     return None
     elif is_id(chain):
         pointer = get_pointer_type(chain)
         if pointer in ['User', 'Node']:
