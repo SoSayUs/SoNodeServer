@@ -1158,7 +1158,8 @@ class DataPacket(models.Model):
             self.save()
 
     def save(self, share=False, *args, **kwargs):
-        prntDebug('-dp save...', self.id, DataPacket.objects.filter(id=self.id).exists())
+        prntDebug('-dp save...', self.id)
+        prnt(DataPacket.objects.all())
         if self.func:
             self.func = self.func[:90]
         update_fields = kwargs.get('update_fields', None)
@@ -3461,6 +3462,8 @@ class Blockchain(models.Model):
     
     def save(self, share=False, *args, **kwargs):
         prnt('-save blockchain',self.id)
+        prnt(Blockchain.objects.all())
+
         self.modlVer = self.latestVer
         update_fields = kwargs.get('update_fields', None)
         if update_fields and len(update_fields) == 1:
