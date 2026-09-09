@@ -8,7 +8,7 @@ from .utils import *
 from .models import Region, Post, Update
 from network.models import Blockchain, Block
 from legis.models import Statement,Person,District
-from utils.models import string_to_dt, prnt, get_pointer_type
+from utils.utils import string_to_dt, prnt, get_pointer_type
 
 from django.db.models import Q, Value, F
 from collections import Counter
@@ -150,7 +150,7 @@ def timezonify(dt, obj):
 def is_obj(text):
     if text.endswith('Id') or text.endswith('_obj'):
         return True
-    if 'So' in text and len(text) > 33:
+    if 'Só' in text and len(text) > 33:
         return True
     return False
 

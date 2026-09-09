@@ -9,9 +9,9 @@ from posts.utils import (
     algorithim, get_trending_keys, paginater, get_useractions, render_view, get_regions, get_isMobile, default_context
     )
 from posts.models import Region, Post, Spren
-from utils.models import get_operator_obj, skipwords
+from utils.models import skipwords
 from legis.models import BillText,Bill,Meeting,Statement,Motion,RepVote,Election,Person
-from utils.utils import prnt, now_utc, is_id, get_post_id
+from utils.utils import prnt, now_utc, is_id, get_post_id, get_operator_obj
 
 from django.db.models import Q, F
 import datetime

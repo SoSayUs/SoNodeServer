@@ -2,7 +2,7 @@ from django.db import models
 import datetime
 from unidecode import unidecode
 import re
-from utils.models import prnt, get_operator_obj, now_utc, round_time
+from utils.utils import prnt, get_operator_obj, now_utc, round_time
 
 def for_commitment(obj, genesis_obj, block):
     ...
@@ -30,7 +30,7 @@ def get_gov(country, gv_lvl='Federal', **kwargs):
         else:
             gov = Government.objects.filter(Country_obj=country, gov_level=gv_lvl, proposed_modification=None).order_by('-GovernmentNumber','-SessionNumber','proposed_modification','-created').first()
     if not gov and kwargs:
-        from utils.models import create_dynamic_model
+        from utils.utils import create_dynamic_model
         gov = create_dynamic_model('Government', **kwargs)
     prnt('returned gov',gov,gov.id)
     return gov
@@ -100,7 +100,8 @@ def summarize_meetings(special=None, post=None, dt=None, max_mins=45):
     self_nodeId = get_operator_obj('self_nodeId')
     
     from concurrent.futures import ThreadPoolExecutor, as_completed, wait, FIRST_COMPLETED
-    from utils.models import finishScript, create_share_object, prntn, declare_var
+    from utils.models import finishScript, create_share_object
+    from utils.utils import prntn, declare_var
     from posts.models import Spren
     dt = now_utc()
 
@@ -451,7 +452,8 @@ def makeText(data):
     text = ""
 
     from legis.models import Statement
-    from utils.models import get_token_count, is_id
+    from utils.models import is_id
+    from utils.utils import get_token_count, is_id
     for i in data:
         if is_id(i):
             s = Statement.objects.filter(id=i).first()
@@ -479,7 +481,8 @@ def summarize_bills(special=None, region_id=None, dt=None, max_mins=45, task=1):
     self_nodeId = get_operator_obj('self_nodeId')
 
     from concurrent.futures import ThreadPoolExecutor, as_completed, wait, FIRST_COMPLETED
-    from utils.models import finishScript, create_share_object, prntn, declare_var
+    from utils.models import finishScript, create_share_object
+    from utils.utils import prntn, declare_var
     from posts.models import Post, Spren
     from .models import BillText, Bill, Government
     dt = declare_var(dt, start_time)

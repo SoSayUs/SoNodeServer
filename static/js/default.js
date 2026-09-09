@@ -890,7 +890,7 @@ async function signReturnInteraction({ response, item }) {
     }
     user_id = await myVar('user_id');
     data.User_obj = user_id
-    if (data['objType'] == 'UserAction') {
+    if (data['objType'] == 'Play') {
       sendBack = true;
       pubKey = await myVar('Sign_PubKey');
       privKey = await myVar('Sign_PrivKey');
@@ -989,7 +989,7 @@ async function signReturnInteraction({ response, item }) {
                 } else {
                   li.innerHTML = 'Save'
                 }
-              } else if (data['objType'] == 'UserAction') {
+              } else if (data['objType'] == 'Play') {
                   li.classList.remove('depress');
                   li.classList.remove('glow-active'); 
                 console.log("data['voteValue']",data['voteValue'])
@@ -1001,7 +1001,7 @@ async function signReturnInteraction({ response, item }) {
               }
             } else {
               console.log('else, post-interaction', data['objType'], item)
-              if (data['objType'] == 'UserAction') {
+              if (data['objType'] == 'Play') {
                 if (item.item == 'yea'){
                   li.classList.remove('active');
                   li.classList.remove('depress');
@@ -1027,7 +1027,7 @@ async function signReturnInteraction({ response, item }) {
             var li = none;
               if (item.item == 'saveButton') {
                 li = document.getElementsByClassName('saveButton, clickable')[0];
-              } else if (data['objType'] == 'UserAction') {
+              } else if (data['objType'] == 'Play') {
                 if (item == 'yea'){
                   li = rs[i].getElementsByClassName('yea')[0];
                 }else if (item == 'nay'){
@@ -2979,13 +2979,13 @@ function cross_language_shuffle(arr, seed) {
   return result;
 }
 
-function gcd(a, b) {
+function gcd_old(a, b) {
     while (b !== 0) {
         [a, b] = [b, a % b];
     };
     return a;
 };
-function position_sort(active_set, starting_position, pattern, max_number, number_of_matches) {
+function position_sort_old(active_set, starting_position, pattern, max_number, number_of_matches) {
     console.log('-position_sort',starting_position,pattern,max_number,number_of_matches);
     console.log('active_set',active_set);
 
@@ -3021,6 +3021,41 @@ function position_sort(active_set, starting_position, pattern, max_number, numbe
     };
     return matches;
 };
+function gcd(a, b) {
+  while (b !== 0) {
+      [a, b] = [b, a % b];
+  }
+  return a;
+}
+
+function position_sort(starting_position, pattern, active_set, number_of_matches, max_number) {
+  console.log('-position_sort', starting_position, pattern, number_of_matches);
+  console.log('active_set', active_set);
+
+  if (max_number <= 0) return [];
+
+  let start = ((starting_position + pattern - 1) % max_number + max_number) % max_number + 1;
+
+  let step = Math.abs(pattern) % max_number;
+  if (step === 0) step = 1;
+
+  while (gcd(step, max_number) !== 1) {
+      step = (step + 1) % max_number;
+      if (step === 0) step = 1;
+  }
+
+  let matches = [];
+  let current_pos = start;
+  for (let i = 0; i < max_number && matches.length < number_of_matches; i++) {
+      if (active_set.hasOwnProperty(current_pos)) {
+          matches.push(active_set[current_pos]);
+      }
+      current_pos = ((current_pos + step - 1) % max_number) + 1;
+  }
+
+  console.log('matches', matches);
+  return matches;
+}
 async function get_assignment(obj=null, iden=null, DateTime=null, nodeIds=[], relevantNodes={}, region='All') {
   console.log('-get_assignment','obj',obj,'iden',iden,'DateTime',DateTime,'nodeIds',nodeIds);
   if (obj != null) {
@@ -3096,7 +3131,7 @@ async function get_assignment(obj=null, iden=null, DateTime=null, nodeIds=[], re
   } else {
     var pattern = 6;
   };
-  matches = position_sort(position_dict, startPos, pattern, max_number, 50);
+  matches = position_sort(startPos, pattern, position_dict, 50,  max_number);
   // const sorted = await browser_shuffle(iden, DateTime, nodeIds);
   console.log('matches',matches);
   return {'orderOfNodes':matches, 'addresses':relevantNodes} ;

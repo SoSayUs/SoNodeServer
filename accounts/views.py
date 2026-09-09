@@ -12,15 +12,16 @@ from django.contrib.auth import (
 
     )
 
-from .models import User, UserPubKey, UserAction
+from .models import User, UserPubKey, Play
 from .forms import *
 from posts.models import Region, Post
 from posts.utils import get_user_data
 from posts.forms import SearchForm
 from posts.views import render_view
 from network.models import Sonet
-from utils.locked import hash_obj_id, get_signing_data, verify_data
-from utils.models import prnt, prntn, now_utc, sync_and_share_object, string_to_dt, dt_to_string, get_operator_obj, is_id, has_method
+from utils.locked import hash_obj_id, get_signing_data, verify_data, dt_to_string
+from utils.models import sync_and_share_object
+from utils.utils import prnt, prntn, now_utc, string_to_dt, get_operator_obj, is_id, has_method
 from django.http import JsonResponse
 
 from django.db.models import Q
@@ -295,7 +296,7 @@ def receive_user_login_view(request):
                 prnt('reward_walletData2',reward_walletData)
                 
             prnt('received-userData',type(userData),userData)
-            from utils.models import get_sigData
+            from utils.utils import get_sigData
             sig_data = get_sigData(userData, first_key=True)
             userPublicKey = sig_data['pk']
             userSignature = sig_data['sig']
@@ -315,7 +316,7 @@ def receive_user_login_view(request):
                         if is_id(userPublicKey):
                             iden = userPublicKey
                         else:
-                            from utils.models import hash_upk_id
+                            from utils.utils import hash_upk_id
                             iden = hash_upk_id(userPublicKey)
                         prnt('iden',iden)
                         upk = UserPubKey.objects.filter(User_obj__id=user.id, id=iden, end_life_dt=None, keyType='account').only('publicKey').first()
@@ -440,7 +441,8 @@ def deactivate_upk_view(request):
             except Exception as e:
                 prnt('deactivate_upk err 88',str(e))
                 upkData = json.loads(request.POST.get('upkData', '{}'))
-            from utils.models import share_with_network, sync_model, get_sigData
+            from utils.models import share_with_network, sync_model
+            from utils.utils import get_sigData
             sig_data = get_sigData(upkData, first_key=True)
             
             upk = UserPubKey.objects.filter(id=upkData['id']).defer('publicKey').first()
@@ -791,7 +793,7 @@ def user_settings_view(request):
         iden = request.GET.get('iden', None)
         prnt('popup',cmd,iden)
         if cmd:
-            from utils.models import get_sigData
+            from utils.utils import get_sigData
             if 'new_key' in cmd:
                 if '_security' in cmd:
                     # security_upk = UserPubKey.objects.filter(User_obj=user, keyType='security', end_life_dt=None).values('algorithm').first()
@@ -1065,7 +1067,8 @@ def user_settings_view(request):
                             proceed = verify_data(get_signing_data(updated_userData), sign_upks, updated_userData['signed'])
 
                         from network.models import Signature
-                        from utils.models import sync_model, share_with_network, save_sigs
+                        from utils.utils import save_sigs
+                        from utils.models import sync_model, share_with_network
                         def create_key(upkData):
                             upk = UserPubKey()
                             good = False
@@ -1267,7 +1270,7 @@ def receive_interaction_data_view(request):
     if request.method == 'POST':
         data = json.loads(request.POST.get('objData'))
         addon = request.POST.get('addon')
-        from utils.models import get_sigData
+        from utils.utils import get_sigData
         try:
             sig_data = get_sigData(data)
         except Exception as e:
@@ -1282,7 +1285,7 @@ def receive_interaction_data_view(request):
             if not user:
                 prnt('user not found', user_id)
                 return JsonResponse({'message' : 'User not found'})
-            from utils.models import is_id, get_or_create_model, has_method, hash_upk_id
+            from utils.utils import is_id, get_or_create_model, has_method, hash_upk_id
             from utils.locked import verify_data
             try:
                 if is_id(publicKey):
@@ -1352,14 +1355,14 @@ def reaction_view(request, iden, item):
         reuse = False
         addon = {}
         addon_fields = {}
-        action = UserAction.objects.filter(User_obj__id=user['id'], postId=post.id).first()
+        action = Play.objects.filter(User_obj__id=user['id'], postId=post.id).first()
         if not action:
-            action = UserAction(User_obj_id=user['id'], Post_obj=post, postId=post.id, pointerId=post.pointerId, created=now_utc(), id=hash_obj_id('UserAction', length=UserAction.iden_length, specific_data=f"UserAction_{user['id']}_{dt_to_string(now_utc())}"))
+            action = Play(User_obj_id=user['id'], Post_obj=post, postId=post.id, pointerId=post.pointerId, created=now_utc(), id=hash_obj_id('Play', length=Play.iden_length, specific_data=f"Play_{user['id']}_{dt_to_string(now_utc())}"))
 
         pointer = post.get_pointer(set_pointer=False)
         if pointer:
-            if has_method(pointer, 'user_action_addon'):
-                addon = pointer.user_action_addon(user['id'])
+            if has_method(pointer, 'user_play_addon'):
+                addon = pointer.user_play_addon(user['id'])
                 if addon:
                     addon_fields = addon.required_fields()
                     addon = get_signing_data(addon, sort_data=False)
@@ -1431,7 +1434,8 @@ def set_sonet_view(request):
             sonetData_json = json.loads(received_data.get('sonetData'))
             prnt('sonetData_json',sonetData_json)
             err = 2
-            from utils.models import get_or_create_model, sync_model
+            from utils.models import sync_model
+            from utils.utils import get_or_create_model
             sonet = get_or_create_model('Sonet', id=sonetData_json['id'])
             prnt('sonet obj',sonet)
             err = 3
@@ -1482,7 +1486,7 @@ def verify_superuser_view(request):
             signed_obj = json.loads(request.POST.get('signed_obj'))
             publicKey = request.POST.get('publicKey',{})
             signature = request.POST.get('signed')
-            from utils.models import round_time, dt_to_string
+            from utils.utils import round_time
             x = dt_to_string(round_time(dt=now_utc(), dir='down', amount='evenhour'))
             proceed = True
             is_super = False

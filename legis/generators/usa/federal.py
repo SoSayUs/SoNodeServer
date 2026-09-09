@@ -11,12 +11,19 @@ from posts.models import Post, Update, ImageFile, Region
 from posts.views import get_ordinal
 from network.models import Node
 from utils.models import (
-    prnt, prntn, prntDebug, get_model_and_update, get_model_prefix, 
-    save_and_return, declare_var, finishScript, create_share_object, 
-    dt_to_string, save_mutable_fields, open_browser, close_browser, 
-    now_utc, timezonify, testing, create_job, request_browser_data,
-    logEvent, logError, return_test_result, script_test_error, save_image
+    finishScript, create_share_object, 
+    open_browser, close_browser, 
+    create_job, request_browser_data,
+    return_test_result
     )
+from utils.utils import (
+    prnt, prntn, prntDebug, get_model_and_update, get_model_prefix, 
+    save_and_return, declare_var,
+    save_mutable_fields,
+    now_utc, timezonify, testing,
+    logEvent, logError, script_test_error, save_image
+    )
+from utils.locked import dt_to_string
 
 import datetime
 from dateutil.parser import parse
@@ -104,17 +111,17 @@ runTimes = {
 
 
 functions = { # in gov_region timezone
-    "2025-03-13" : [
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 8, 10, 12, 14, 16, 18, 22], 'cmds' : ['get_bills_us'] },
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [1, 5, 17, 21], 'cmds' : ['get_house_rollcalls_us']},
-    {'date' : ['x'], 'dayOfWeek' : [1,2,3,4,5,6], 'hour' : [3, 7, 16, 23], 'cmds' : ['get_senate_rollcalls_us']},
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [12,13,14], 'cmds' : ['get_house_debates_us','get_senate_debates_us']},
-    ],
+    # "2025-03-13" : [
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 8, 10, 12, 14, 16, 18, 22], 'cmds' : ['get_bills_us'] },
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [1, 5, 17, 21], 'cmds' : ['get_house_rollcalls_us']},
+    # {'date' : ['x'], 'dayOfWeek' : [1,2,3,4,5,6], 'hour' : [3, 7, 16, 23], 'cmds' : ['get_senate_rollcalls_us']},
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [12,13,14], 'cmds' : ['get_house_debates_us','get_senate_debates_us']},
+    # ],
     "2026-01-24" : [
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 8, 10, 12, 14, 16, 18, 22], 'cmds' : ['get_bills_us'] },
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 8, 10, 12, 14, 16, 18, 22], 'cmds' : ['get_bills_us'] },
     {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [1, 5, 11, 17, 21], 'cmds' : ['get_house_debates_us', 'get_house_rollcalls_us']},
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [3, 7, 19, 23], 'cmds' : ['get_senate_debates_us', 'get_senate_rollcalls_us']},
-    {'date' : ['x'], 'dayOfWeek' : [1], 'hour' : [14], 'cmds' : ['get_persons_us']},
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [3, 7, 19, 23], 'cmds' : ['get_senate_debates_us', 'get_senate_rollcalls_us']},
+    # {'date' : ['x'], 'dayOfWeek' : [1], 'hour' : [14], 'cmds' : ['get_persons_us']},
     ],
 }
 
@@ -173,7 +180,7 @@ def initialize_region(special=None, dt=None, iden=None):
 
 def api_fetch(url, country=None):
     prnt('-api_fetch',url)
-    from utils.models import get_operatorData
+    from utils.utils import get_operatorData
     if not country:
         country = get_region('USA')
     data = None
@@ -240,7 +247,7 @@ def get_persons_us(special=None, dt=None, iden=None, func='get_persons_us', as_r
         gov = get_gov(country, Country_obj=country, gov_level='Federal', gov_type='Congress', GovernmentNumber=cong, SessionNumber=sess, Region_obj=country)
         prnt('gov',gov)
         if not gov.StartDate:
-            from utils.models import round_time
+            from utils.utils import round_time
             gov.StartDate = timezonify('est', round_time(dt=now_utc(), dir='down', amount='day'))
             gov.migrate_data()
             gov.LogoLinks = gov_logo_links
@@ -2591,7 +2598,7 @@ def get_house_rollcalls_us(special=None, dt=None, iden=None, target={}, job_dt=N
 
                 gov, govU, gov_is_new = get_model_and_update('Government', Country_obj=country, gov_level='Federal', GovernmentNumber=int(currentCongress), SessionNumber=int(currentSession), Region_obj=country)
                 if gov_is_new:
-                    from utils.models import round_time
+                    from utils.utils import round_time
                     gov.StartDate = timezonify('est', round_time(dt=now_utc(), dir='down', amount='day'))
                     gov.migrate_data()
                     gov.LogoLinks = gov_logo_links

@@ -1,6 +1,6 @@
 from django.db.models import Q
 from accounts.models import UserPubKey
-from utils.models import get_sigData, get_timeData
+from utils.utils import get_sigData, get_timeData
 
 
 def for_commitment(obj, genesis_obj, block):

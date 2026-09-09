@@ -7,7 +7,8 @@ from django.contrib.contenttypes.models import ContentType
 from posts.models import get_point_value, Post
 from network.models import Blockchain
 from transactions.models import Wallet
-from utils.models import BinaryBase62Field, BinaryBase64urlField, prnt, prntDebug, prntn, is_locked, now_utc, initial_save, is_dt_string, string_to_dt, has_field, find_or_create_chain_from_object, get_latest_dataPacket, get_self_node, is_obj_commit_valid
+from utils.utils import prnt, prntDebug, prntn, is_locked, now_utc, initial_save, is_dt_string, string_to_dt, has_field, find_or_create_chain_from_object, get_latest_dataPacket, get_self_node, is_obj_commit_valid
+from utils.models import BinaryBase62Field, BinaryBase64urlField
 from utils.locked import hash_obj_id, verify_obj_to_data, get_signing_data, verify_data
 
 import datetime
@@ -17,7 +18,7 @@ import decimal
 
 model_prefixes = {'User':'usr','UserData':'udat',
     'UserPubKey':'upk','UserVerification':'uver','SuperSign':'sup','Notification':'not','UserNotification':'unot',
-    'UserAction':'act',
+    'Play':'ply',
     }
 
 
@@ -97,8 +98,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'User', 'password': '', 'last_login': None, 'is_superuser': False, 'networkChain': 'User', 'commitChain': 'Accounts', 'id': None, 'modlVer': 1, 'created': None, 'lastUpdate': None, 'nodeCreatorId': None, 'username': None, 'pattern': 0, 'signkey_dt': None, 'alerts': {}, 'UserData_obj': None, 'Block_obj': None, 'UserVerification_obj': None, 'iden_length': 11, 'signed': {}}
-        
+            return {'objType': 'User', 'is_modifiable': True, 'networkChain': 'User', 'commitChain': 'Accounts', 'password': '', 'last_login': None, 'is_superuser': False, 'id': None, 'modlVer': 1, 'created': None, 'lastUpdate': None, 'nodeCreatorId': None, 'username': None, 'pattern': 0, 'signkey_dt': None, 'alerts': {}, 'UserData_obj': None, 'Block_obj': None, 'UserVerification_obj': None, 'iden_length': 11, 'signed': {}}
+
     def commit_data(self, version=None):
         if not version:
             version = self.modlVer
@@ -511,8 +512,8 @@ class UserPubKey(models.Model):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'UserPubKey', 'networkChain': 'Keys', 'modlVer': 1, 'id': None, 'created': None, 'end_life_dt': None, 'lastUpdate': None, 'Block_obj': None, 'User_obj': None, 'keyType': 'signing', 'algorithm': 'secp256k1', 'nodeId': None, 'publicKey': None, 'signed': {}}
-        
+            return {'objType': 'UserPubKey', 'is_modifiable': True, 'networkChain': 'Keys', 'modlVer': 1, 'id': None, 'created': None, 'end_life_dt': None, 'lastUpdate': None, 'Block_obj': None, 'User_obj': None, 'keyType': 'signing', 'algorithm': 'secp256k1', 'nodeId': None, 'publicKey': None, 'signed': {}}
+
     def commit_data(self, version=None):
         if not version:
             version = self.modlVer
@@ -654,8 +655,8 @@ class UserVerification(ModifiableAccountModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'UserVerification', 'id': None, 'created': None, 'lastUpdate': None, 'networkChain': 'User', 'modlVer': 1, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'valid_until': None, 'userId': None, 'isVerified': False, 'super_invalid': False, 'Block_obj': None, 'signed': {}}
-        
+            return {'objType': 'UserVerification', 'is_modifiable': True, 'networkChain': 'User', 'id': None, 'created': None, 'lastUpdate': None, 'modlVer': 1, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'valid_until': None, 'userId': None, 'isVerified': False, 'super_invalid': False, 'Block_obj': None, 'signed': {}}
+
     def get_hash_to_id(self, version=None):
         if not version:
             version = self.modlVer
@@ -700,8 +701,8 @@ class SuperSign(BaseAccountModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'SuperSign', 'id': None, 'created': None, 'lastUpdate': None, 'networkChain': 'Sonet', 'modlVer': 1, 'Block_obj': None, 'pointerId': None, 'User_obj': None, 'data': {}, 'signed': {}}
-        
+            return {'objType': 'SuperSign', 'networkChain': 'Sonet', 'id': None, 'created': None, 'lastUpdate': None, 'modlVer': 1, 'Block_obj': None, 'pointerId': None, 'User_obj': None, 'data': {}, 'signed': {}}
+
     def get_hash_to_id(self, version=None):
         if not version:
             version = self.modlVer
@@ -808,8 +809,8 @@ class Notification(models.Model):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Notification', 'modlVer': 1, 'id': None, 'networkChain': 'Region', 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'Chamber': '', 'Region_obj': None, 'Country_obj': None, 'DateTime': None, 'Title': '', 'Link': '', 'Content': None, 'targetUsers': {}, 'pointerId': None, 'validated': False, 'signed': {}}
-        
+            return {'objType': 'Notification', 'networkChain': 'Region', 'modlVer': 1, 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'Chamber': '', 'Region_obj': None, 'Country_obj': None, 'DateTime': None, 'Title': '', 'Link': '', 'Content': None, 'targetUsers': {}, 'pointerId': None, 'validated': False, 'signed': {}}
+
     def get_hash_to_id(self, version=None):
         if not version:
             version = self.modlVer
@@ -849,9 +850,9 @@ class Notification(models.Model):
 
 
 
-class UserAction(models.Model):
+class Play(models.Model):
     id = BinaryBase62Field(max_byte_length=30, primary_key=True, default=None)
-    networkChain = models.CharField(max_length=25, default='User')
+    networkChain = BinaryBase62Field(max_byte_length=30, null=True, blank=True)
     latestVer = 1
     modlVer = models.IntegerField(default=latestVer)
     created = models.DateTimeField(auto_now=False, auto_now_add=False, blank=True, null=True)
@@ -880,7 +881,7 @@ class UserAction(models.Model):
     iden_length = 20
 
     def __str__(self):
-        return f'UserAction: user:{self.User_obj}, pointerId:{self.pointerId}'
+        return f'Play: usr:{self.User_obj}, pointer:{self.pointerId}'
 
     class Meta:
         ordering = ["-lastUpdate"]
@@ -895,13 +896,13 @@ class UserAction(models.Model):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'UserAction', 'id': None, 'networkChain': 'User', 'modlVer': 1, 'created': None, 'lastUpdate': None, 'User_obj': None, 'Post_obj': None, 'postId': None, 'pointerId': None, 'pointerHash': '', 'addonId': None, 'addonKey': None, 'addonHash': '', 'updateId': None, 'updateHash': '', 'voteValue': '', 'saved': None, 'follow': None, 'data': {}, 'rmv': None, 'iden_length': 20, 'signed': {}}
-        
+            return {'objType': 'Play', 'networkChain': None, 'id': None, 'modlVer': 1, 'created': None, 'lastUpdate': None, 'User_obj': None, 'Post_obj': None, 'postId': None, 'pointerId': None, 'pointerHash': '', 'addonId': None, 'addonKey': None, 'addonHash': '', 'updateId': None, 'updateHash': '', 'voteValue': '', 'saved': None, 'follow': None, 'data': {}, 'rmv': None, 'iden_length': 20, 'signed': {}}
+            
     def get_hash_to_id(self):
         return ['objType','User_obj.id','pointerId','created']
     
     def new_version(self):
-        self.id = hash_obj_id('UserAction')
+        self.id = hash_obj_id('Play')
         return self
 
     def calculate_vote(self, vote, forceVote):
@@ -957,7 +958,7 @@ class UserAction(models.Model):
 
     def save(self, share=False, *args, **kwargs):
         # check valid?
-        super(UserAction, self).save(*args, **kwargs)
+        super(Play, self).save(*args, **kwargs)
     
     def delete(self):
         if not is_locked(self):

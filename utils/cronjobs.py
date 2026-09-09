@@ -4,7 +4,7 @@ import django_rq
 import datetime
 
 from network.models import script_created_modifiable_models
-from utils.models import prnt, now_utc
+from utils.utils import prnt, now_utc
 
 
 runTimes = {

@@ -7,7 +7,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 import django_rq
 import datetime
-from accounts.models import Notification, UserAction, User
+from accounts.models import Notification, Play, User
 from posts.forms import AgendaForm
 from posts.models import Region, Post
 from posts.utils import get_client_ip
@@ -15,12 +15,19 @@ from network.models import Node, Sonet
 from utils.locked import hash_obj_id, convert_to_dict, get_signing_data
 
 from utils.models import (
-    prnt, prntDebug, prntn, assess_received_header, get_dynamic_model, 
-    set_model_attrs, share_with_network, now_utc, get_or_create_model, 
+    assess_received_header,
+    set_model_attrs, share_with_network,
+    list_all_scrapers, super_share,
+    sync_model, super_sync, register_new_user, 
+    register_node_on_cloudflare
+)
+from utils.utils import (
+    prnt, prntDebug, prntn, get_dynamic_model, 
+    now_utc, get_or_create_model, 
     create_dynamic_model, string_to_dt, has_field, has_method, get_timeData, 
-    timezonify, list_all_scrapers, super_share, get_superuser_keys, 
-    get_pointer_type, sync_model, get_self_node, super_sync, register_new_user, 
-    register_node_on_cloudflare, get_node, dt_to_string
+    timezonify, get_superuser_keys, 
+    get_pointer_type, get_self_node,
+    get_node, dt_to_string
 )
 from firebase_admin.messaging import Notification as fireNotification
 from firebase_admin.messaging import Message as fireMessage
@@ -65,7 +72,7 @@ def set_object_data_view(request):
             except:
                 pass
             do_super_share = received_data.get('super_share',True)
-            from utils.models import get_sigData
+            from utils.utils import get_sigData
             if isinstance(objData_json, list) and all(get_pointer_type(x['id']) in ['UserPubKey','Node','Wallet'] for x in objData_json):
                 x = 'x3'
                 share_items = []
@@ -151,7 +158,7 @@ def set_object_data_view(request):
                                 if good:
                                     return JsonResponse({'message' : 'Success', 'obj' : get_signing_data(objs[0])})
                             else:
-                                from utils.models import get_latest_dataPacket, find_or_create_chain_from_object
+                                from utils.utils import get_latest_dataPacket, find_or_create_chain_from_object
                                 dataPacket = get_latest_dataPacket(obj.networkChain)
                                 dataPacket.add_item_to_share(obj)
                                 network_chain, obj, commit_chain = find_or_create_chain_from_object(obj)
@@ -243,7 +250,7 @@ def get_object_data_view(request, obj_type='Region'):
                         return JsonResponse({'message' : 'Success', 'signing_obj' : get_signing_data(obj, sort_data=False), 'model_obj':json.dumps(convert_to_dict(obj)), 'upk_signing_obj' : get_signing_data(node_upk_obj, sort_data=False), 'wallet_signing_obj' : get_signing_data(wallet_obj, sort_data=False)})
             return JsonResponse({'message' : 'Success', 'signing_obj' : get_signing_data(obj, sort_data=False), 'model_obj':json.dumps(convert_to_dict(obj))})
         else:
-            from utils.models import is_id
+            from utils.utils import is_id
             if obj_type == 'Earth':
                 err = 5
                 earthModel = Region(created=now_utc(), func='super', nameType='Planet', Name='Earth', ImgLinks={"flag":"img/earth_pic.jpg"})
@@ -373,7 +380,7 @@ def fetch_cloudflare_bundle_view(request, node_id):
             else:
                 node = Node(id=nodeData['id'], User_obj_id=nodeData['User_obj']).only('User_obj')
                 prnt('node',node)
-                from utils.models import get_sigData
+                from utils.utils import get_sigData
                 sig_data = get_sigData(nodeData, first_key=False)
                 for key in node.User_obj.get_keys(dt=nodeData['lastUpdate']):
                     if key.publicKey == sig_data['pk']:
@@ -535,7 +542,7 @@ def post_insight_view(request, iden):
 def post_more_options_view(request, iden):
     prnt('-post_more_options_view',iden)
     post = Post.objects.filter(id=iden).first()
-    useraction = UserAction.objects.filter(User_obj=request.user, Post_obj=post).first()
+    useraction = Play.objects.filter(User_obj=request.user, Post_obj=post).first()
     context = {
         'title': 'More Options',
         'post': post,
@@ -716,7 +723,7 @@ def scrapers_view(request, region, test):
         prnt('-scrapers_view',region,test)
         all_files = list_all_scrapers()
         def get_models():
-            from utils.models import get_app_name
+            from utils.utils import get_app_name
             m = []
             return reversed(m)
         scripts = {}
@@ -802,8 +809,8 @@ def workers_status_view(request):
     from rq.worker import Worker
 
     workers = {
-        'main':{'current':{},'queued':0},
         'high':{'current':{},'queued':0},
+        'main':{'current':{},'queued':0},
         'low':{'current':{},'queued':0},
         'chat':{'current':{},'queued':0},
         'super':{'current':{},'queued':0}
@@ -863,7 +870,7 @@ def tidy_up_view(request):
 
 def initial_setup_view(request):
     if request.user.is_superuser:
-        from utils.models import testing, debugging
+        from utils.utils import testing, debugging
         if testing() or debugging():
             earth = Region.objects.filter(nameType='Planet', Name='Earth').first()
             if not earth:
@@ -902,7 +909,7 @@ def initial_setup_view(request):
 
 def validate_test_data_view(request):
     if request.user.is_superuser:
-        from utils.models import testing, debugging
+        from utils.utils import testing, debugging
         prnt('-validate_test_data_view')
         if testing() or debugging():
             models = ['Region',
@@ -994,7 +1001,7 @@ def resume_processes_view(request):
 
 def invalidate_test_blocks_view(request):
     if request.user.assess_super_status():
-        from utils.models import testing, debugging
+        from utils.utils import testing, debugging
         if testing() or debugging():
             prnt('-invalidate_test_blocks_view')
             from network.models import Block
@@ -1012,7 +1019,7 @@ def invalidate_test_blocks_view(request):
 def make_not_valid_view(request, iden):
     prntDebug('-make_not_valid_view',iden)
     if request.user.assess_super_status():
-        from utils.models import testing, debugging
+        from utils.utils import testing, debugging
         if testing() or debugging():
             from network.models import Block
             block = Block.objects.filter(id=iden).first()
@@ -1028,7 +1035,7 @@ def make_not_valid_view(request, iden):
 def make_valid_unknown_view(request, iden):
     prntDebug('-make_valid_unknown_view')
     if request.user.assess_super_status():
-        from utils.models import testing, debugging
+        from utils.utils import testing, debugging
         if testing() or debugging():
             from network.models import Block
             block = Block.objects.filter(id=iden).first()
@@ -1077,7 +1084,7 @@ def remove_false_blocks_view(request):
         
 def create_test_blocks_view(request):
     if request.user.assess_super_status():
-        from utils.models import testing, debugging, baseline_time
+        from utils.utils import testing, debugging, baseline_time
         if testing() or debugging():
             from network.models import _OperationsChain_genesisId, Block, Blockchain
             nodechain = Blockchain.objects.filter(genesisId=_OperationsChain_genesisId).first()
@@ -1096,7 +1103,7 @@ def create_test_blocks_view(request):
 
 def create_test_block_view(request, name):
     if request.user.assess_super_status():
-        from utils.models import testing, debugging
+        from utils.utils import testing, debugging
         if testing() or debugging():
             from network.models import Blockchain
             chain = Blockchain.objects.filter(id=name).first()
@@ -1113,7 +1120,7 @@ def check_validation_consensus_view(request, iden):
         is_valid = 'unknown'
         from network.models import Block
         from utils.locked import check_validation_consensus
-        from utils.models import testing, debugging
+        from utils.utils import testing, debugging
         block = Block.objects.filter(id=iden).first()
         if block: 
             if testing():
@@ -1151,10 +1158,10 @@ def get_assignment_view(request, iden):
         return render(request, "utils/dummy.html", {"result": str(obj)})
     
 def get_model_fields_view(request):
-    if request.user and request.user.assess_super_status():
-        from utils.models import get_model_fields
-        get_model_fields()
-        return render(request, "utils/dummy.html", {"result": 'done'})
+    # if request.user and request.user.assess_super_status():
+    from utils.utils import get_model_fields
+    get_model_fields()
+    return render(request, "utils/dummy.html", {"result": 'done'})
 
 def supersign_view(request, iden):
     if request.user.assess_super_status():
@@ -1201,7 +1208,7 @@ def supersign_view(request, iden):
 
 def remove_target_test_data_confirm_view(request, region, model):
     if request.user.assess_super_status():
-        from utils.models import testing, debugging
+        from utils.utils import testing, debugging
         if testing() or debugging():
             try:
                 from network.models import Block
@@ -1223,7 +1230,7 @@ def remove_target_test_data_confirm_view(request, region, model):
     
 def remove_target_test_data_view(request, region, model):
     if request.user.assess_super_status() and False:
-        from utils.models import testing, debugging
+        from utils.utils import testing, debugging
         if testing() or debugging():
             prnt('get model:', model, region)
             try:
@@ -1261,7 +1268,7 @@ def remove_target_test_data_view(request, region, model):
 
 def clear_test_data_view(request):
     if request.user.assess_super_status():
-        from utils.models import testing, debugging, get_model
+        from utils.utils import testing, debugging, get_model
         if testing() or debugging():
             from django.apps import apps
             models = [
@@ -1322,15 +1329,15 @@ def tester_queue(obj=None):
     import requests
     # queue = django_rq.get_queue('low')
 
-    from network.models import Blockchain, Block, DataPacket, NodeRecord, _EarthChain_genesisId
+    from network.models import Blockchain, Block, DataPacket, Tidy, _EarthChain_genesisId
     from utils.locked import get_signing_data,verify_data, sign_obj, convert_to_dict, validate_obj
-    from utils.models import request_items, get_latest_dataPacket, super_share, find_or_create_chain_from_object
-    from transactions.models import Transaction
+    from utils.utils import request_items, get_latest_dataPacket
+    from transactions.models import Tx
     from accounts.models import UserPubKey, User
     from posts.models import Post, Update, Spren, ImageFile
     from legis.models import  BillText, Government, Party, Motion, Bill
     from posts.models import Region
-    from utils.models import get_dynamic_model, get_model_prefix, get_self_node, round_time, sigData_to_hash
+    # from utils.models import get_dynamic_model, get_model_prefix, get_self_node, round_time, sigData_to_hash
     # # operatorData = get_operatorData()
     self_node = get_self_node()
     self_node_id = self_node.id
@@ -1341,22 +1348,22 @@ def tester_queue(obj=None):
 
     def block_run(input_block):
         result = {}
-        if not input_block.Transaction_obj.SenderWallet_obj: # reward transactions
-            prnt('input_block.Transaction_obj',input_block.Transaction_obj)
+        if not input_block.Tx_obj.SenderWallet_obj: # reward transactions
+            prnt('input_block.Tx_obj',input_block.Tx_obj)
             carry_on = False
-            if 'BlockReward' in input_block.Transaction_obj.regarding and input_block.Transaction_obj.regarding['BlockReward'] == input_block.id:
+            if 'BlockReward' in input_block.Tx_obj.re and input_block.Tx_obj.re['BlockReward'] == input_block.id:
                 # return_receiverTransaction = False
                 carry_on = True
                 if not opBlock_data:
-                    opBlock_data = get_relevant_nodes(obj=input_block, blockchain=get_chain_id(input_block.Transaction_obj.networkChain), plugin_id=get_plugin(input_block.networkChain, id=True))
+                    opBlock_data = get_relevant_nodes(obj=input_block, blockchain=get_chain_id(input_block.Tx_obj.networkChain), plugin_id=get_plugin(input_block.networkChain, id=True))
                 creator_nodes, validator_nodes = get_node_assignment(input_block, full_validator_list=True, opBlock_data=opBlock_data)
                 result['s1'] = {'creator_nodes':creator_nodes,'validator_nodes':validator_nodes}
-            elif input_block.Transaction_obj.ReceiverWallet_obj and input_block.Transaction_obj.ReceiverWallet_obj.id == input_block.Blockchain_obj.genesisId:
+            elif input_block.Tx_obj.ReceiverWallet_obj and input_block.Tx_obj.ReceiverWallet_obj.id == input_block.Blockchain_obj.genesisId:
                 # return_receiverTransaction = True
                 carry_on = True
                 # if not opBlock_data:
                 #     opBlock_data = get_relevant_nodes(dt=dt, genesisId=plugin_id, sublist='maintainer', strings_only=True, include_relays=False)
-                creator_nodes, validator_nodes = get_node_assignment(input_block, chainId=input_block.Transaction_obj.receiverNetworkChain, full_validator_list=True, opBlock_data=opBlock_data)
+                creator_nodes, validator_nodes = get_node_assignment(input_block, chainId=input_block.Tx_obj.receiverNetworkChain, full_validator_list=True, opBlock_data=opBlock_data)
                 result['s2'] = {'creator_nodes':creator_nodes,'validator_nodes':validator_nodes}
             if carry_on:
                 # creator_nodes, validator_nodes = get_node_assignment(self, return_receiverTransaction=return_receiverTransaction, full_validator_list=True, opBlock_data=opBlock_data)
@@ -1371,18 +1378,18 @@ def tester_queue(obj=None):
             # peer to peer transactions - will need work
             if not opBlock_data:
                 opBlock_data = get_relevant_nodes(obj=input_block, genesisId=input_block.Blockchain_obj.genesisId)
-            if input_block.Transaction_obj.ReceiverWallet_obj == input_block.Blockchain_obj:
+            if input_block.Tx_obj.ReceiverWallet_obj == input_block.Blockchain_obj:
                 # transaction_type = 'sender'
-                creator_nodes, validator_nodes = get_node_assignment(input_block, chainId=input_block.Transaction_obj.receiverNetworkChain, full_validator_list=True, opBlock_data=opBlock_data)
+                creator_nodes, validator_nodes = get_node_assignment(input_block, chainId=input_block.Tx_obj.receiverNetworkChain, full_validator_list=True, opBlock_data=opBlock_data)
                 result['s3'] = {'creator_nodes':creator_nodes,'validator_nodes':validator_nodes}
                 if fetch_broadcast_list:
-                    broadcast_list = get_broadcast_list(input_block.Transaction_obj, relevant_nodes=opBlock_data['relevant_nodes'], peer_count=_number_of_peers, seed_nodes=creator_nodes, important_nodes=validator_nodes, loop=loop)
+                    broadcast_list = get_broadcast_list(input_block.Tx_obj, relevant_nodes=opBlock_data['relevant_nodes'], peer_count=_number_of_peers, seed_nodes=creator_nodes, important_nodes=validator_nodes, loop=loop)
                 # return creator_nodes, validator_nodes, broadcast_list
-            elif input_block.Transaction_obj.SenderWallet_obj == input_block.Blockchain_obj:
+            elif input_block.Tx_obj.SenderWallet_obj == input_block.Blockchain_obj:
                 # transaction_type = 'receiver'
-                creator_nodes, validator_nodes = get_node_assignment(input_block.Transaction_obj, full_validator_list=True, opBlock_data=opBlock_data)
+                creator_nodes, validator_nodes = get_node_assignment(input_block.Tx_obj, full_validator_list=True, opBlock_data=opBlock_data)
                 if fetch_broadcast_list:
-                    broadcast_list = get_broadcast_list(input_block.Transaction_obj, relevant_nodes=opBlock_data['relevant_nodes'], peer_count=_number_of_peers, seed_nodes=creator_nodes, important_nodes=validator_nodes, loop=loop)
+                    broadcast_list = get_broadcast_list(input_block.Tx_obj, relevant_nodes=opBlock_data['relevant_nodes'], peer_count=_number_of_peers, seed_nodes=creator_nodes, important_nodes=validator_nodes, loop=loop)
                 # return creator_nodes, validator_nodes, broadcast_list
                 result['s4'] = {'creator_nodes':creator_nodes,'validator_nodes':validator_nodes}
 
@@ -1390,7 +1397,7 @@ def tester_queue(obj=None):
 
 
 
-        self = input_block.Transaction_obj
+        self = input_block.Tx_obj
         prnt('create receiverBlock tx')
         prnt('no ReceiverBlock 1')
         now = round_time(now_utc(), amount='10mins')
@@ -1415,12 +1422,12 @@ def tester_queue(obj=None):
 
 
         block = input_block
-        if block.Transaction_obj:
+        if block.Tx_obj:
             if transaction_type == 'sender':
-                creator_nodes, validator_nodes = get_node_assignment(block.Transaction_obj, opBlock_data=opBlock_data)
+                creator_nodes, validator_nodes = get_node_assignment(block.Tx_obj, opBlock_data=opBlock_data)
                 result['s7'] = {'creator_nodes':creator_nodes,'validator_nodes':validator_nodes}
             elif transaction_type == 'receiver':
-                creator_nodes, validator_nodes = get_node_assignment(block, chainId=block.Transaction_obj.receiverNetworkChain, opBlock_data=opBlock_data)
+                creator_nodes, validator_nodes = get_node_assignment(block, chainId=block.Tx_obj.receiverNetworkChain, opBlock_data=opBlock_data)
                 result['s8'] = {'creator_nodes':creator_nodes,'validator_nodes':validator_nodes}
             # else:
             #     creator_nodes, validator_nodes = get_node_assignment(block, opBlock_data=opBlock_data)
@@ -1506,16 +1513,10 @@ def tester_queue(obj=None):
     #     prnt('A')
     # else:
     #     prnt('B')
-    b = '2bilSofaCZb9WrEiTcXQSkT0W'
-    t = '2btxtSo2lo1xErFupyxgf2qorK'
-    # i = get_dynamic_model(t, id=t)
-    # prnt('i',i)
-    r = Region.objects.filter(Name='Canada').first()
+    
 
-    for i in BillText.objects.filter(Validator_obj__is_valid=True, Region_obj=r):
-        prnt('x')
-        i = i.on_confirmation()
 
+    Tidy().random_block_check(iden='blcSo25bFKSnL2tEPMzCgEVS')
 
     
     prnt('done tester_queue')
@@ -1533,36 +1534,17 @@ def tester_queue_view(request):
             prnt('HELLLOO!!')
             import django_rq
             queue = django_rq.get_queue('low')
-            # queue.enqueue(tester_queue, job_timeout=1200)
+            queue.enqueue(tester_queue, job_timeout=1200)
             # queue.enqueue(tester_queue, job_timeout=3600)
-            from network.models import Blockchain, reward_models, _OperationsChain_genesisId
+            from network.models import Tidy, Validator, _OperationsChain_genesisId
             # from posts.models import Region
-            from transactions.models import Wallet,Transaction
+            from transactions.models import Wallet,Tx
             # from utils.locked import check_commit_data
-            from utils.models import get_data
+            from utils.utils import get_data
             from utils.utils import get_plugin
             self_node = get_self_node()
 
-            # iden = 'blcSocbcXIwOgPOjXK4PhZX3'
-            # b = Block.objects.filter(id=iden).first()
-            # prnt('b',b)
-            # get_node_assignment()
-            # t = Transaction.objects.filter(id='1traSo2JwQl0UcjiUjNfC4Sj03gM').first()
-            # super(Transaction, t).delete()
-            # c = Blockchain.objects.filter(id='chnSooFpPwz4jIOOvrGljnee').first()
-            # super(Blockchain, c).delete()
-            w = Wallet.objects.filter(id='1walSomun8c2BnloWBKQNNTZa').first()
-            super(Wallet, w).delete()
-            # :----get_node_assignment obj:,TX:1traSo2JwQl0UcjiUjNfC4Sj03gM_re:{'GenesisId': '2govSogivlgJQwMYxxaTLgUHA', 'BlockReward': 'blcSoef2zNOWSitKb7LuKcUi'},to:WALLET:USER:Sozed-Rewards-nodSo3Zpgzzsx4WhmCL/11900.369700101204000-tokens.True,dt,2026-09-01 02:40:00+00:00,func,None,strings:,False,chainId,usrSooJxz0vP0tRH7mIIgaVv,opBlock_data,{},return_receiverTransaction,False
-            # ~:p1
-            # ~:p3
-            # ~:p4
-            # ~:--get_relevant_nodes - strings_only:,True,genesisId,plgSo7lWixyinnqjYOhuepby,plugin_id,None,blockchain,None,chains,None,obj,None,dt,2026-09-01 02:40:00+00:00,include_relays,False,exclude_list,None,first_block_override,False
-            # ~:dt,2026-09-01 02:40:00+00:00
-            # ~:get opBlock,Nodes,2026-09-01 02:40:00+00:00
-            # ~:op2
-            # ~:genesisId,plgSo7lWixyinnqjYOhuepby,sublist,maintainer
-            # ~:record,NODERECORD: nrecSojEIuO4gzeOFGa3mIZZN
+
 
 
                 

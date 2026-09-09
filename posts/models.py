@@ -7,14 +7,14 @@ from django.db.models import Q
 from urllib.parse import urljoin
 
 from utils.models import (
-    BinaryBase62Field, prnt, prntDebug, get_dynamic_model, has_method, is_obj_commit_valid, 
-    now_utc, has_field, string_to_dt, initial_save, save_mutable_fields, 
-    find_or_create_chain_from_object, baseline_time, safe_dt,
-    get_operator_obj, is_locked, superDelete, get_pointer_type, get_timeData
+    BinaryBase62Field
     )
 from utils.locked import sign_obj, hash_obj_id
 from utils.utils import (
-    get_plugin
+    get_plugin, prnt, prntDebug, get_dynamic_model, has_method, is_obj_commit_valid, 
+    now_utc, has_field, string_to_dt, initial_save, save_mutable_fields, 
+    find_or_create_chain_from_object, baseline_time, safe_dt,
+    get_operator_obj, is_locked, superDelete, get_pointer_type, get_timeData
 )
 from network.models import _EarthChain_genesisId
 
@@ -73,7 +73,8 @@ class ModifiableModel(BaseModel):
         if self.Validator_obj and self.Validator_obj.is_valid:
             if self.id != None and not self.proposed_modification:
                 mod = get_dynamic_model(self._meta.object_name, proposed_modification=self.id)
-                from utils.models import super_sync, create_dynamic_model, save_sigs
+                from utils.models import super_sync
+                from utils.utils import create_dynamic_model, save_sigs
                 if not mod:
                     mod = create_dynamic_model(self._meta.object_name)
                 from utils.locked import convert_to_dict
@@ -543,7 +544,7 @@ class Region(BaseModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Region', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'networkChain': 'Region', 'commitChain': 'ParentRegion', 'modlVer': 2, 'ParentRegion_obj': None, 'nameType': 'Country', 'Name': '', 'AbbrName': None, 'FullName': None, 'ImgLinks': None, 'timezone': 'US/Eastern', 'Wiki': None, 'is_supported': False, 'lastUpdate': None, 'data': None, 'signed': {}}
+            return {'objType': 'Region', 'networkChain': 'Region', 'commitChain': 'reg$oshCP31gSfl6p3mLw8dZ', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'modlVer': 2, 'ParentRegion_obj': None, 'nameType': 'Country', 'Name': '', 'AbbrName': None, 'FullName': None, 'ImgLinks': None, 'timezone': 'US/Eastern', 'Wiki': None, 'is_supported': False, 'lastUpdate': None, 'data': None, 'signed': {}}
             
     def get_hash_to_id(self, version=None):
         if not version:
@@ -739,8 +740,8 @@ class Spren(BaseModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Spren', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'modlVer': 1, 'networkChain': '', 'Region_obj': None, 'DateTime': None, 'pointerId': None, 'pointerKey': None, 're': '', 'type': '', 'pointerType': '', 'data': None, 'extra': None, 'signed': {}}
-        
+            return {'objType': 'Spren', 'networkChain': '', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'modlVer': 1, 'Region_obj': None, 'DateTime': None, 'pointerId': None, 'pointerKey': None, 're': '', 'type': '', 'pointerType': '', 'data': None, 'extra': None, 'signed': {}}
+
     def get_hash_to_id(self, version=None):
         if not version:
             version = self.modlVer
@@ -779,7 +780,8 @@ class Spren(BaseModel):
                         self.pointerKey = ContentType.objects.get_for_model(pointer)
                         self.save()
                 if not pointer:
-                    from utils.models import request_items, logMissing
+                    from utils.models import request_items
+                    from utils.utils import logMissing
                     fetch_result = request_items(requested_items=[self.pointerId], nodes=[self.CreatorNode_obj.id], return_updated_objs=True, downstream_worker=False)
                     prnt('fetch_result',fetch_result)
                     if fetch_result:
@@ -902,7 +904,7 @@ class GenericModel(BaseModel):
             self = initial_save(self)
         elif not is_locked(self):
             self.distinction = str(self.distinction)[:50]
-            from utils.models import compensate_save
+            from utils.utils import compensate_save
             compensate_save(self, GenericModel, *args, **kwargs)
 
     def delete(self, force_delete=False):
@@ -1040,8 +1042,8 @@ class Update(BaseModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Update', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'modlVer': 1, 'networkChain': '', 'validated': False, 'Region_obj': None, 'DateTime': None, 'pointerId': None, 'pointerKey': None, 'prevVersion': '', 'data': {}, 'extra': None, 'signed': {}}
-        
+            return {'objType': 'Update', 'networkChain': '', 'id': None, 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': None, 'Validator_obj': None, 'Block_obj': None, 'modlVer': 1, 'validated': False, 'Region_obj': None, 'DateTime': None, 'pointerId': None, 'pointerKey': None, 'prevVersion': '', 'data': {}, 'extra': None, 'signed': {}}
+
     def get_hash_to_id(self, version=None):
         if not version:
             version = self.modlVer
@@ -1183,7 +1185,8 @@ class Update(BaseModel):
                         self.pointerKey = ContentType.objects.get_for_model(pointer)
                         self.save()
                 if not pointer:
-                    from utils.models import request_items, logMissing
+                    from utils.models import request_items
+                    from utils.utils import logMissing
                     fetch_result = request_items(requested_items=[self.pointerId], nodes=[self.CreatorNode_obj.id], return_updated_objs=True, downstream_worker=False)
                     prnt('fetch_result',fetch_result)
                     if fetch_result:
@@ -1273,7 +1276,7 @@ class Update(BaseModel):
         if self.validated:
             from datetime import timezone
             from network.models import EventLog, Blockchain
-            from utils.models import get_self_node, round_time, get_latest_dataPacket
+            from utils.utils import get_self_node, round_time, get_latest_dataPacket
             self_node = get_self_node()
             now = now_utc()
             start_of_month = round_time(dt=now, dir='down', amount='month')
@@ -1425,8 +1428,7 @@ class Post(models.Model):
         pointer_valid = False
         from network.models import Validator
         from utils.locked import verify_obj_to_data, get_node_assignment
-        from utils.models import sigData_to_hash
-        from utils.utils import get_plugin
+        from utils.utils import get_plugin, sigData_to_hash
         pointer = self.get_pointer()
         if use_assigned_val:
             v = pointer.Validator_obj

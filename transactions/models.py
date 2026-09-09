@@ -3,14 +3,15 @@ from django.db import models
 from django.db.models import Q
 
 from network.models import Blockchain, Block
-from utils.models import BinaryBase62Field, prnt, is_locked, now_utc, string_to_dt, get_latest_dataPacket
+from utils.utils import prnt, is_locked, now_utc, string_to_dt, get_latest_dataPacket
+from utils.models import BinaryBase62Field
 from utils.locked import hash_obj_id
 import re
 import datetime
 import django_rq
 from decimal import Decimal
 
-model_prefixes = {'Wallet':'wal','Transaction':'tra'}
+model_prefixes = {'Wallet':'wal','Tx':'tx'}
 
 class Wallet(models.Model):
     networkChain = models.CharField(max_length=50, default="User", blank=True)
@@ -25,7 +26,7 @@ class Wallet(models.Model):
     User_obj = models.ForeignKey('accounts.User', blank=True, null=True, on_delete=models.CASCADE)
     Block_obj = models.ForeignKey('network.Block', blank=True, null=True, on_delete=models.PROTECT) # User_obj chain
     Name = models.CharField(max_length=50, default="Main", blank=True, null=True)
-    value = models.TextField(default="0") # modifiable_field
+    contents = models.TextField(default="0") # modifiable_field
     signed = models.JSONField(default=dict)
     
     def __str__(self):
@@ -44,7 +45,7 @@ class Wallet(models.Model):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Wallet', 'networkChain': 'User', 'commitChain': 'Plugin', 'id': None, 'modlVer': 1, 'created': None, 'lastUpdate': None, 'User_obj': None, 'Block_obj': None, 'Name': 'Main', 'value': '0', 'signed': {}}
+            return {'objType': 'Wallet', 'networkChain': 'User', 'commitChain': 'Plugin', 'id': None, 'modlVer': 1, 'created': None, 'lastUpdate': None, 'User_obj': None, 'Block_obj': None, 'Name': 'Main', 'contents': '0', 'signed': {}}
         
     def commit_data(self, version=None):
         if not version:
@@ -62,39 +63,39 @@ class Wallet(models.Model):
             prnt('latest_block',latest_block)
             if latest_block and 'wallet_total' in latest_block.notes:
                 latest_dt = string_to_dt(latest_block.notes['wallet_total']['dt'])
-                latest_value = float(latest_block.notes['wallet_total']['value'])
-                latest_transactions = Transaction.objects.filter(Q(ReceiverWallet_obj=self)|Q(SenderWallet_obj=self), validated=True, enacted=True, enact_dt__gt=latest_dt).order_by('enact_dt')
+                latest_value = float(latest_block.notes['wallet_total']['contents'])
+                latest_transactions = Tx.objects.filter(Q(ReceiverWallet_obj=self)|Q(SenderWallet_obj=self), validated=True, enacted=True, enact_dt__gt=latest_dt).order_by('enact_dt')
                 for transaction in latest_transactions:
                     if exclude and transaction == exclude:
                         pass
                     elif transaction.ReceiverWallet_obj == self:
-                        latest_value += Decimal(str(transaction.token_value))
+                        latest_value += Decimal(str(transaction.tokens))
                     elif transaction.SenderWallet_obj == self:
-                        latest_value -= Decimal(str(transaction.token_value))
-                if self.value != str(latest_value):
-                    self.value = str(latest_value)
-                    self.save(update_fields=['value'])
+                        latest_value -= Decimal(str(transaction.tokens))
+                if self.contents != str(latest_value):
+                    self.contents = str(latest_value)
+                    self.save(update_fields=['contents'])
                 prnt('latest_value',latest_value)
                 return str(latest_value)
                 
         target_value = 0
         utrIdens = []
         
-        utrs = Transaction.objects.filter(Q(ReceiverWallet_obj=self)|Q(SenderWallet_obj=self), validated=True, enacted=True, enact_dt__lte=now_utc()).order_by('-enact_dt')
+        utrs = Tx.objects.filter(Q(ReceiverWallet_obj=self)|Q(SenderWallet_obj=self), validated=True, enacted=True, enact_dt__lte=now_utc()).order_by('-enact_dt')
         for utr in utrs:
             if exclude and utr == exclude:
                 pass
             elif utr.ReceiverWallet_obj == self and utr.ReceiverBlock_obj and utr.ReceiverBlock_obj.validated:
                 # prnt('a')
-                target_value = Decimal(str(target_value)) + Decimal(str(utr.token_value))
+                target_value = Decimal(str(target_value)) + Decimal(str(utr.tokens))
             elif utr.SenderWallet_obj == self and utr.SenderBlock_obj and utr.SenderBlock_obj.validated:
                 # prnt('b')
-                target_value = Decimal(str(target_value)) - Decimal(str(utr.token_value))
+                target_value = Decimal(str(target_value)) - Decimal(str(utr.tokens))
         
         prnt('target_value',target_value)
-        self.value = str(target_value)
+        self.contents = str(target_value)
         self.save()
-        return self.value
+        return self.contents
 
     def boot(self, blockchain=None, datapacket=None):
         prnt('-boot wallet',self)
@@ -121,7 +122,7 @@ class Wallet(models.Model):
                 self.boot()
         else:
             update_fields = kwargs.get('update_fields', None)
-            if update_fields and 'value' in update_fields and len(update_fields) == 1:
+            if update_fields and 'contents' in update_fields and len(update_fields) == 1:
                 update_fields.append('updated_on_node')
                 kwargs['update_fields'] = update_fields
                 self.updated_on_node = now_utc()
@@ -137,32 +138,31 @@ class Wallet(models.Model):
         if string_to_dt(self.created) >= now_utc()-datetime.timedelta(seconds=60):
             super(Wallet, self).delete()
 
-class Transaction(models.Model):
-    networkChain = models.CharField(max_length=50, default="Wallet", blank=True)
+class Tx(models.Model):
+    networkChain = BinaryBase62Field(max_byte_length=30, null=True, blank=True)
     latestVer = 1
     modlVer = models.IntegerField(default=latestVer)
     id = BinaryBase62Field(max_byte_length=30, primary_key=True, default=None)
     created = models.DateTimeField(auto_now=False, auto_now_add=False, blank=True, null=True)
     updated_on_node = models.DateTimeField(auto_now=True, auto_now_add=False, blank=True, null=True)
     added_to_node = models.DateTimeField(auto_now=False, auto_now_add=True, blank=True, null=True)
+    validated = models.BooleanField(default=None, blank=True, null=True)
     validations = models.JSONField(default=dict, blank=True, null=True)
-    # senderChainGenId = BinaryBase62Field(max_byte_length=30, null=True, blank=True)
     senderBlockId = BinaryBase62Field(max_byte_length=30, null=True, blank=True)
-    receiverNetworkChain = BinaryBase62Field(max_byte_length=30, null=True, blank=True)
+    rcvrNetworkChain = BinaryBase62Field(max_byte_length=30, null=True, blank=True)
     SenderBlock_obj = models.ForeignKey('network.Block', related_name='receiver_block', blank=True, null=True, on_delete=models.PROTECT)
     ReceiverBlock_obj = models.ForeignKey('network.Block', related_name='sender_block', blank=True, null=True, on_delete=models.PROTECT)
     ReceiverWallet_obj = models.ForeignKey('transactions.Wallet', related_name='receiver', blank=True, null=True, on_delete=models.PROTECT)
     SenderWallet_obj = models.ForeignKey('transactions.Wallet', related_name='sender', blank=True, null=True, on_delete=models.PROTECT)
-    token_value = models.DecimalField(default=0, max_digits=30, decimal_places=15)
-    regarding = models.JSONField(default=None, blank=True, null=True)
-    validated = models.BooleanField(default=None, blank=True, null=True)
+    tokens = models.DecimalField(default=0, max_digits=30, decimal_places=15)
+    re = models.JSONField(default=None, blank=True, null=True)
     enact_dt = models.DateTimeField(auto_now=False, auto_now_add=False, blank=True, null=True)
     enacted = models.BooleanField(default=None, blank=True, null=True)
     signed = models.JSONField(default=dict)
     iden_length = 20
 
     def __str__(self):
-        return f'TX:{self.id}_re:{self.regarding},to:{self.ReceiverWallet_obj}/{self.token_value}-tokens.{self.validated}'
+        return f'TX:{self.id}_re:{self.re},to:{self.ReceiverWallet_obj}/{self.tokens}-tokens.{self.validated}'
 
     class Meta:
         ordering = ['-created', 'id']
@@ -171,13 +171,13 @@ class Transaction(models.Model):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Transaction', 'networkChain': 'Wallet', 'modlVer': 1, 'id': None, 'created': None, 'validations': {}, 'receiverNetworkChain': None, 'senderBlockId': None, 'SenderBlock_obj': None, 'ReceiverBlock_obj': None, 'ReceiverWallet_obj': None, 'SenderWallet_obj': None, 'token_value': 0, 'regarding': None, 'validated': None, 'enact_dt': None, 'enacted': None, 'iden_length': 20, 'signed': {}}
-        
+            return {'objType': 'Tx', 'networkChain': None, 'modlVer': 1, 'id': None, 'created': None, 'validated': None, 'validations': {}, 'senderBlockId': None, 'rcvrNetworkChain': None, 'SenderBlock_obj': None, 'ReceiverBlock_obj': None, 'ReceiverWallet_obj': None, 'SenderWallet_obj': None, 'tokens': 0, 're': None, 'enact_dt': None, 'enacted': None, 'iden_length': 20, 'signed': {}}
+            
     def commit_data(self, version=None):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return ['hash','token_value','ReceiverWallet_obj','SenderWallet_obj','enact_dt','senderBlockId']
+            return ['hash','tokens','ReceiverWallet_obj','SenderWallet_obj','enact_dt','senderBlockId']
 
     # def sender_is_valid(self):
     #     sender_block = Block.objects.filter(id=self.senderId).defer('data','extraData').first()
@@ -225,24 +225,24 @@ class Transaction(models.Model):
         return False
     
     def get_reward_block(self):
-        if 'BlockReward' in self.regarding:
+        if 'BlockReward' in self.re:
             from network.models import Block
-            rewardBlockId = self.regarding['BlockReward']
+            rewardBlockId = self.re['BlockReward']
             return Block.objects.filter(id=rewardBlockId).first()
         return None
 
-    def calculate(self, value=None, wallet_total=None, dir='receive', return_float=False, exclude_from_tally=None):
-        if not value:
-            value = self.token_value
+    def calculate(self, contents=None, wallet_total=None, dir='receive', return_float=False, exclude_from_tally=None):
+        if not contents:
+            contents = self.tokens
         if dir == 'receive' or dir == 'add':
             wallet_total = self.ReceiverWallet_obj.tally_tokens(exclude=exclude_from_tally)
         elif self.SenderWallet_obj:
             if dir == 'send' or dir == 'subtract' or dir == 'sub':
                 wallet_total = self.SenderWallet_obj.tally_tokens(exclude=exclude_from_tally)
         if dir == 'receive':
-            result = Decimal(str(wallet_total)) + Decimal(str(value))
+            result = Decimal(str(wallet_total)) + Decimal(str(contents))
         elif dir == 'send':
-            result = Decimal(str(wallet_total)) - Decimal(str(value))
+            result = Decimal(str(wallet_total)) - Decimal(str(contents))
         if return_float:
             return result
         else:
@@ -269,13 +269,13 @@ class Transaction(models.Model):
             return False
         if self.SenderWallet_obj:
             sender_wallet = self.SenderWallet_obj
-            sender_wallet.value = self.calculate(value=self.token_value, dir='send', exclude_from_tally=self)
-            sender_wallet.save(update_fields=['value'])
+            sender_wallet.contents = self.calculate(contents=self.tokens, dir='send', exclude_from_tally=self)
+            sender_wallet.save(update_fields=['contents'])
         receiver_wallet = self.ReceiverWallet_obj
-        receiver_wallet.value = self.calculate(value=self.token_value, dir='receive', exclude_from_tally=self)
-        receiver_wallet.save(update_fields=['value'])
+        receiver_wallet.contents = self.calculate(contents=self.tokens, dir='receive', exclude_from_tally=self)
+        receiver_wallet.save(update_fields=['contents'])
         self.enacted = True
-        super(Transaction, self).save()
+        super(Tx, self).save()
         return True
         
     def tally_tokens(self):
@@ -288,10 +288,11 @@ class Transaction(models.Model):
     def send_for_block_creation(self, id=None, downstream_worker=True, do_not_save=False):
         prnt('-send_for_block_creation',self.id,downstream_worker)
         from utils.locked import get_node_assignment, check_validation_consensus
-        from utils.models import get_self_node, round_time, e_brake
+        from utils.utils import get_self_node, round_time
+        from utils.models import e_brake
         if e_brake(1):
             return
-        # if not self.receiverNetworkChain:
+        # if not self.rcvrNetworkChain:
         #     self.validated = False
         #     self.save()
         #     return None
@@ -333,7 +334,7 @@ class Transaction(models.Model):
             prnt('done send_for_block_creation4')
             return self.ReceiverBlock_obj
         else:
-            receiverBlock = Block.objects.filter(Transaction_obj=self, Blockchain_obj__genesisId=self.ReceiverWallet_obj.id).exclude(id=self.senderBlockId).exclude(validated=False).order_by('created').first()
+            receiverBlock = Block.objects.filter(Tx_obj=self, Blockchain_obj__genesisId=self.ReceiverWallet_obj.id).exclude(id=self.senderBlockId).exclude(validated=False).order_by('created').first()
             if receiverBlock:
                 if not do_not_save:
                     self.ReceiverBlock_obj = receiverBlock
@@ -347,7 +348,7 @@ class Transaction(models.Model):
                     return
             prnt('no ReceiverBlock 1')
             now = round_time(now_utc(), amount='10mins')
-            creator_nodeId_list, validator_list = get_node_assignment(self, dt=now, chainId=self.receiverNetworkChain)
+            creator_nodeId_list, validator_list = get_node_assignment(self, dt=now, chainId=self.rcvrNetworkChain)
             prnt('creator_nodeId_list, validator_list',creator_nodeId_list, validator_list,'self_node.id',self_node.id)
             receiverChain = self.ReceiverWallet_obj.get_chain()
 
@@ -377,7 +378,7 @@ class Transaction(models.Model):
             #     self_node_id = get_operator_obj("self_nodeId")
             #     if self_node_id in selected_nodes:
             #         now = round_time(now_utc(), amount='10mins')
-            #         creator_nodeId_list, validator_list = get_node_assignment(self, dt=now, chainId=self.receiverNetworkChain)
+            #         creator_nodeId_list, validator_list = get_node_assignment(self, dt=now, chainId=self.rcvrNetworkChain)
             #         from network.models import DataPacket, Node
             #         dp = DataPacket()
             #         dp.data[self.id] = dt_to_string(get_timeData(self))
@@ -399,7 +400,7 @@ class Transaction(models.Model):
                 from utils.locked import verify_obj_to_data, get_node_assignment, dt_to_string
                 if verify_obj_to_data(self, self):
                     self.validated = True
-                    super(Transaction, self).save()
+                    super(Tx, self).save()
 
 
                 from utils.utils import round_time, get_timeData, get_operator_obj, get_plugin
@@ -410,7 +411,7 @@ class Transaction(models.Model):
                 self_node_id = get_operator_obj("self_nodeId")
                 if self_node_id in selected_nodes:
                     now = round_time(now_utc(), amount='10mins')
-                    creator_nodeId_list, validator_list = get_node_assignment(self, dt=now, chainId=self.receiverNetworkChain)
+                    creator_nodeId_list, validator_list = get_node_assignment(self, dt=now, chainId=self.rcvrNetworkChain)
                     from network.models import DataPacket, Node
                     dp = DataPacket()
                     dp.data[self.id] = dt_to_string(get_timeData(self))
@@ -445,7 +446,7 @@ class Transaction(models.Model):
             self.ReceiverBlock_obj.is_not_valid(note=note, mark_strike=False)
             self.ReceiverBlock_obj = None
         self.validated = False
-        super(Transaction, self).save()
+        super(Tx, self).save()
 
         if self.ReceiverWallet_obj:
             receiverChain = self.ReceiverWallet_obj.get_chain()
@@ -459,7 +460,7 @@ class Transaction(models.Model):
                 senderChain.save()
             if self.enacted:
                 self.enacted = False
-                super(Transaction, self).save()
+                super(Tx, self).save()
                 self.tally_tokens()
 
     def initialize(self):
@@ -472,8 +473,8 @@ class Transaction(models.Model):
             self.id = hash_obj_id(self)
         if self.networkChain == 'Wallet' and self.SenderWallet_obj:
             self.networkChain = self.SenderWallet_obj.networkChain
-        if not self.receiverNetworkChain:
-            self.receiverNetworkChain = self.ReceiverWallet_obj.networkChain
+        if not self.rcvrNetworkChain:
+            self.rcvrNetworkChain = self.ReceiverWallet_obj.networkChain
         return self
 
     def boot(self):
@@ -484,36 +485,36 @@ class Transaction(models.Model):
         def contains_invalid_characters(s):
             return bool(re.search(r'[^0-9.]', s))
         if not self.SenderWallet_obj:
-            if not self.regarding or 'BlockReward' not in self.regarding:
+            if not self.re or 'BlockReward' not in self.re:
                 prnt('do not save transaction1')
                 return None
-        # if contains_invalid_characters(self.token_value):
+        # if contains_invalid_characters(self.tokens):
         #     prnt('do not save transaction2')
         #     return None
 
         # create block obj
-        self.token_value = Decimal(str(self.token_value)).normalize()
-        if self.id is None and not self.regarding or self.id is None and 'BlockReward' in self.regarding and self.regarding['BlockReward'] == 'coming' and Decimal(str(self.token_value)) == 0:
+        self.tokens = Decimal(str(self.tokens)).normalize()
+        if self.id is None and not self.re or self.id is None and 'BlockReward' in self.re and self.re['BlockReward'] == 'coming' and Decimal(str(self.tokens)) == 0:
             self.initialize()
-            super(Transaction, self).save(*args, **kwargs)
+            super(Tx, self).save(*args, **kwargs)
             prnt('transaction saved1')
             return
         
         else:
             update_fields = kwargs.get('update_fields', None)
             if update_fields and len(update_fields) == 1:
-                if all(i for i in update_fields if i in ['validated','validations','ReceiverBlock_obj','SenderBlock_obj']):
+                if all(i for i in update_fields if i in ['validated','validations','ReceiverBlock_obj','SenderBlock_obj', 'enacted']):
                     update_fields.append('updated_on_node')
                     kwargs['update_fields'] = update_fields
                     self.updated_on_node = now_utc()
                     prnt('transaction saved3')
-                    super(Transaction, self).save(*args, **kwargs)
+                    super(Tx, self).save(*args, **kwargs)
                     return
             elif not is_locked(self):
                 from utils.locked import verify_data, get_signing_data
                 if verify_data(get_signing_data(self), self.signed, signature=sig):
                 
-                    super(Transaction, self).save(*args, **kwargs)
+                    super(Tx, self).save(*args, **kwargs)
                     prnt('transaction saved2')
                     return
 
@@ -526,7 +527,7 @@ class Transaction(models.Model):
             self.SenderBlock_obj = None
             self.ReceiverBlock_obj = None
             self.save(update_fields=['ReceiverBlock_obj','SenderBlock_obj'])
-            super(Transaction, self).delete()
+            super(Tx, self).delete()
             if sender_block and sender_block.id != skip_block:
                 if not is_locked(sender_block) or superDel:
                     super(Block, sender_block).delete()

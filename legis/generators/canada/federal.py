@@ -8,10 +8,13 @@ from legis.models import *
 from legis.utils import get_gov, get_region, modify_gov, add_gov_menu_item
 from posts.models import *
 from utils.models import (
-    timezonify, dt_to_string, open_browser, finishScript, create_share_object, 
-    logEvent, testing, declare_var, save_and_return,
+    open_browser, finishScript, create_share_object,
+    )
+from utils.utils import (
+    timezonify, logEvent, testing, declare_var, save_and_return,
     save_image
     )
+from utils.locked import dt_to_string
 
 import datetime
 from dateutil.parser import parse
@@ -905,7 +908,7 @@ def get_house_agendas(url='https://www.ourcommons.ca/en/parliamentary-business/'
         gov = get_gov(country, Country_obj=country, gov_level='Federal', gov_type='Parliament', GovernmentNumber=int(parl), SessionNumber=int(sess), Region_obj=country)
         prnt('gov',gov)
         if not gov.StartDate:
-            from utils.models import round_time
+            from utils.utils import round_time
             gov.StartDate = timezonify('est', round_time(dt=now_utc(), dir='down', amount='day'))
             gov.migrate_data()
             gov.LogoLinks = gov_logo_links
@@ -930,7 +933,7 @@ def get_house_agendas(url='https://www.ourcommons.ca/en/parliamentary-business/'
             gov = get_gov(country, Country_obj=country, gov_level='Federal', gov_type='Parliament', GovernmentNumber=int(parl), SessionNumber=int(sess), Region_obj=country)
             prnt('gov',gov)
             if not gov.StartDate:
-                from utils.models import round_time
+                from utils.utils import round_time
                 gov.StartDate = timezonify('est', round_time(dt=now_utc(), dir='down', amount='day'))
                 gov.migrate_data()
                 gov.LogoLinks = gov_logo_links
@@ -1153,8 +1156,8 @@ def get_bills(special=None, dt=None, iden=None, period='session', target_links=N
             else:
                 links = []
 
-        prntDebug('done get_bills')
-        return finishScript(log, gov, special)
+    prntDebug('done get_bills')
+    return finishScript(log, gov, special)
 
 def add_bill(b, func, special=None, country=None, iden=None, log=None):
     prnt(f'--add_bill Canada', func, now_utc())
@@ -1171,7 +1174,7 @@ def add_bill(b, func, special=None, country=None, iden=None, log=None):
     gov = get_gov(country, Country_obj=country, gov_level='Federal', gov_type='Parliament', GovernmentNumber=int(ParliamentNumber), SessionNumber=int(SessionNumber), Region_obj=country)
     prnt('gov',gov)
     if not gov.StartDate:
-        from utils.models import round_time
+        from utils.utils import round_time
         gov.StartDate = timezonify('est', round_time(dt=now_utc(), dir='down', amount='day'))
         gov.migrate_data()
         gov.LogoLinks = gov_logo_links
@@ -1196,7 +1199,7 @@ def add_bill(b, func, special=None, country=None, iden=None, log=None):
     url = 'https://www.parl.ca/LegisInfo/en/bill/%s-%s/%s' %(b.find('ParliamentNumber').text, b.find('SessionNumber').text, b.find('NumberCode').text)
     prnt('url',url)
     if bill_is_new:
-        from utils.models import round_time
+        from utils.utils import round_time
         bill.DateTime = round_time(dt=now_utc())
         bill.LegisLink = url
         bill.NumberPrefix = b.find('NumberPrefix').text
@@ -1710,7 +1713,7 @@ def get_house_hansard_or_committee(objType, value, country, log):
         gov = get_gov(country, Country_obj=country, gov_level='Federal', gov_type='Parliament', GovernmentNumber=Parliament, SessionNumber=Session, Region_obj=country)
         prnt('gov',gov)
         if not gov.StartDate:
-            from utils.models import round_time
+            from utils.utils import round_time
             gov.StartDate = timezonify('est', round_time(dt=now_utc(), dir='down', amount='day'))
             gov.migrate_data()
             gov.LogoLinks = gov_logo_links
@@ -2090,7 +2093,7 @@ def add_house_motion(motion, country, log):
     gov = get_gov(country, Country_obj=country, gov_level='Federal', gov_type='Parliament', GovernmentNumber=ParliamentNumber, SessionNumber=SessionNumber, Region_obj=country)
     prnt('gov',gov)
     if not gov.StartDate:
-        from utils.models import round_time
+        from utils.utils import round_time
         gov.StartDate = timezonify('est', round_time(dt=now_utc(), dir='down', amount='day'))
         gov.migrate_data()
         gov.LogoLinks = gov_logo_links

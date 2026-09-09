@@ -4,7 +4,8 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 
-from utils.models import CompressedJSONField, BinaryBase62Field, prntDebug, prnt, compensate_save, get_model_and_update, superDelete, now_utc, is_locked, initial_save
+from utils.models import CompressedJSONField, BinaryBase62Field
+from utils.utils import prntDebug, prnt, compensate_save, get_model_and_update, superDelete, now_utc, is_locked, initial_save
 from utils.locked import hash_obj_id
 from posts.models import create_keyphrases, find_post, Update, BaseModel, ModifiableModel, Post, new_post
 
@@ -19,7 +20,7 @@ model_prefixes = {'Government':'gov','Agenda':'agn','Bill':'bil','BillText':'btx
                 'Meeting':'mtg','Statement':'sta','Committee':'com','Action':'act',
                 'Motion':'mot','RepVote':'rvot','Election':'elc',
                 'Party':'prt','Person':'per','District':'dis',
-                'LegisUserAction':'lact','LegisUserSettings':'lset','UserRegisteredVote':'urvot'}
+                'LegisPlay':'lact','LegisUserSettings':'lset','UserRegisteredVote':'urvot'}
 
 from posts.models import BaseModel
 
@@ -36,7 +37,7 @@ class LegisModel(BaseModel):
         abstract = True
 
 
-class LegisUserAction(models.Model):
+class LegisPlay(models.Model):
     networkChain = models.CharField(max_length=50, default="Region", blank=True)
     latestVer = 1
     modlVer = models.IntegerField(default=latestVer)
@@ -57,8 +58,8 @@ class LegisUserAction(models.Model):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Government', 'is_modifiable': True, 'networkChain': 'Region', 'id': '0', 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': '', 'Validator_obj': None, 'blockchainId': '', 'Block_obj': None, 'lastUpdate': None, 'proposed_modification': None, 'modlVer': version, 'Region_obj': None, 'Country_obj': None, 'DateTime': None, 'LogoLinks': None, 'GovernmentNumber': None, 'SessionNumber': 1, 'gov_level': '', 'gov_type': '', 'menuItem_array': None, 'Chamber_array': None, 'Office_array': None, 'signed': {}}
-        
+            return {'objType': 'LegisPlay', 'networkChain': 'Region', 'modlVer': 1, 'id': None, 'created': None, 'Block_obj': None, 'pointerId': None, 'District_obj': None, 'Region_obj': None, 'User_obj': None, 'voteValue': '', 'lastUpdate': None, 'signed': {}}
+
     def required_fields(self, version=None):
         if not version:
             version = self.modlVer
@@ -85,8 +86,8 @@ class LegisUserSettings(models.Model):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Government', 'is_modifiable': True, 'networkChain': 'Region', 'id': '0', 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': '', 'Validator_obj': None, 'blockchainId': '', 'Block_obj': None, 'lastUpdate': None, 'proposed_modification': None, 'modlVer': version, 'Region_obj': None, 'Country_obj': None, 'DateTime': None, 'LogoLinks': None, 'GovernmentNumber': None, 'SessionNumber': 1, 'gov_level': '', 'gov_type': '', 'menuItem_array': None, 'Chamber_array': None, 'Office_array': None, 'signed': {}}
-        
+            return {'objType': 'LegisUserSettings', 'is_modifiable': True, 'networkChain': 'Plugin', 'modlVer': 1, 'id': None, 'created': None, 'data': {}, 'signed': {}}
+
 class UserRegisteredVote(models.Model):
     networkChain = models.CharField(max_length=50, default="Region", blank=True)
     latestVer = 1
@@ -102,14 +103,14 @@ class UserRegisteredVote(models.Model):
     District_obj = models.ForeignKey('legis.District', default=None, related_name='%(class)s_district_obj', blank=True, null=True, on_delete=models.PROTECT)
     Region_obj = models.ForeignKey('posts.Region', related_name='%(class)s_region_obj', blank=True, null=True, on_delete=models.PROTECT)
     lastUpdate = models.DateTimeField(auto_now=False, auto_now_add=False, blank=True, null=True)
-    delegate_history = models.JSONField(default=dict, blank=True, null=True)
+    # delegate_history = models.JSONField(default=dict, blank=True, null=True)
     signed = models.JSONField(default=dict)
     
     def get_version_fields(self, version=None):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Government', 'is_modifiable': True, 'networkChain': 'Region', 'id': '0', 'created': None, 'func': None, 'CreatorNode_obj': None, 'validatorNodeId': '', 'Validator_obj': None, 'blockchainId': '', 'Block_obj': None, 'lastUpdate': None, 'proposed_modification': None, 'modlVer': version, 'Region_obj': None, 'Country_obj': None, 'DateTime': None, 'LogoLinks': None, 'GovernmentNumber': None, 'SessionNumber': 1, 'gov_level': '', 'gov_type': '', 'menuItem_array': None, 'Chamber_array': None, 'Office_array': None, 'signed': {}}
+            {'objType': 'UserRegisteredVote', 'is_modifiable': True, 'networkChain': 'Region', 'modlVer': 1, 'id': None, 'created': None, 'Block_obj': None, 'User_obj': None, 'Voter_obj': None, 'District_obj': None, 'Region_obj': None, 'lastUpdate': None, 'signed': {}}
             
     def required_fields(self, version=None):
         if not version:
@@ -210,7 +211,7 @@ class Government(ModifiableModel):
                 if previousGov.EndDate:
                     self.StartDate = previousGov.EndDate + datetime.timedelta(days=1)
                 else:
-                    from utils.models import round_time
+                    from utils.utils import round_time
                     self.StartDate = round_time(dt=now_utc(), dir='down', amount='day')
         currentGov = Government.objects.filter(Region_obj=self.Region_obj, gov_level=self.gov_level, Validator_obj__is_valid=True).exclude(id=self.id).first()
         if currentGov and currentGov.StartDate > self.StartDate:
@@ -500,14 +501,14 @@ class Bill(LegisModel):
         if int(version) >= 1:
             return ['hash','NumberCode','Title','DateTime','Region_obj']
 
-    def user_action_addon(self, user_id, version=None):
+    def user_play_addon(self, user_id, version=None):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            if not LegisUserAction.objects.filter(pointerId=self.id, User_obj__id=user_id, Block_obj=None).exists():
-                return LegisUserAction(id=hash_obj_id('LegisUserAction'), Region_obj=self.Region_obj, networkChain=self.networkChain, pointerId=self.id)
+            if not LegisPlay.objects.filter(pointerId=self.id, User_obj__id=user_id, Block_obj=None).exists():
+                return LegisPlay(id=hash_obj_id('LegisPlay'), Region_obj=self.Region_obj, networkChain=self.networkChain, pointerId=self.id)
             else:
-                return LegisUserAction.objects.filter(pointerId=self.id, User_obj__id=user_id, Block_obj=None).first()
+                return LegisPlay.objects.filter(pointerId=self.id, User_obj__id=user_id, Block_obj=None).first()
 
 
     def required_for_validation(self):
@@ -725,7 +726,7 @@ class Meeting(LegisModel):
                 else:
                     meeting_terms[s.SubjectOfBusiness] = 1
         if update_items:
-            from utils.models import dynamic_bulk_update
+            from utils.utils import dynamic_bulk_update
             dynamic_bulk_update(model_name='Statement', items_field_update=['order','update_on_node'], items=update_items, compensate_save=True, return_items=False, retrieve_missing=False)
 
         def sort_by_value_then_key(d):
@@ -1196,7 +1197,7 @@ class Action(BaseModel):
             self = initial_save(self)
         elif not is_locked(self):
             self.distinction = str(self.distinction)[:50]
-            from utils.models import compensate_save
+            from utils.utils import compensate_save
             compensate_save(self, Action, *args, **kwargs)
 
     def delete(self, force_delete=False):

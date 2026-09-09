@@ -5,10 +5,11 @@ from django.shortcuts import render
 
 from legis.models import Government, Agenda, Bill, Meeting
 from .models import Post,Update,Region
-from accounts.models import User, Notification,UserNotification,UserAction
+from accounts.models import User, Notification,UserNotification,Play
 from .forms import AgendaForm
-from utils.locked import get_signing_data
-from utils.models import prnt, now_utc, get_operator_obj, is_id, dt_to_string, skipwords
+from utils.locked import get_signing_data, dt_to_string
+from utils.models import skipwords
+from utils.utils import prnt, now_utc, get_operator_obj, is_id
 
 
 from django.db.models import Q
@@ -310,12 +311,12 @@ def get_cookies(request, received_cxt, country=None, gov=None):
     else:
         nodeData['sonetInitializedDatetime'] = dt_to_string(sonet['created'])
     nodeData['Domain'] = sonet['Domain']
-    latest_opBlock = Block.objects.filter(networkChain='Nodes', validated=True).values('id','DateTime','opData').order_by('-index').first()
+    latest_opBlock = Block.objects.filter(networkChain='Nodes', validated=True).values('id','DateTime','epochData').order_by('-index').first()
     if latest_opBlock:
         prnt('latest_opBlock',latest_opBlock['id'])
         nodeData['blockId'] = latest_opBlock['id']
         nodeData['blockDatetime'] = dt_to_string(latest_opBlock['DateTime'])
-        nodeData['max_pos'] = latest_opBlock['opData']['max_pos']
+        nodeData['max_pos'] = latest_opBlock['epochData']['max_pos']
         nodeRecord = NodeRecord.objects.filter(pointerId='Nodes', Block_obj_id=latest_opBlock['id'], is_valid=True).values('data').first()
         if nodeRecord:
             nodeData['id_data'] = nodeRecord['data']
@@ -828,7 +829,7 @@ def fetch_updated_objs(setlist, requestList):
 
 def get_useractions(user, setlist):
     # prnt('-get_useractions')
-    from accounts.models import UserAction
+    from accounts.models import Play
     try:
         user = user.GET.get('user', None)
     except:
@@ -838,9 +839,9 @@ def get_useractions(user, setlist):
         actions = {}
         id_list = [p.id for p in setlist if p]
         if is_id(user):
-            action_list = UserAction.objects.filter(User_obj__id=user, postId__in=id_list).order_by('postId').distinct('postId')
+            action_list = Play.objects.filter(User_obj__id=user, postId__in=id_list).order_by('postId').distinct('postId')
         else:
-            action_list = UserAction.objects.filter(User_obj=user, postId__in=id_list).order_by('postId').distinct('postId')
+            action_list = Play.objects.filter(User_obj=user, postId__in=id_list).order_by('postId').distinct('postId')
         actions = {r.postId:r for r in action_list}
         return actions
     else:
@@ -952,7 +953,7 @@ def get_party(list):
 
 def get_matches(user, person, govs):
     prnt('-get_matches')
-    actions = UserAction.objects.filter(User_obj=user, Post_obj__pointerType='Bill').filter(Post_obj__Bill_obj__Government_obj__in=govs).order_by('-Post_obj__DateTime')
+    actions = Play.objects.filter(User_obj=user, Post_obj__pointerType='Bill').filter(Post_obj__Bill_obj__Government_obj__in=govs).order_by('-Post_obj__DateTime')
     votes = {}
     my_votes = {}
     return_votes = []

@@ -4,11 +4,14 @@ from accounts.models import User, UserPubKey
 from legis.models import Government
 from posts.models import Region
 from network.models import _OperationsChain_genesisId, DataPacket, EventLog, Sonet
-from utils.models import (prnt, prntDebug, testing, get_self_node, assess_received_header, get_operator_obj,
-    get_dynamic_model, set_model_attrs, share_with_network, now_utc, get_or_create_model, has_field,
-    string_to_dt, get_model, dt_to_string, exists_in_worker, get_timeData, process_received_data
+from network.utils import process_received_data
+from utils.models import (assess_received_header, set_model_attrs, share_with_network,
     )
-from utils.locked import convert_to_dict, get_signing_data
+from utils.utils import (prnt, prntDebug, testing, get_self_node, get_operator_obj,
+    get_dynamic_model, now_utc, get_or_create_model, has_field,
+    string_to_dt, get_model, exists_in_worker, get_timeData
+    )
+from utils.locked import convert_to_dict, get_signing_data, dt_to_string
 import datetime
 import json
 import django_rq
@@ -72,11 +75,11 @@ def get_current_node_list_view(request, pointer=None):
 
         from utils.locked import get_relevant_nodes
         from utils.utils import is_id
-        from network.models import NodeRecord, _EarthChain_genesisId
+        from network.models import Leger, _EarthChain_genesisId
         if not pointer or not is_id(pointer):
             pointer = _EarthChain_genesisId
         dt = now_utc()
-        record = NodeRecord.objects.filter(pointerId=pointer, DateTime__lte=dt, is_valid=True).first()
+        record = Leger.objects.filter(pointerId=pointer, DateTime__lte=dt, is_valid=True).first()
         node_data = get_relevant_nodes(include_relays=True, strings_only=True)
         # addresses = {}
         # for key, value in node_data['relevant_nodes'].items():
@@ -148,7 +151,7 @@ def declare_node_state_view(request):
                     is_self = False
                 
                 from utils.locked import verify_data
-                from utils.models import save_sigs, has_profanity
+                from utils.utils import save_sigs, has_profanity
                 from network.models import _OperationsChain_genesisId
                 self_node = get_self_node()
                 if is_self:
@@ -306,7 +309,7 @@ def broadcast_dataPackets_view(request):
                     requested_cmds = json.loads(received_data.get('request'))
                     if string_to_dt(requested_cmds['dt']) >= now_utc() - datetime.timedelta(hours=2):
                         self_node = get_self_node()
-                        from utils.models import get_sigData
+                        from utils.utils import get_sigData
                         sig_data = get_sigData(requested_cmds)
                         if self_node.User_obj.verify_sig(requested_cmds, sig_data['sig'], sig_data['pk'], keyType='node'):
                             dataPackets = DataPacket.objects.filter(Node_obj=self_node, func='share').exclude(networkChain='chnSoaS7wdvCeJrlED0bpfYY') # op chain datapacket
@@ -637,7 +640,7 @@ def request_data_view(request):
                     to_send_items = []
                     sending_idens = []
                     compressed_data = []
-                    from utils.models import is_id, to_megabytes, logEvent, compress_data, get_model_prefix, seperate_by_type, sigData_to_hash
+                    from utils.utils import is_id, to_megabytes, logEvent, compress_data, get_model_prefix, seperate_by_type, sigData_to_hash
                     from utils.locked import check_commit_data, verify_obj_to_data
                     if obj_type == 'Blockchain':
                         genesisId = requested_data.get('genesisId',None)
@@ -795,7 +798,7 @@ def request_data_view(request):
                                 for block in blocks[:item_count]:
                                     if block.index > index:
                                         index = block.index
-                                    opBlock = Block.objects.filter(id=block.opBlockId).values('hash').first()
+                                    opBlock = Block.objects.filter(id=block.epochId).values('hash').first()
                                     future_block_count = Block.objects.filter(networkChain=block.networkChain, index__gt=block.index, validated=True).count() 
                                     data = {
                                         'block_dict' : convert_to_dict(block, exclude=['notes','validations']),
@@ -803,7 +806,7 @@ def request_data_view(request):
                                         'validations' : block.get_validators(),
                                         'block_data' : [],
                                         'future_block_count':future_block_count,
-                                        'opBlock':block.opBlockId,
+                                        'opBlock':block.epochId,
                                         'opBlock_hash':opBlock['hash'] if opBlock else None
                                     }
                                     block_list.append(data)
@@ -821,19 +824,19 @@ def request_data_view(request):
                         except Exception as e:
                             prnt('request data fail 7531',str(e))
                             return JsonResponse({'message' : 'Not Found', 'type':obj_type, 'blockchainId' : blockchainId, 'index' : index, 'error' : str(e)})
-                    elif obj_type == 'Transaction':
+                    elif obj_type == 'Tx':
                         iden = requested_data['iden']
                         block_type = requested_data['block_type']
-                        from transactions.models import Transaction
-                        tx = Transaction.objects.filter(id=iden).first()
+                        from transactions.models import Tx
+                        tx = Tx.objects.filter(id=iden).first()
                         if not tx:
                             return JsonResponse({'message' : 'Not Found', 'tx' : None})
                         if block_type == 'receiver':
-                            blocks = Block.objects.filter(Transaction_obj=tx).exclude(id=tx.senderBlockId)
+                            blocks = Block.objects.filter(Tx_obj=tx).exclude(id=tx.senderBlockId).exclude(validated=False)
                         elif block_type == 'sender':
-                            blocks = Block.objects.filter(id=tx.senderBlockId)
+                            blocks = Block.objects.filter(id=tx.senderBlockId).exclude(validated=False)
                         else:
-                            blocks = Block.objects.filter(Transaction_obj=tx)
+                            blocks = Block.objects.filter(Tx_obj=tx).exclude(validated=False)
                         if not blocks:
                             return JsonResponse({'message' : 'Not Found', 'tx' : tx.id})
                         prntDebug('blocks',blocks)
@@ -842,7 +845,7 @@ def request_data_view(request):
                         for block in blocks:
                             if block.index > index:
                                 index = block.index
-                            opBlock = Block.objects.filter(id=block.opBlockId).values('hash').first()
+                            opBlock = Block.objects.filter(id=block.epochId).values('hash').first()
                             future_block_count = Block.objects.filter(networkChain=block.networkChain, index__gt=block.index, validated=True).count() 
                             data = {
                                 'block_dict' : convert_to_dict(block),
@@ -850,7 +853,7 @@ def request_data_view(request):
                                 'validations' : block.get_validators(),
                                 'block_data' : [],
                                 'future_block_count':future_block_count,
-                                'opBlock':block.opBlockId,
+                                'opBlock':block.epochId,
                                 'opBlock_hash':opBlock['hash'] if opBlock else None
                             }
                             block_list.append(data)

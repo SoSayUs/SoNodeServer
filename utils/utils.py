@@ -23,7 +23,6 @@ from pathlib import Path
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from cryptography.fernet import Fernet
 
-from utils.models import testing, debugging, connect_to_node, get_operator_obj, get_operatorData, request_items, find_or_create_chain_from_object, logError, logEvent, sync_model
 from utils.locked import dt_to_string, load_key
 
 current_version = 0.1
@@ -64,6 +63,243 @@ def prntDebugn(*args):
     if debugging() or testing():
         msg = '#' + ','.join(str(i) for i in args)
         logger.info(f'\n~:{msg}')
+
+
+_self_nodeId = None
+_self_address = None
+_self_local_address = None
+_node_keys = None
+_user_id = None
+
+def get_operator_obj(obj, operatorData=None):
+    # prnt('-get_operator_obj', obj)
+    result = None
+    if obj == 'keyPair':
+        global _node_keys
+        if not _node_keys:
+            _node_keys = fetch_secure_item('node_keys')
+            if _node_keys and 'keyId' not in _node_keys:
+                from accounts.models import UserPubKey
+                upk = UserPubKey.objects.filter(id=hash_upk_id(_node_keys['pubKey'])).first()
+                if upk:
+                    _node_keys['keyId'] = upk.id
+            prnt('stored node_keys',_node_keys)
+        if not _node_keys:
+            raise ValueError(f"missing _node_keys:{_node_keys}")
+        return _node_keys
+    elif obj == 'userId':
+        global _user_id
+        if not _user_id:
+            operatorData = get_operatorData(operatorData)
+            _user_id = operatorData['user_id']
+        return _user_id
+    elif obj in ['local_nodeId', 'self_nodeId']:
+        global _self_nodeId
+        if not _self_nodeId:
+            operatorData = get_operatorData(operatorData)
+            if 'local_nodeId' in operatorData:
+                _self_nodeId = operatorData['local_nodeId']
+            elif is_test_env():
+                from network.models import Node
+                _self_nodeId = Node.objects.first().id
+        return _self_nodeId
+    elif obj == 'address':
+        global _self_address
+        if not _self_address:
+            _self_address = fetch_secure_item('address')
+        return _self_address
+    elif obj == 'local_address':
+        global _self_local_address
+        if not _self_local_address:
+            operatorData = get_operatorData(operatorData)
+            _self_local_address = operatorData['myNodes'][operatorData['local_nodeId']]['settings']['localhost']
+        return _self_local_address
+    return result
+
+def get_operatorData(val=None, return_test=True):
+    # prnt('-get_operatorData')
+    if val:
+        return val
+    result = fetch_secure_item('operatorData')
+    return result if result else {}
+
+def write_operatorData(data):
+    try:
+        current_data = get_operatorData()
+        data = {**current_data, **data}
+    except:
+        pass
+    store_secure_item("operatorData", data)
+
+
+def encrypt(text):
+    if not text:
+        return text
+    try:
+        key = load_key()
+        
+        cipher_suite = Fernet(key)
+        cipher_text = cipher_suite.encrypt(text.encode())
+        return cipher_text
+    except:
+        return text
+
+def decrypt(text):
+    # prnt('-decrypt', text)
+    if not text:
+        return text
+    try:
+        key = load_key()
+        cipher_suite = Fernet(key)
+        decrypted_text = cipher_suite.decrypt(text).decode()
+        return decrypted_text
+    except Exception as e:
+        prnt('decrypt err',str(e))
+        return text
+
+
+def fetch_secure_item(val_name):
+    # prnt('-fetch_secure_item',val_name)
+    try:
+        with open(homepath + f"/Sonet/.data/operator_data/{val_name}.enc", 'rb') as file:
+            encrypted_data = file.read()
+            data_string = decrypt(encrypted_data)
+    except Exception as e:
+        prnt('fetch_secure_item err 1, carry_on',str(e))
+        try:
+            server_path = Path(homepath + '/Sonet/.data')
+            server_path.mkdir(parents=True, exist_ok=True)
+            data_string = json.dumps({}, indent=4)
+            encrypted_data = encrypt(data_string)
+            with open(homepath + f"/Sonet/.data/operator_data/{val_name}.enc", 'wb') as file:
+                file.write(encrypted_data)
+            import stat
+            key_file = os.path.expanduser(f"~/Sonet/.data/operator_data/{val_name}.enc")
+            os.chmod(key_file, stat.S_IRUSR | stat.S_IWUSR)  # 600: Owner read & write
+            with open(homepath + f"/Sonet/.data/operator_data/{val_name}.enc", 'rb') as file:
+                encrypted_data = file.read()
+                data_string = decrypt(encrypted_data)
+        except Exception as e:
+            prnt('fetch item fail 2',str(e))
+            return None
+    try:
+        return json.loads(data_string)
+    except:
+        return data_string
+
+def store_secure_item(val_name, data):
+    prnt('-store_secure_item',val_name,data)
+    data_string = json.dumps(data, indent=4)
+    encrypted_data = encrypt(data_string)
+    with open(homepath + f"/Sonet/.data/operator_data/{val_name}.enc", 'wb') as file:
+        file.write(encrypted_data)
+
+
+def compress_data(data):
+    # prnt('-compressing...')
+    return data # not compressing right now
+    if isinstance(data, str):
+        # prnt('opt1')
+        data = data.encode('utf-8')  # Only encode if it's a string
+    elif isinstance(data, dict) or isinstance(data, list):
+        # prnt('opt2')
+        data = json.dumps(data).encode('utf-8')
+
+    compressed_data = gzip.compress(data)
+    return base64.b64encode(compressed_data).decode('utf-8')
+    # return compressed_data
+
+def decompress_data(base64_data):
+    # prnt('-decompressing...')
+    try:
+        compressed_data = base64.b64decode(base64_data)
+        decompressed_bytes = gzip.decompress(compressed_data)
+        json_data = decompressed_bytes.decode('utf-8')
+        data = json.loads(json_data)
+        return data
+    except Exception as e:
+        prntDebug('decompress_data error',str(e))
+        try:
+            return json.loads(base64_data)
+        except:
+            return base64_data
+
+def is_debug():
+    debugging = False
+    try:
+        operatorData = get_operatorData()
+        if operatorData['myNodes'][operatorData['local_nodeId']]['meta']['debug'] == True:
+            return True
+        else:
+            prnt('whats up debug:',operatorData['myNodes'][operatorData['local_nodeId']]['meta']['debug'])
+            prnt('wdb2', operatorData['start_local_install'])
+    except Exception as e:
+        prnt('is_debug err1',str(e))
+    try:
+        if 'start_local_install' in operatorData and operatorData['start_local_install'] == True:
+            return True
+    except Exception as e:
+        prnt('is_debug err2',str(e))
+    return debugging    
+
+def is_test_env():
+    # prntn('---is_test_env')
+
+    operatorData = get_operatorData(return_test=False)
+    try:
+        if 'isTesting' in operatorData and operatorData['myNodes'][operatorData['local_nodeId']]['settings']['isTesting']:
+            return True
+    except:
+        pass
+    import os
+    current_dir = os.getcwd()
+    
+    while True:
+        sfolder_path = os.path.join(current_dir, 'sonet')
+        if os.path.isdir(sfolder_path):
+            file_path = os.path.join(sfolder_path, 'settings/local.py')
+            return os.path.isfile(file_path)
+        
+        parent_dir = os.path.dirname(current_dir)
+        
+        if current_dir == parent_dir:
+            break
+        
+        current_dir = parent_dir
+    
+    return False
+
+def timezonify(tz, dt):
+    if tz.lower() in ['est', 'newyork', 'washington', 'dc']:
+        tz = 'America/New_York'
+    elif tz.lower() in ['toronto', 'ottawa']:
+        tz = 'America/Toronto'
+    else:
+        tz = 'UTC'
+    if isinstance(dt, str):
+        from dateutil.parser import parse
+        dt = parse(dt)
+    if dt.tzinfo is None:
+        local_dt = dt.replace(tzinfo=ZoneInfo(tz))
+    else:
+        local_dt = dt.astimezone(ZoneInfo(tz))
+    return local_dt
+
+_testing = None
+_debugging = None
+
+def testing():
+    global _testing
+    if _testing is None:
+        _testing = is_test_env()
+    return _testing
+
+def debugging():
+    global _debugging
+    if _debugging is None:
+        _debugging = is_debug()
+    return _debugging
+
 
 def string_to_dt(dt_str):
     if isinstance(dt_str, datetime.datetime):
@@ -171,6 +407,7 @@ def string_to_64_char_hash(s): #unused?
 def process_received_dp(data, msg='unspecified', skip_log_check=False, override_completed=False):
     prnt('-process_received_dp')
     from network.models import DataPacket
+    from utils.models import connect_to_node
     def reassemble_chunks(received_data):
         upload_id = received_data.get("upload_id")
         headers = received_data.get("headers", {}) 
@@ -437,6 +674,7 @@ def get_user(node=None, user_id=None, node_id=None, public_key=None, obj=None, t
     prnt('-get user, id:',user_id, 'public_key:', public_key,'node',node, 'node_id',node_id,'obj',obj,'target',target)
     from accounts.models import User, UserPubKey
     from network.models import Node
+    from utils.models import connect_to_node
     user = None
     operatorData = None
     if user_id:
@@ -533,6 +771,7 @@ def deactivate(node=None, update_data=None):
 
 def find_or_create_chain_from_json(genesisId=None, obj=None):
     from network.models import Node, Blockchain
+    from utils.models import request_items
     network_chain = None
     if genesisId:
         network_chain = Blockchain.objects.filter(genesisId=genesisId).first()
@@ -582,38 +821,34 @@ def sigData_to_hash(obj, exclude_fields=None):
     hashed = hashlib.sha256(text_bytes).hexdigest()
     return hashed
 
-def data_sort_priority(entry, version=None):
-    # prnt('-data_sort_priority',entry)
-    # sort received data in order for adding to database
-    # needs to be reworked to handle by plugin, not hardcoded like this
-    type_order = {'UserPubKey': 0, 'User': 1, 'Validator': 2, 'Node':3, 'NodeReview': 4, 'Sonet':4, 'Wallet':5, 'Transaction':6, 'Block':7, 'Region':8,
-                'District':9, 'Government':10, 'Person':11, 'Party':12, 
-                'Bill':13, 'Committee':14, 'Meeting':15, 'Statement':16, 'Motion':17, 'RepVote':18, 'Agenda':19, 'BillText':20, 'Update':21,'Spren':22,'Notification':23,'UserVote':24}
-    
-    def parse_datetime(value):
-        if isinstance(value, str) and value.lower() != 'none':
-            try:
-                return string_to_dt(value).timestamp()
-            except ValueError:
-                pass  # Invalid date format, will return inf
-        return float('inf')  # Fallback
+def save_sigs(sigs):
+    prnt('-save_sigs',sigs)
+    sig = None
+    pointerId = None
+    sig_idens = []
+    for sig in sigs:
+        if not pointerId:
+            pointerId = sig.pointerId
+        if not sig.id:
+            sig.save()
+        sig_idens.append(sig.id)
+    prnt('sig_idens',sig_idens)
+    if sig:
+        obj = sig.Pointer_obj
+        prnt('obj id',obj.id)
+        from network.models import Signature
+        from utils.locked import verify_obj_to_data, verify_data, get_signing_data
+        for s in Signature.objects.filter(pointerId=pointerId).exclude(id__in=sig_idens):
+            remove = True
+            for k, v in obj.signed.items():
+                if remove == False and 'pk' in v and v['pk'] == s.Upk_obj.id:
+                    if verify_data(get_signing_data(obj), s.Upk_obj.publicKey, signature=s.sig, key_type=None, skip_sort=False):
+                        remove = False
+            # if not verify_obj_to_data(obj, obj):
+            if remove:
+                prnt('delete sig:',s)
+                s.delete()
 
-    if isinstance(entry, dict):
-        type_priority = type_order.get(entry.get('objType', ''), float('inf'))
-        datetime_keys = ['created', 'lastUpdate']
-        datetime_priority = next(
-            (parse_datetime(entry[key]) for key in datetime_keys if key in entry and entry[key] not in (None, 'None')),
-            float('inf')
-        )
-                
-    elif is_id(entry):
-        type_priority = type_order.get(get_pointer_type(entry), float('inf'))
-        datetime_priority = float('inf')
-    elif isinstance(entry, list):
-        result = sorted(entry, key=lambda x: type_order.get(get_app_name(model_name=x, am_i_model=True), float('inf')))
-        datetime_priority = float('inf')
-        return result
-    return (type_priority, datetime_priority)
 
 def exists_in_worker(func, queue=None, queue_name=['main','high','low'], currently_running_only=False, job_count=1, **args):
     prnt('-exists_in_worker',func,queue,queue_name,args)
@@ -831,9 +1066,9 @@ def get_pointer_type(iden):
         return iden['objType']
     elif isinstance(iden, str) and not is_id(iden) and get_app_name(model_name=iden, am_i_model=True) == iden:
         return iden
-    if not iden or 'So' not in iden:
+    if not iden or '$o' not in iden:
         return None
-    x = iden.find('So')
+    x = iden.find('$o')
     prefix = iden[:x]
     return get_app_name(prefix=prefix) 
 
@@ -847,7 +1082,7 @@ def get_chain_type(iden):
         iden = iden['id']
         if 'networkChain' in iden:
             return iden['networkChain']
-    if not iden or 'So' not in iden:
+    if not iden or '$o' not in iden:
         return None
     m = get_model(iden)()
     if has_field(m, 'networkChain'):
@@ -993,7 +1228,7 @@ def is_locked(obj, skip=[]):
         err = '1a'
         if has_field(obj, 'is_modifiable') and obj.is_modifiable and (not has_field(obj, 'proposed_modification') or not value_is_none(obj.proposed_modification)):
             err += 'b'
-            return False
+            value = False
         err = '3'
         if has_field(obj, 'Block_obj') and obj.Block_obj and obj.Block_obj.validated:
             err += 'e'
@@ -1069,11 +1304,11 @@ def parse_input(value):
 
 def is_id(obj):
     # prnt('-is_id')
-    # prefix = plugin num + 2 to 3 class chars followed by "So"
+    # prefix = plugin num + 2 to 5 class chars followed by "$o"
     max_length = 35 # character length - does not include prefix - ID_LENGTH of 25
     min_length = 13 # ID_LENGTH of 10
     
-    if isinstance(obj, str) and 'So' in obj[:10] and any(obj[i:i+2] == 'So' and obj[i+2:].isalnum() and min_length <= len(obj[i+2:]) <= max_length for i in range(10)):
+    if isinstance(obj, str) and '$o' in obj[1:10] and obj.replace('$o', '', 1).isalnum() and any(obj[i:i+2] == '$o' and min_length <= len(obj[i+2:]) <= max_length for i in range(2, 11)):
         return True
     return False
 
@@ -1115,9 +1350,10 @@ def resolve_target_keys(data, signature=None):
 def get_model_fields(obj=None):
     # prnt('-get_model_fields')
     # for use when updating model fields
-    model_list = get_app_name(return_model_list=True)
+    model_list = get_app_name(return_model_list=True, all_apps=True)
     for key in model_list:
         if key != 'apps':
+            prnt('key',key)
             model = get_model(key)
             obj = model() 
             objFields = {'objType':obj._meta.object_name} # latestVer not included
@@ -1153,12 +1389,12 @@ def get_model_fields(obj=None):
 
 def hash_upk_id(pubKey):
     from utils.locked import generate_id
-    return 'upkSo' + generate_id(pubKey, length=14)    
+    return 'upk$o' + generate_id(pubKey, length=14)    
 
 
 _appInfo = None
 
-def get_app_info(rerun=False):
+def get_app_info(rerun=False, all_apps=False):
     # prnt('-get_app_info')
     global _appInfo
     if _appInfo is None or rerun:
@@ -1187,7 +1423,7 @@ def get_app_info(rerun=False):
             plugin_prefixes = {}
             for app in settings.INSTALLED_APPS:
                 try:
-                    if app in supported_apps or app == 'transactions':
+                    if app in supported_apps or app == 'transactions' or all_apps:
                         models_module = importlib.import_module(f"{app}.models")
                         if hasattr(models_module, "model_prefixes"):
                             prefixes = getattr(models_module, "model_prefixes")
@@ -1216,9 +1452,9 @@ def get_app_info(rerun=False):
     return _appInfo
 
 
-def get_app_name(model_name=None, prefix=None, return_prefix=False, return_model_list=False, am_i_model=False):
+def get_app_name(model_name=None, prefix=None, return_prefix=False, return_model_list=False, am_i_model=False, all_apps=False):
     # prnt('-get_app_name',model_name,prefix,return_prefix)
-    models = get_app_info()
+    models = get_app_info(all_apps=all_apps)
     # prnt('models:',models)
     if model_name and not return_prefix and not am_i_model:
         for app_name in models['apps']:
@@ -1244,7 +1480,7 @@ def get_model(obj_type):
     if is_id(obj_type):
         obj_type = get_pointer_type(obj_type)
     # prnt('obj_type',obj_type)
-    app_name = get_app_name(obj_type)
+    app_name = get_app_name(obj_type, all_apps=True)
     # prnt('app_name',app_name)
     if app_name and obj_type:
         from django.apps import apps
@@ -1420,6 +1656,7 @@ def compensate_save_handle(err, create_obj=True, context=None, retrieve_missing=
     prnt('-compensate_save_handle',str(err),'context:',context)
 
     from utils.locked import convert_to_dict
+    from utils.models import sync_model
     err = str(err)
     if 'violates foreign key constraint' in err:
         x = err.find("DETAIL:  Key (")+len("DETAIL:  Key (")
@@ -1745,6 +1982,7 @@ def downscale_to_size(image_bytes, max_bytes=(0.25 * 1024 * 1024)):
 def fetch_obj_data(iden):
     prnt('-fetch_obj_data',iden)
     from utils.locked import convert_to_dict, sign_for_sending
+    from utils.models import connect_to_node
     obj = get_dynamic_model(iden, id=iden)
     if obj:
         return convert_to_dict(obj)
@@ -1774,6 +2012,7 @@ def request_is_valid(iden, chain=None, vals=3):
     if not iden:
         return None
     from utils.locked import convert_to_dict, sign_for_sending
+    from utils.models import connect_to_node
     # obj = get_dynamic_model(iden, id=iden)
     # if obj:
     #     return convert_to_dict(obj)
@@ -1898,7 +2137,7 @@ def proxy_request(url, country=None):
     else:
         nodes = Node.objects.filter(activeNode=True).order_by('?')[:10]
     
-    from utils.models import sign_post_header
+    from utils.models import sign_post_header, connect_to_node
     for node in nodes:
         prnt('trying node',node)
         content = sign_post_header(data={'country_code':country, 'address':url},  post='post', target_node=node)
@@ -1909,3 +2148,804 @@ def proxy_request(url, country=None):
             return response
 
     return None
+
+
+def find_or_create_chain_from_object(obj, recheck_chain=False):
+    prntDebug('-find_or_create_chain_from_object',obj)
+
+    def get_commitChain(obj, network_chain, commit_chain, obj_is_model):     
+        if obj_is_model and has_field(obj, 'commitChain') or not obj_is_model and 'commitChain' in obj:
+            if obj_is_model and has_method(obj, 'get_chains'):
+                network_chain, commit_chain = obj.get_chains()
+            
+            elif obj_is_model and has_field(obj, 'commitChain') and obj.commitChain or not obj_is_model and 'commitChain' in obj and obj['commitChain']:
+                from utils.utils import get_plugin
+                if obj_is_model and is_id(obj.commitChain):
+                    commit_chain = Blockchain.objects.filter(Q(id=obj.commitChain)|Q(genesisId=obj.commitChain)).only('id','genesisName','genesisId').first()
+                    if not commit_chain:
+                        if get_pointer_type(networkChain) == 'Blockchain':
+                            commit_chain = Blockchain(id=obj.commitChain)
+                        else:
+                            rewardsData = {}
+                            from network.models import reward_models
+                            if any(i for i in reward_models if obj.commitChain.startswith(i)):
+                                
+                                rewardsData = {'regionId':obj.Region_obj, 'pluginId':get_plugin(obj.id, id=True)}
+                            commit_chain = Blockchain(genesisId=obj.commitChain, rewardsData=rewardsData)
+                        commit_chain.save()
+                elif not obj_is_model and is_id(obj['commitChain']):
+                    commit_chain = Blockchain.objects.filter(Q(id=obj['commitChain'])|Q(genesisId=obj['commitChain'])).only('id','genesisName','genesisId').first()
+                    if not commit_chain:
+                        if get_pointer_type(obj['commitChain']) == 'Blockchain':
+                            commit_chain = Blockchain(id=obj['commitChain'])
+                        else:
+                            rewardsData = {}
+                            from network.models import reward_models
+                            if any(i for i in reward_models if obj['commitChain'].startswith(i)):
+                                
+                                rewardsData = {'regionId':obj['Region_obj'], 'pluginId':get_plugin(obj['id'], id=True)}
+                            commit_chain = Blockchain(genesisId=obj['commitChain'], rewardsData=rewardsData)
+                        commit_chain.save()
+                elif obj_is_model and obj.commitChain == 'Plugin':
+                    if obj_is_model:
+                        plugin = get_plugin(obj)
+                    else:
+                        plugin = get_plugin(get_model(obj_type))
+                    if plugin:
+                        commit_chain = Blockchain.objects.filter(genesisId=plugin.id).only('id','genesisName','genesisId').first()
+                else:
+                    try:
+                        if obj_is_model:
+                            chainGenObj = getattr(obj, f"{obj.commitChain}_obj")
+                        else:
+                            chainGenObj = get_dynamic_model(obj['commitChain'], id=obj[f"{obj['commitChain']}_obj"])
+                        if chainGenObj:
+                            commit_chain = Blockchain.objects.filter(genesisId=chainGenObj.id).only('id','genesisName','genesisId').first()
+                    except:
+                        pass
+
+        return network_chain, commit_chain
+    
+    if isinstance(obj, dict):
+        obj_is_model = False
+    else:
+        obj_is_model = True
+    from network.models import Blockchain, Sonet, _EarthChain_genesisId, selectableChains, mandatoryChains
+    network_chain = None
+    commit_chain = None
+    ChainTypes = selectableChains + mandatoryChains
+    if not recheck_chain and obj_is_model:
+        if has_method(obj, 'get_chains'):
+            network_chain, commit_chain = obj.get_chains()
+            return network_chain, obj, commit_chain
+        elif has_field(obj, 'networkChain') and is_id(obj.networkChain):
+            network_chain = Blockchain.objects.filter(id=obj.networkChain).defer('queuedData').first()
+            if network_chain:
+                network_chain, commit_chain = get_commitChain(obj, network_chain, commit_chain, obj_is_model)
+                return network_chain, obj, commit_chain
+    if obj_is_model and has_field(obj, 'proposed_modification') and obj.proposed_modification or not obj_is_model and 'proposed_modification' in obj and obj['proposed_modification']:
+        return None, obj, None # proposals are not committed to chain, commit after modification completed
+    
+    elif has_field(obj, 'networkChain') and (obj_is_model and obj.networkChain == 'Region' or not obj_is_model and obj['networkChain'] == 'Region'):
+        prnt('p4')
+        region = None
+        from posts.models import Region
+        if obj_is_model and has_field(obj, 'Region_obj') or not obj_is_model and 'Region_obj' in obj:
+            if obj_is_model:
+                region = obj.Region_obj
+            else:
+                region = Region.supported_objects.filter(id=obj['Region_obj']).first()
+        elif obj_is_model and has_field(obj, 'pointerId') or not obj_is_model and 'pointerId' in obj:
+            if obj_is_model:
+                pointerId = obj.pointerId
+            else:
+                pointerId = obj['pointerId']
+            regionId = get_dynamic_model(pointerId, values=['Region_obj__id'], id=pointerId)
+            prnt('regionId',regionId)
+            region = Region.supported_objects.filter(id=regionId['Region_obj__id']).first()
+        elif obj_is_model and obj._meta.object_name == 'Region' or not obj_is_model and obj['objType'] == 'Region':
+            if obj_is_model:
+                region = obj
+                if obj.id == _EarthChain_genesisId:
+                    commit_chain = Blockchain.objects.filter(genesisId='Sonet').only('id','genesisName','genesisId').first()
+            else:
+                region = Region.supported_objects.filter(id=obj['id']).first()
+                if obj['id'] == _EarthChain_genesisId:
+                    commit_chain = Blockchain.objects.filter(genesisId='Sonet').only('id','genesisName','genesisId').first()
+            
+        if region:
+            network_chain = Blockchain.objects.filter(genesisId=region.id).only('id','genesisName','genesisId').first()
+            if not network_chain:
+                network_chain = Blockchain(genesisId=region.id, genesisType='Region', genesisName=region.Name, created=region.created)
+                network_chain.save()
+            elif network_chain.genesisName != get_chainName(region):
+                network_chain.genesisName = get_chainName(region)
+                network_chain.save()
+    else:
+        from network.models import universalChains
+        from utils.utils import get_plugin
+        if has_field(obj, 'networkChain') and (obj_is_model and obj.networkChain in universalChains or not obj_is_model and obj['networkChain'] in universalChains):
+            prnt('p5')
+            if obj_is_model:
+                for n in universalChains:
+                    if n == obj.networkChain:
+                        chainId = n
+                        break
+            else:
+                for n in universalChains:
+                    if n == obj['networkChain']:
+                        chainId = n
+                        break
+            network_chain = Blockchain.objects.filter(Q(id=get_chain_id(chainId))|Q(genesisId=chainId)|Q(genesisName=chainId)).defer('queuedData').first()
+            if not network_chain:
+                sonet = Sonet.objects.only('id','created').first()
+                if sonet:
+                    prnt('new chain branched from Sonet chain',chainId)
+                    network_chain = Blockchain(genesisId=chainId, genesisType=chainId, genesisName=chainId, created=sonet.created)
+                    network_chain.save()
+
+        elif has_field(obj, 'networkChain') and (obj_is_model and obj.networkChain and not has_method(obj, 'get_chains') or not obj_is_model and 'networkChain' in obj and obj['networkChain']):
+            if obj_is_model:
+                obj_id = obj.id
+                obj_type = obj._meta.object_name
+                networkChain = obj.networkChain
+            else:
+                obj_id = obj['id']
+                obj_type = obj['objType']
+                networkChain = obj['networkChain']
+            if networkChain in [obj_type, obj_id, 'self']:
+                network_chain = Blockchain.objects.filter(Q(id=obj_id)|Q(genesisId=obj_id)).only('id','genesisName','genesisId').first()
+                if not network_chain:
+                    created_time = get_timeData(obj)
+                    name_field = any_field_contains(obj, 'Name')
+                    if name_field:
+                        if obj_is_model:
+                            name = getattr(obj, name_field)
+                        else:
+                            name = obj[name_field]
+                    else:
+                        if obj_is_model:
+                            name = str(obj)
+                        else:
+                            name = obj['id']
+                    network_chain = Blockchain(genesisId=obj_id, genesisType=obj_type, genesisName=name, created=created_time)
+                    network_chain.save()
+            elif networkChain in universalChains:
+                network_chain = Blockchain.objects.filter(genesisName=networkChain).only('id','genesisName','genesisId').first()
+            elif networkChain == 'Plugin':
+                if obj_is_model:
+                    plugin = get_plugin(obj)
+                else:
+                    plugin = get_plugin(get_model(obj_type))
+                if plugin:
+                    network_chain = Blockchain.objects.filter(genesisId=plugin.id).only('id','genesisName','genesisId').first()
+            elif is_id(networkChain):
+                network_chain = Blockchain.objects.filter(Q(id=networkChain)|Q(genesisId=networkChain)).only('id','genesisName','genesisId').first()
+                if not network_chain:
+                    if get_pointer_type(networkChain) == 'Blockchain':
+                        network_chain = Blockchain(id=networkChain)
+                    else:
+                        network_chain = Blockchain(genesisId=networkChain)
+                    network_chain.save()
+            else:
+                try:
+                    if obj_is_model:
+                        chainGenObj = getattr(obj, f"{obj.networkChain}_obj")
+                    else:
+                        chainGenObj = get_dynamic_model(networkChain, id=obj[f"{networkChain}_obj"])
+                    if chainGenObj:
+                        network_chain = Blockchain.objects.filter(genesisId=chainGenObj.id).only('id','genesisName','genesisId').first()
+                except Exception as e:
+                    prnt('find chain err 1',str(e))
+
+            if obj_is_model and has_field(obj, 'commitChain') and obj.commitChain or not obj_is_model and 'commitChain' in obj and obj['commitChain']:
+                if obj_is_model and is_id(obj.commitChain):
+                    commit_chain = Blockchain.objects.filter(Q(id=obj.commitChain)|Q(genesisId=obj.commitChain)).only('id','genesisName','genesisId').first()
+                    if not commit_chain:
+                        if get_pointer_type(networkChain) == 'Blockchain':
+                            commit_chain = Blockchain(id=obj.commitChain)
+                        else:
+                            rewardsData = {}
+                            from network.models import reward_models
+                            if any(i for i in reward_models if obj.commitChain.startswith(i)):
+                                # from utils.utils import get_plugin
+                                rewardsData = {'regionId':obj.Region_obj, 'pluginId':get_plugin(obj.id, id=True)}
+                            commit_chain = Blockchain(genesisId=obj.commitChain, rewardsData=rewardsData)
+                        commit_chain.save()
+                elif not obj_is_model and is_id(obj['commitChain']):
+                    commit_chain = Blockchain.objects.filter(Q(id=obj['commitChain'])|Q(genesisId=obj['commitChain'])).only('id','genesisName','genesisId').first()
+                    if not commit_chain:
+                        if get_pointer_type(obj['commitChain']) == 'Blockchain':
+                            commit_chain = Blockchain(id=obj['commitChain'])
+                        else:
+                            rewardsData = {}
+                            from network.models import reward_models
+                            if any(i for i in reward_models if obj['commitChain'].startswith(i)):
+                                # from utils.utils import get_plugin
+                                rewardsData = {'regionId':obj['Region_obj'], 'pluginId':get_plugin(obj['id'], id=True)}
+                            commit_chain = Blockchain(genesisId=obj['commitChain'], rewardsData=rewardsData)
+                        commit_chain.save()
+                else:
+                    if obj_is_model and obj.commitChain in universalChains:
+                        commit_chain = Blockchain.objects.filter(genesisName=obj.commitChain).only('id','genesisName','genesisId').first()
+                    if not commit_chain:
+                        if obj_is_model and obj.commitChain == 'Plugin':
+                            if obj_is_model:
+                                plugin = get_plugin(obj)
+                            else:
+                                plugin = get_plugin(get_model(obj_type))
+                            prnt('plugin',plugin)
+                            if plugin:
+                                commit_chain = Blockchain.objects.filter(genesisId=plugin.id).only('id','genesisName','genesisId').first()
+                        if not commit_chain:
+                            try:
+                                if obj_is_model:
+                                    chainGenObj = getattr(obj, f"{obj.commitChain}_obj")
+                                else:
+                                    chainGenObj = get_dynamic_model(obj['commitChain'], id=obj[f"{obj['commitChain']}_obj"])
+                                commit_chain = Blockchain.objects.filter(genesisId=chainGenObj.id).only('id','genesisName','genesisId').first()
+                                if not commit_chain:
+                                    commit_chain = Blockchain(genesisId=chainGenObj.id)
+                                    commit_chain.save()
+                            except Exception as e:
+                                prnt('find chain err 2',str(e))
+                                if has_field(obj, 'commitChain') and (obj_is_model and obj.commitChain in universalChains or not obj_is_model and obj['commitChain'] in universalChains):
+                                    prnt('p5')
+                                    if obj_is_model:
+                                        for n in universalChains:
+                                            if n == obj.commitChain:
+                                                chainId = n
+                                                break
+                                    else:
+                                        for n in universalChains:
+                                            if n == obj['commitChain']:
+                                                chainId = n
+                                                break
+                                    commit_chain = Blockchain.objects.filter(Q(id=get_chain_id(chainId))|Q(genesisId=chainId)|Q(genesisName=chainId)).defer('queuedData').first()
+                                    if not commit_chain:
+                                        sonet = Sonet.objects.only('id','created').first()
+                                        if sonet:
+                                            prnt('new commit chain branched from Sonet chain',chainId)
+                                            commit_chain = Blockchain(genesisId=chainId, genesisType=chainId, genesisName=chainId, created=sonet.created)
+                                            commit_chain.save()
+                    
+            prntDebug('done find chainx', network_chain, obj, commit_chain)
+            return network_chain, obj, commit_chain
+    
+    if not commit_chain:
+        network_chain, commit_chain = get_commitChain(obj, network_chain, commit_chain, obj_is_model)
+
+    prntDebug('done find chain', network_chain, obj, commit_chain)
+    return network_chain, obj, commit_chain
+
+def get_data(items_list, include_related=False, return_model=False, verify_data=True, result_as_dict=False, include_deletions=False, special_request={}):
+    prntDebug('--get data sgtart',len(items_list),'result_as_dict',result_as_dict,'return_model',return_model)
+    from network.models import Validator, EventLog, _OperationsChain_genesisId
+    from utils.locked import verify_obj_to_data, convert_to_dict
+    mb_size = 0
+    modelObjs = []
+    obj_types = {}
+    iden_list = []
+    not_found = []
+    not_valid = []
+    if result_as_dict:
+        storedData = {}
+    else:
+        storedData = []
+    if not items_list:
+        return storedData, not_found, not_valid
+    def add_to_list(objType, value):
+        if objType and value and is_id(value):
+            if objType in obj_types:
+                if value not in obj_types[objType]:
+                    obj_types[objType].append(value)
+            else:
+                obj_types[objType] = [value]
+            iden_list.append(value)
+
+    def add_to_return_list(obj, target_list_or_dict):
+        if return_model:
+            if isinstance(target_list_or_dict, dict):
+                if obj._meta.object_name not in target_list_or_dict:
+                    target_list_or_dict[obj._meta.object_name] = {}
+                target_list_or_dict[obj._meta.object_name][obj.id] = obj
+            else:
+                target_list_or_dict.append(obj)
+        else:
+            if isinstance(target_list_or_dict, dict):
+                if obj._meta.object_name not in target_list_or_dict:
+                    target_list_or_dict[obj._meta.object_name] = {}
+                target_list_or_dict[obj._meta.object_name][obj.id] = convert_to_dict(obj)
+            else:
+                target_list_or_dict.append(convert_to_dict(obj))
+        return target_list_or_dict
+
+    if isinstance(items_list, dict):
+        for key, value in items_list.items():
+            if key == 'All' or key == _OperationsChain_genesisId or key == 'New':
+                # node block
+                objType = 'Node'
+                for i in value:
+                    add_to_list(objType, i)
+                break
+            elif key != 'meta':
+                objType = get_pointer_type(key)
+                if objType:
+                    if is_id(key):
+                        add_to_list(objType, key)
+                    elif isinstance(value, list):
+                        for i in value:
+                            if is_id(i):
+                                add_to_list(objType, i)
+                    elif isinstance(value, dict):
+                        if 'id' in value:
+                            add_to_list(objType, value['id'])
+                        else:
+                            add_to_list(objType, key)
+                    elif isinstance(value, str) and is_id(value):
+                        add_to_list(objType, value)
+            
+    elif isinstance(items_list, list):
+        if isinstance(items_list[0], dict):
+            for i in items_list:
+                if 'objType' in i:
+                    add_to_list(i['objType'], i['id'])
+                else:
+                    for key, value in i.items():
+                        if key == 'All' or key == _OperationsChain_genesisId or key == 'New':
+                            # node block
+                            objType = 'Node'
+                            for i in value:
+                                add_to_list(objType, i)
+                            break
+                        elif key != 'meta':
+                            objType = get_pointer_type(key)
+                            if objType:
+                                if is_id(key):
+                                    add_to_list(objType, key)
+                                elif isinstance(value, list):
+                                    for i in value:
+                                        add_to_list(objType, i)
+                                elif isinstance(value, dict):
+                                    if 'id' in value:
+                                        add_to_list(objType, value['id'])
+                                    else:
+                                        add_to_list(objType, key)
+                                elif isinstance(value, str):
+                                    add_to_list(objType, value)
+        elif isinstance(items_list[0], models.Model):
+            for i in items_list:
+                modelObjs.append(i)
+                iden_list.append(i.id)
+        elif isinstance(items_list[0], str):
+            for i in items_list:
+                if is_id(i):
+                    add_to_list(get_pointer_type(i), i)
+    prnt('include_related',include_related)
+    if include_related:
+        validators = Validator.objects.filter(data__has_any_keys=iden_list).exclude(id__in=iden_list)
+        prnt('validators',validators)
+        for obj in validators:
+            prnt('obj',obj)
+            if not verify_data or verify_obj_to_data(obj, obj):
+                storedData = add_to_return_list(obj, storedData)
+                mb_size += to_megabytes(obj)
+            else:
+                not_valid = add_to_return_list(obj, not_valid)
+    for obj in modelObjs:
+        if not verify_data or not has_field(obj, 'signed') or verify_obj_to_data(obj, obj):
+            storedData = add_to_return_list(obj, storedData)
+            mb_size += to_megabytes(obj)
+        else:
+            not_valid = add_to_return_list(obj, not_valid)
+
+    for obj_type in obj_types:
+        prnt(' searching obj_types[obj_type]',obj_type, len(obj_types[obj_type]))
+        if special_request:
+            prntDebug('special_request',special_request)
+            model = get_model(obj_type)
+            if 'exclude' in special_request and has_field(model, next(iter(special_request['exclude'].keys()))):
+                objs = get_dynamic_model(model, list=True, exclude=special_request['exclude'], id__in=obj_types[obj_type])
+            else:
+                objs = get_dynamic_model(obj_type, list=True, id__in=obj_types[obj_type])
+        else:
+            objs = get_dynamic_model(obj_type, list=True, id__in=obj_types[obj_type])
+        if objs:
+            for obj in objs:
+                if not verify_data or not has_field(obj, 'signed') or verify_obj_to_data(obj, obj):
+                    storedData = add_to_return_list(obj, storedData)
+                    mb_size += to_megabytes(obj)
+                else:
+                    not_valid = add_to_return_list(obj, not_valid)
+                obj_types[obj._meta.object_name].remove(obj.id)
+    if include_related:
+        from posts.models import Update
+        updates = Update.objects.filter(pointerId__in=iden_list).exclude(id__in=iden_list).distinct('pointerId').order_by('-pointerId', '-created')
+        for obj in updates:
+            if not verify_data or verify_obj_to_data(obj, obj):
+                storedData = add_to_return_list(obj, storedData)
+                mb_size += to_megabytes(obj)
+            else:
+                not_valid = add_to_return_list(obj, not_valid)
+            try:
+                obj_types[obj._meta.object_name].remove(obj.id)
+            except:
+                pass
+        notifications = get_dynamic_model('Notification', list=True, pointerId__in=iden_list)
+        for obj in notifications:
+            if not verify_data or verify_obj_to_data(obj, obj):
+                storedData = add_to_return_list(obj, storedData)
+                mb_size += to_megabytes(obj)
+            else:
+                not_valid = add_to_return_list(obj, not_valid)
+            try:
+                obj_types[obj._meta.object_name].remove(obj.id)
+            except:
+                pass
+
+    for obj_type, idList in obj_types.items():
+        for i in idList:
+            not_found.append(i)
+    if include_deletions:
+        delLogs = []
+        if not_found:
+            delLogs = EventLog.objects.filter(type='Deletion_Log', data__has_any_key=not_found)
+            prnt('delLogs:',delLogs.count())
+            not_found_list = not_found
+            for log in delLogs:
+                for i in not_found_list:
+                    if i in log:
+                        not_found.remove(i)
+            if not return_model:
+                return storedData, not_found, not_valid, [convert_to_dict(d) for d in delLogs]
+        return storedData, not_found, not_valid, delLogs
+    
+    prnt('results: data:',len(storedData), 'not_found:',len(not_found),'not_valid:',len(not_valid),'mb_size', mb_size)
+    return storedData, not_found, not_valid
+
+def get_all_objects(items):
+    prnt('-get_all_objects',len(items))
+    found = []
+    data = {}
+    for i in items:
+        if isinstance(i, dict) and 'id' in i:
+            i = i['id']
+        m = get_pointer_type(i)
+        if m:
+            if m not in data:
+                data[m] = []
+            data[m].append(i)
+    for objType, id_list in data.items():
+        objs = get_dynamic_model(objType, list=True, id__in=id_list)
+        prnt('objType',objType,'found',len(objs), 'id_list_len',len(id_list), 'id_list',id_list)
+        if objs:
+            found = found + list(objs)
+    prnt('returning',len(found))
+    return found
+    
+
+# not used
+def get_operator_pubKey(operatorData=None):
+    if not operatorData:
+        # from blockchain.models import get_operatorData
+        operatorData = get_operatorData()
+    return operatorData['pubKey']
+
+def get_superuser_keys(dt=None, data=None):
+    from accounts.models import User, UserPubKey
+    prntDebug('-get_superuser_keys',dt)
+    from network.models import Block, Node
+    super_node_upks = []
+    if dt:
+        upks = UserPubKey.objects.filter(Block_obj__validated=True, keyType='guardian').filter(Q(end_life_dt__gte=dt)|Q(end_life_dt=None)).only('id')
+        if not upks:
+            first_sonet_block = Block.objects.filter(Blockchain_obj__genesisType='Sonet', validated=True).values('id','added_to_node').first()
+            prnt('first_sonet_block1',first_sonet_block)
+            if not first_sonet_block or first_sonet_block['added_to_node'] > now_utc() - datetime.timedelta(hours=24):
+                upks = UserPubKey.objects.filter(keyType='guardian').filter(Q(end_life_dt__gte=dt)|Q(end_life_dt=None))
+                prnt('upks:',[upk.id for upk in upks])
+    else:
+        upks = UserPubKey.objects.filter(end_life_dt=None, Block_obj__validated=True, keyType='guardian').only('id')
+        if not upks:
+            first_sonet_block = Block.objects.filter(Blockchain_obj__genesisType='Sonet', validated=True).values('id','added_to_node').first()
+            prnt('first_sonet_block2',first_sonet_block)
+            if not first_sonet_block or first_sonet_block['added_to_node'] > now_utc() - datetime.timedelta(hours=24):
+                upks = UserPubKey.objects.filter(end_life_dt=None, keyType='guardian').only('id')
+
+    result = [upk.id for upk in upks] + [upk.id for upk in super_node_upks]
+    return result
+
+
+def check_missing_data(obj, retrieve_missing=True, log_missing=True, downstream_worker=False):
+    prnt('-check_missing_data', str(obj)[:100])
+    from network.models import Block
+    from utils.locked import check_block_contents
+    result = {}
+    if not obj:
+        return result
+    if is_id(obj):
+        # if id is block:
+        # get block by id
+        # else
+        block = Block.objects.filter(data__has_key=obj, validated=True).first()
+        if block and 'unsupported_chain' not in block.notes:
+            found_idens, problem_idens = check_block_contents(block, retrieve_missing=retrieve_missing, log_missing=log_missing, downstream_worker=downstream_worker, input_data=[obj])
+            result['block_id'] = block.id
+            result['found_idens'] = found_idens
+        else:
+            return None
+    elif isinstance(obj, models.Model):
+        if obj._meta.object_name == 'Block':
+            if 'unsupported_chain' not in block.notes:
+                found_idens, problem_idens = check_block_contents(block, retrieve_missing=False, log_missing=log_missing, downstream_worker=downstream_worker, input_data=[])
+                result['block_id'] = block.id
+                result['found_idens'] = found_idens
+        else:
+            block = Block.objects.filter(data__has_key=obj.id, validated=True).first()
+            if block and 'unsupported_chain' not in block.notes:
+                found_idens, problem_idens = check_block_contents(block, retrieve_missing=retrieve_missing, log_missing=log_missing, downstream_worker=downstream_worker, input_data=[obj.id])
+                result['block_id'] = block.id
+                result['found_idens'] = found_idens
+            else:
+                return None
+    elif isinstance(obj, list):
+        blocks = Block.objects.filter(data__has_any_key=obj, validated=True)
+        result['block_ids'] = []
+        result['found_idens'] = []
+        for block in blocks:
+            if 'unsupported_chain' not in block.notes:
+                found_idens, problem_idens = check_block_contents(block, retrieve_missing=retrieve_missing, log_missing=log_missing, downstream_worker=downstream_worker, input_data=obj)
+                result['block_ids'].append(block.id)
+                result['found_idens'] += found_idens
+
+    return result
+
+
+def initial_save(item, share=False, length=None):
+    prnt('---initial save', item)
+    from utils.locked import hash_obj_id
+    now = now_utc()
+    if has_field(item, 'latestVer'):
+        item.modlVer = item.latestVer
+    if has_field(item, 'created') and not item.created:
+        item.created = round_time(dt=now, dir='down', amount='hour')
+    if has_field(item, 'DateTime'):
+        if item.DateTime:
+            if not isinstance(item.DateTime, datetime.datetime):
+                item.DateTime = string_to_dt(item.DateTime)
+            if not is_timezone_aware(item.DateTime):
+                item.DateTime = item.DateTime.replace(tzinfo=ZoneInfo("America/New_York")) # should get tz by region_obj
+            item.DateTime = item.DateTime.astimezone(ZoneInfo("UTC"))
+
+    if has_field(item, 'lastUpdate') and not item.lastUpdate:
+        item.lastUpdate = now
+    if has_field(item, 'Region_obj') and not item.Region_obj and has_field(item, 'Country_obj'):
+        item.Region_obj = item.Country_obj
+    set_id = 'pre'
+    if item.id is None:
+        item.id = hash_obj_id(item, length=length)
+        prnt('newId:', item.id, item._meta.object_name)
+        set_id = item.id
+    if has_field(item, 'networkChain') and (not item.networkChain or not is_id(item.networkChain)):
+        pointer = None
+        if has_field(item, 'pointerId'):
+            pointer = get_dynamic_model(item.pointerId, id=item.pointerId)
+        if pointer:
+            network_chain, pointer, commit_chain = find_or_create_chain_from_object(pointer)
+            if network_chain:
+                item.networkChain = network_chain.genesisId
+        else:
+            network_chain, item, commit_chain = find_or_create_chain_from_object(item)
+            if network_chain:
+                item.networkChain = network_chain.genesisId
+            if commit_chain and has_field(item, 'commitChain'):
+                item.commitChain = commit_chain.genesisId
+
+    prnt('item._meta.object_name',get_model(item._meta.object_name),'item',item)
+
+    saved = compensate_save(item, get_model(item._meta.object_name), return_err=False, retrieve_missing=False, context=None)
+
+    if saved:
+        if has_method(item, 'boot'):
+            try:
+                prnt('try create post', item)
+                p = item.boot()
+            except Exception as e:
+                prnt('create post fail', str(e))
+                p = False
+        if share:
+            share_with_network(item)
+        prnt('done initial save', item)
+    else:
+        prnt('FAILED initial save', item)
+
+    return item
+
+
+def save_mutable_fields(obj, sig=None, *args, **kwargs):
+    prntDebug('--save_mutable_fields',obj)
+    # if not has_field(obj, 'Validator_obj') or obj.Validator_obj != None:
+
+    if has_field(obj, 'Validator_obj') and obj.Validator_obj:
+        if obj.Validator_obj.data[obj.id] != sigData_to_hash(obj):
+            prnt('validator_data has CHANGED')
+            return False
+    if has_field(obj, 'Block_obj') and obj.Block_obj:
+        from utils.locked import check_commit_data
+        if not check_commit_data(obj, obj.Block_obj.data[obj.id]):
+            prnt('commit_data has CHANGED')
+            return False
+    if has_method(obj, 'get_hash_to_id') and obj._meta.object_name != 'Update':
+        from utils.locked import hash_obj_id
+        if obj.id != hash_obj_id(obj):
+            prnt('IMMUTABLE field has CHANGED')
+            return False
+    if has_field(obj, 'signed') and obj.signed:
+        from utils.locked import verify_data, get_signing_data
+        if not verify_data(get_signing_data(obj), obj.signed, signature=sig):
+        # if not verify_obj_to_data(obj, obj):
+            prnt('Not Valid Save')
+            return False
+    prntDebug('saving...',obj)
+    model = get_model(obj._meta.object_name)
+    return compensate_save(obj, model, *args, **kwargs)
+
+
+
+
+def logEvent(details, code=None, region=None, func=None, extra=None, log_type='LogBook', dt='week'):
+    # from utils.models import timezonify
+    from network.models import EventLog
+    now = now_utc()
+    if dt and dt == 'week':
+        start_time = round_time(dt=now, dir='down', amount='week')
+    elif dt and isinstance(dt, datetime.datetime):
+        start_time = dt
+    else:
+        start_time = now
+    log = EventLog.objects.filter(type=log_type, created__gte=start_time).first()
+    if not log:
+        log = EventLog(type=log_type, created=start_time)
+    event = {'~':str(details)}
+    if func:
+        event['func'] = func
+    if code:
+        event['code'] = code
+    if region:
+        if isinstance(region, models.Model):
+            region = region.Name
+        elif not isinstance(region, str):
+            region = str(region)
+        event['reg'] = region
+    if extra:
+        if not isinstance(extra, str):
+            extra = str(extra)
+        event['extra'] = extra
+    log.data[dt_to_string(now)] = event
+    # log.data[timezonify('est', now).isoformat()] = event
+    log.save()
+
+def logTask(task, code=None, region=None, extra=None):
+    # prnt('logError', err, code, func, region, extra)
+    from network.models import EventLog
+    now = now_utc()
+    start_of_week = round_time(dt=now, dir='down', amount='week')
+    log = EventLog.objects.filter(type='Tasks', created__gte=start_of_week).first()
+    if not log:
+        log = EventLog(type='Tasks', created=start_of_week)
+    event = {'task':str(task)}
+    if code:
+        event['code'] = code
+    if region:
+        if isinstance(region, models.Model):
+            region = region.Name
+        elif not isinstance(region, str):
+            region = str(region)
+        event['reg'] = region
+    if extra:
+        if not isinstance(extra, str):
+            extra = str(extra)
+        event['extra'] = extra
+    log.data[dt_to_string(now)] = event
+    # log.data[timezonify('est', now).isoformat()] = event
+    log.save()
+
+def logError(err, code=None, func=None, region=None, extra=None):
+    # prnt('logError', err, code, func, region, extra)
+    from network.models import EventLog
+    now = now_utc()
+    start_of_week = round_time(dt=now, dir='down', amount='week')
+    log = EventLog.objects.filter(type='Errors', created__gte=start_of_week).first()
+    if not log:
+        log = EventLog(type='Errors', created=start_of_week)
+    event = {'err':str(err)}
+    if func:
+        event['func'] = func
+    if code:
+        event['code'] = code
+    if region:
+        if isinstance(region, models.Model):
+            region = region.Name
+        elif not isinstance(region, str):
+            region = str(region)
+        event['reg'] = region
+    if extra:
+        if not isinstance(extra, str):
+            extra = str(extra)
+        event['extra'] = extra
+    log.data[dt_to_string(now)] = event
+    # log.data[timezonify('est', now).isoformat()] = event
+    log.save()
+
+def logRequest(items, return_log=False, dt='week'):
+    from network.models import EventLog
+    # logEvent(f'request_items:{items}')
+    now = now_utc()
+    start_of_week = round_time(dt=now, dir='down', amount=dt)
+    log = EventLog.objects.filter(type='RequestedItems', created__gte=start_of_week).first()
+    if not log:
+        log = EventLog(type='RequestedItems', created=start_of_week)
+    log.data[dt_to_string(now)] = items
+    log.save()
+    if return_log:
+        return log
+
+def logMissing(iden, reg=None, context={}):
+    from network.models import EventLog
+    self_node = get_self_node()
+    now = now_utc()
+    start_of_month = round_time(dt=now, dir='down', amount='month')
+    if reg and is_id(reg):
+        from posts.models import Region
+        reg = Region.objects.filter(id=reg).first()
+    elif reg and not isinstance(reg, models.Model) or reg and reg._meta.object_name != 'Region':
+        reg = None
+
+    log = EventLog.objects.filter(type='missing_items', Node_obj=self_node, Region_obj=reg, created__gte=start_of_month).first()
+    if not log:
+        log = EventLog(type='missing_items', Node_obj=self_node, Region_obj=reg, created=start_of_month)
+
+    if isinstance(iden, list):
+        for i in iden:
+            if i not in log.data:
+                log.data[i] = context
+    elif isinstance(iden, str):
+        if iden not in log.data:
+            log.data[iden] = context
+
+    log.save()
+
+def logBroadcast(return_log=True):
+    from network.models import EventLog
+    now = now_utc()
+    start_of_week = round_time(dt=now, dir='down', amount='week')
+    log = EventLog.objects.filter(type='Broadcast History', created__gte=start_of_week).first()
+    if not log:
+        log = EventLog(type='Broadcast History', created=start_of_week)
+    return log
+    
+def toBroadcast(obj, remove_item=False, extra={}):
+    from network.models import EventLog
+    if not is_id(obj):
+        if isinstance(obj, models.Model):
+            obj = obj.id
+    now = now_utc()
+    if remove_item:
+        log = EventLog.objects.filter(type='toBroadcast', data__icontains=obj).first()
+        if log:
+            if obj in log.data:
+                del log.data[obj]
+            if not log.data:
+                log.delete()
+            else:
+                log.save()
+    else:
+        start_of_week = round_time(dt=now, dir='down', amount='week')
+        log = EventLog.objects.filter(type='toBroadcast', created__gte=start_of_week).first()
+        if not log:
+            log = EventLog(type='toBroadcast', created=start_of_week)
+        if obj not in log.data:
+            extra['dt'] = dt_to_string(now)
+            log.data[obj] = extra
+        log.save()
+

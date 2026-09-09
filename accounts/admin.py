@@ -61,7 +61,6 @@ class AutoForeignKeyAdmin(admin.ModelAdmin):
 
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
     
-
     def get_search_results(self, request, queryset, search_term):
         safe_search_fields = []
         custom_search_fields = []
@@ -329,14 +328,14 @@ class UserPubKeyAdmin(AutoForeignKeyAdmin):
     class Meta:
         model = UserPubKey
 
-class UserActionAdmin(AutoForeignKeyAdmin):
+class PlayAdmin(AutoForeignKeyAdmin):
     list_display = ['id',full_utc('lastUpdate'),full_utc('updated_on_node')]
     list_display_links = []
     list_editable = []
     list_filter = []
     search_fields = AutoForeignKeyAdmin.search_fields + []
     class Meta:
-        model = UserAction
+        model = Play
 
 class UserVerificationAdmin(AutoForeignKeyAdmin):
     list_display = ['id',full_utc('updated_on_node')]
@@ -509,14 +508,14 @@ class NodeAdmin(AutoForeignKeyAdmin):
     class Meta:
         model = Node
 
-class NodeRecordAdmin(AutoForeignKeyAdmin):
+class LegerAdmin(AutoForeignKeyAdmin):
     list_display = ['id','pointerId','pointerType','networkChain',full_utc('DateTime'),'is_valid']
     list_display_links = []
     list_editable = []
     list_filter = []
     search_fields = AutoForeignKeyAdmin.search_fields + ['id','networkChain']
     class Meta:
-        model = NodeRecord
+        model = Leger
 
 class NodeReviewAdmin(AutoForeignKeyAdmin):
     list_display = ['id', 'CreatorNode_obj', 'TargetNode_obj', 'lastUpdate']
@@ -528,7 +527,7 @@ class NodeReviewAdmin(AutoForeignKeyAdmin):
         model = NodeReview
 
 class ValidatorAdmin(AutoForeignKeyAdmin):
-    list_display = ['id', full_utc('created'),'networkChain','validatorType','func','is_valid','CreatorNode_obj','jobId',full_utc('updated_on_node')]
+    list_display = ['id', full_utc('created'),'networkChain','is_valid','jobId','func','CreatorNode_obj','validatorType',full_utc('updated_on_node')]
     list_display_links = []
     list_editable = []
     list_filter = []
@@ -537,12 +536,12 @@ class ValidatorAdmin(AutoForeignKeyAdmin):
         model = Validator
 
 class BlockAdmin(AutoForeignKeyAdmin):
-    list_display = ['id','index','validated',full_utc('DateTime'),'Blockchain_obj','CreatorNode_obj',full_utc('updated_on_node'),'Transaction_obj','hash']
+    list_display = ['id','index','validated',full_utc('DateTime'),'Blockchain_obj','CreatorNode_obj',full_utc('updated_on_node'),'Tx_obj']
     list_display_links = []
     list_editable = []
     list_filter = []
     ordering = ['-DateTime', '-created', '-index']
-    search_fields = AutoForeignKeyAdmin.search_fields + ['networkChain','id','hash','Blockchain_obj','Blockchain_obj__genesisId','Transaction_obj']
+    search_fields = AutoForeignKeyAdmin.search_fields + ['networkChain','id','Blockchain_obj','Blockchain_obj__genesisId','Tx_obj']
     class Meta:
         model = Block
 
@@ -570,7 +569,7 @@ admin.site.register(UserPubKey, UserPubKeyAdmin)
 admin.site.register(SuperSign, SuperSignAdmin)
 admin.site.register(UserNotification, UserNotificationAdmin)
 admin.site.register(Notification, NotificationAdmin)
-admin.site.register(UserAction, UserActionAdmin)
+admin.site.register(Play, PlayAdmin)
 admin.site.register(UserData, UserDataAdmin)
 admin.site.register(UserVerification, UserVerificationAdmin)
 
@@ -588,7 +587,7 @@ admin.site.register(Signature, SignatureAdmin)
 admin.site.register(Plugin, PluginAdmin)
 admin.site.register(DataPacket, DataPacketAdmin)
 admin.site.register(Node, NodeAdmin)
-admin.site.register(NodeRecord, NodeRecordAdmin)
+admin.site.register(Leger, LegerAdmin)
 admin.site.register(NodeReview, NodeReviewAdmin)
 admin.site.register(Validator, ValidatorAdmin)
 admin.site.register(Block, BlockAdmin)
