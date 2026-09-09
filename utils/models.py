@@ -75,37 +75,54 @@ def e_brake(priority):
 
 from base64 import b64encode, b64decode
 
-
 class BinaryBase62Field(models.BinaryField):
-    def __init__(self, max_byte_length, *args, prefix=None, **kwargs):
+    def __init__(self, max_byte_length, *args, max_prefix_length=8, **kwargs):
         self.max_byte_length = max_byte_length
-        self.prefix = prefix
-        kwargs['max_length'] = max_byte_length + 2
+        self.max_prefix_length = max_prefix_length
+        kwargs['max_length'] = 1 + max_prefix_length + 2 + max_byte_length
         kwargs.setdefault('editable', True)
         super().__init__(*args, **kwargs)
 
-    def _strip_prefix(self, value):
-        if self.prefix and value.startswith(self.prefix + '$'):
-            return value[len(self.prefix) + 1:]
-        return value
+    def _split(self, value):
+        """'usr$ok30...' -> ('usr', 'ok30...'); no '$' -> ('', value)"""
+        if '$' in value:
+            prefix, id_part = value.split('$', 1)
+            return prefix, id_part
+        return '', value
 
-    def _add_prefix(self, value):
-        if self.prefix:
-            return f'{self.prefix}${value}'
-        return value
+    def _pack(self, prefix, raw_id):
+        if len(prefix) > self.max_prefix_length:
+            raise ValueError(f"prefix {prefix!r} exceeds max_prefix_length={self.max_prefix_length}")
+        prefix_bytes = prefix.encode('ascii')
+        padded_id = raw_id.ljust(self.max_byte_length, b'\x00')
+        return (
+            len(prefix_bytes).to_bytes(1, 'big')
+            + prefix_bytes
+            + len(raw_id).to_bytes(2, 'big')
+            + padded_id
+        )
+
+    def _unpack(self, raw):
+        plen = raw[0]
+        prefix = raw[1:1 + plen].decode('ascii')
+        rest = raw[1 + plen:]
+        idlen = int.from_bytes(rest[:2], 'big')
+        raw_id = rest[2:2 + idlen]
+        return prefix, raw_id
+
+    def _to_display(self, prefix, raw_id):
+        b62 = to_base62(raw_id)
+        return f'{prefix}${b62}' if prefix else b62
 
     def value_from_object(self, obj):
         value = getattr(obj, self.attname)
         if value is None:
             return value
         if isinstance(value, str):
-            return value  # already base62 (prefixed)
+            return value
         if isinstance(value, (bytes, memoryview)):
-            raw = bytes(value)
-            if len(raw) >= 2:
-                length = int.from_bytes(raw[:2], 'big')
-                return self._add_prefix(to_base62(raw[2:2 + length]))
-            return self._add_prefix(to_base62(raw))
+            prefix, raw_id = self._unpack(bytes(value))
+            return self._to_display(prefix, raw_id)
         return value
 
     def value_to_string(self, obj):
@@ -113,26 +130,23 @@ class BinaryBase62Field(models.BinaryField):
         if value is None:
             return ''
         if isinstance(value, str):
-            stripped = self._strip_prefix(value)
-            raw = from_base62(stripped)
-            padded = raw.ljust(self.max_byte_length, b'\x00')
-            prefix = len(raw).to_bytes(2, 'big')
-            return b64encode(prefix + padded).decode('ascii')
+            prefix, id_part = self._split(value)
+            raw_id = from_base62(id_part)
+            packed = self._pack(prefix, raw_id)
+            return b64encode(packed).decode('ascii')
         return ''
 
     def from_db_value(self, value, expression, connection):
         if value is None:
             return value
-        raw = bytes(value)
-        length = int.from_bytes(raw[:2], 'big')
-        return self._add_prefix(to_base62(raw[2:2 + length]))
+        prefix, raw_id = self._unpack(bytes(value))
+        return self._to_display(prefix, raw_id)
 
     def to_python(self, value):
         if value is None or isinstance(value, str):
             return value
-        raw = bytes(value)
-        length = int.from_bytes(raw[:2], 'big')
-        return self._add_prefix(to_base62(raw[2:2 + length]))
+        prefix, raw_id = self._unpack(bytes(value))
+        return self._to_display(prefix, raw_id)
 
     def get_prep_value(self, value):
         if value is None:
@@ -142,26 +156,19 @@ class BinaryBase62Field(models.BinaryField):
         if isinstance(value, bytes):
             if _already_prefixed(value, self.max_byte_length):
                 return value
-            actual_length = len(value)
-            padded = value.ljust(self.max_byte_length, b'\x00')
-            prefix = actual_length.to_bytes(2, 'big')
-            return prefix + padded
+            return self._pack('', value)
         if isinstance(value, str):
-            # detect standard base64 from Django session/fixture storage
             if len(value) % 4 == 0 and all(c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=' for c in value):
                 try:
                     raw = b64decode(value)
-                    if len(raw) == self.max_byte_length + 2:
-                        return raw  # already prefixed, came from session storage
+                    if len(raw) == self.max_length:
+                        return raw  # already packed, came from session storage
                 except Exception:
                     pass
-            value = self._strip_prefix(value)
+            prefix, id_part = self._split(value)
             try:
-                raw = from_base62(value)
-                actual_length = len(raw)
-                padded = raw.ljust(self.max_byte_length, b'\x00')
-                prefix = actual_length.to_bytes(2, 'big')
-                return prefix + padded
+                raw_id = from_base62(id_part)
+                return self._pack(prefix, raw_id)
             except Exception as e:
                 prnt(f"ERROR in str branch: {e}, value={repr(value)}")
                 raise
@@ -170,8 +177,7 @@ class BinaryBase62Field(models.BinaryField):
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
         kwargs.pop('max_length', None)
-        if self.prefix is not None:
-            kwargs['prefix'] = self.prefix
+        kwargs['max_prefix_length'] = self.max_prefix_length
         args = [self.max_byte_length] + list(args)
         return name, path, args, kwargs
 
@@ -184,7 +190,7 @@ class BinaryBase62Field(models.BinaryField):
     def get_db_prep_value(self, value, connection, prepared=False):
         value = self.get_prep_value(value)
         return value
-        
+
 class BinaryBase62Field_old(models.BinaryField):
     def __init__(self, max_byte_length, *args, **kwargs):
         self.max_byte_length = max_byte_length
@@ -416,7 +422,10 @@ def to_base62(hash_bytes):
 def from_base62(s):
     num = 0
     for char in s:
-        num = num * 62 + ALPHABET.index(char)
+        idx = ALPHABET.find(char)
+        if idx == -1:
+            raise ValueError(f"invalid base62 character {char!r} in {s!r}")
+        num = num * 62 + idx
     length = max(1, (num.bit_length() + 7) // 8)
     return num.to_bytes(length, "big")
 
