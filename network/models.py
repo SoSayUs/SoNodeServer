@@ -1158,7 +1158,7 @@ class DataPacket(models.Model):
             self.save()
 
     def save(self, share=False, *args, **kwargs):
-        prntDebug('-dp save...', self.id)
+        prntDebug('-dp save...', self.id, DataPacket.objects.filter(id=self.id).exists())
         if self.func:
             self.func = self.func[:90]
         update_fields = kwargs.get('update_fields', None)
@@ -3375,7 +3375,7 @@ class Validator(models.Model):
             version = self.modlVer
         if int(version) >= 1:
             return {'objType': 'Validator', 'networkChain': None, 'modlVer': 1, 'id': None, 'validatorType': '', 'created': None, 'jobId': None, 'func': None, 'is_valid': False, 'CreatorNode_obj': None, 'Block_obj': None, 'data': {}, 'Validator_array': None, 'signed': {}}
-            
+
     def commit_data(self, version=None):
         if not version:
             version = self.modlVer
