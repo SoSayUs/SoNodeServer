@@ -72,7 +72,7 @@ def e_brake(priority):
 
 from base64 import b64encode, b64decode
 
-class BinaryBase62Field_old(models.BinaryField):
+class BinaryBase62Field(models.BinaryField):
     def __init__(self, max_byte_length, *args, max_prefix_length=8, **kwargs):
         self.max_byte_length = max_byte_length
         self.max_prefix_length = max_prefix_length
@@ -188,7 +188,7 @@ class BinaryBase62Field_old(models.BinaryField):
         value = self.get_prep_value(value)
         return value
 
-class BinaryBase62Field(models.BinaryField):
+class BinaryBase62Field_old(models.BinaryField):
     def __init__(self, max_byte_length, *args, **kwargs):
         self.max_byte_length = max_byte_length
         kwargs['max_length'] = max_byte_length + 2
