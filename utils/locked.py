@@ -4613,7 +4613,7 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
             # data = convert_to_dict(data)
             data = json.loads(get_signing_data(data))
         if isinstance(public_key, models.Model) and public_key._meta.object_name == 'UserPubKey':
-            # prnt('a1')
+            prnt('a1')
             target_keys = resolve_target_keys(data, signature)
             if target_keys is None or public_key.id in target_keys:
                 public_key_data = {public_key.id:{'pubKey':public_key.publicKey}}
@@ -4623,7 +4623,7 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
                 prnt('a1 - key not in target_keys')
                 return False
         elif is_id(public_key):
-            # prnt('a2')
+            prnt('a2')
             from accounts.models import UserPubKey
             target_keys = resolve_target_keys(data, signature)
             if target_keys is not None and public_key not in target_keys:
@@ -4636,7 +4636,7 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
                 if signature and isinstance(signature, str):
                     public_key_data[public_key]['signature'] = signature
         elif isinstance(public_key, str):
-            # prnt('a3')
+            prnt('a3')
             target_keys = resolve_target_keys(data, signature)
             upk_id = hash_upk_id(public_key)
             if target_keys is None or upk_id in target_keys:
@@ -4760,19 +4760,19 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
                     prnt('dt',dt)
                     prnt('pk',str(sig_data['pk'])[:50])
                     prnt('sig_data',sig_data)
-                    prnt('public_key_data',print_dict_truncated(public_key_data))
+                    prnt('public_key_data',print_dict_truncated(public_key_data, max_len=50))
 
                     pk = sig_data['pk']
                     proceed = False
                     if pk in public_key_data:
-                        # prnt('aa')
+                        prnt('aa')
                         proceed = True
                     elif signature and 'sig' in sig_data and sig_data['sig'] == signature:
                         proceed = True
-                        # prnt('ab')
+                        prnt('ab')
                     elif 'publicKey' in sig_data and any(i for i in public_key_data if public_key_data[i] == sig_data['publicKey']):
                         proceed = True
-                        # prnt('ac')
+                        prnt('ac')
                     prnt('proceed',proceed)
                     if not proceed:
                         prnt('return not proceed')
