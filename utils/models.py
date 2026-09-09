@@ -32,9 +32,6 @@ from utils.utils import (
 )
 
 
-from os.path import expanduser
-homepath = expanduser("~")
-
 
 
 import platform
