@@ -4742,7 +4742,7 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
         # prnt('b2')
 
         if isinstance(data, dict):
-            # prnt('p0')
+            prnt('p0')
             if skip_sort:
                 sorted_data = data
             else:
@@ -4757,10 +4757,10 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
                 adjusted_signed = {}
 
                 for dt, sig_data in sign_dict.items():
-                    # prnt('dt',dt)
-                    # prnt('pk',str(sig_data['pk'])[:50])
-                    # prnt('sig_data',sig_data)
-                    # prnt('public_key_data',print_dict_truncated(public_key_data))
+                    prnt('dt',dt)
+                    prnt('pk',str(sig_data['pk'])[:50])
+                    prnt('sig_data',sig_data)
+                    prnt('public_key_data',print_dict_truncated(public_key_data))
 
                     pk = sig_data['pk']
                     proceed = False
@@ -4773,8 +4773,9 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
                     elif 'publicKey' in sig_data and any(i for i in public_key_data if public_key_data[i] == sig_data['publicKey']):
                         proceed = True
                         # prnt('ac')
-                    # prnt('proceed',proceed)
+                    prnt('proceed',proceed)
                     if not proceed:
+                        prnt('return not proceed')
                         return False
                     elif proceed:
                         def resolve_chain(dt, entry_data, sign_dict, snapshot):
@@ -4839,7 +4840,7 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
                 pass
         # data is now the correctly-ordered JSON string, no suffix yet
         # base_payload = json.loads(data)
-        # prnt('public_key_data',print_dict_truncated(public_key_data))
+        prnt('public_key_data',print_dict_truncated(public_key_data))
 
         is_valid = False
         for upk_id, key_data in public_key_data.items():
@@ -4878,6 +4879,7 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
 
     except Exception as e:
         prnt('VERIFY err4',str(e), 'code:',err)
+    prnt('return')
     return False
 
 # old - unused
