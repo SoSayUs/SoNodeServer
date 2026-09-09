@@ -12,7 +12,9 @@ import base64
 # WILL BREAK ALL VALIDATIONS
 
 def process_gathered_data(received_data, override_completed=False):
-    from utils.models import process_received_dp, decompress_data,prnt, now_utc, e_brake, get_self_node, get_node, string_to_dt
+    from utils.utils import prnt, now_utc, get_self_node, get_node, string_to_dt, decompress_data
+    from network.utils import process_received_dp
+    from utils.models import e_brake
     prnt('--process_gathered_data now_utc:',now_utc(),'pForV',str(received_data)[:300], override_completed)
     if e_brake(3):
         return 
@@ -88,7 +90,8 @@ def process_gathered_data(received_data, override_completed=False):
         from legis.models import Government
         from legis.utils import get_scrape_duty
         from network.models import Validator, Blockchain, script_created_modifiable_models,max_validation_window, _OperationsChain_genesisId, intelligence_funcs
-        from utils.models import logError, logEvent,request_items, value_is_none, testing, check_missing_data, prntDebugn, prntDebug, is_locked, has_field, has_method, convert_to_datetime, sigData_to_hash,get_or_create_model,super_sync,get_model,exists_in_worker,create_dynamic_model,dynamic_bulk_update,seperate_by_type,get_model_prefix,debugging, get_dynamic_model, rgetattr
+        from utils.models import request_items
+        from utils.utils import logError, logEvent, value_is_none, testing, check_missing_data, prntDebugn, prntDebug, is_locked, has_field, has_method, convert_to_datetime, sigData_to_hash,get_or_create_model,super_sync,get_model,exists_in_worker,create_dynamic_model,dynamic_bulk_update,seperate_by_type,get_model_prefix,debugging, get_dynamic_model, rgetattr
         
         gov = None
         gov_level = received_data['gov_level']
@@ -362,7 +365,9 @@ def process_gathered_data(received_data, override_completed=False):
     dp.save(update_fields=['notes'])          
 
 def process_posts_for_validating(received_json, override_completed=False):
-    from utils.models import process_received_dp, decompress_data,prnt, now_utc, e_brake
+    from utils.models import e_brake
+    from utils.utils import decompress_data, prnt, now_utc
+    from network.utils import process_received_dp
     prnt('--process_posts_for_validating now_utc:',now_utc(),'pForV',str(received_json)[:300], override_completed)
     if e_brake(3):
         return 
@@ -414,7 +419,9 @@ def process_posts_for_validating(received_json, override_completed=False):
         from legis.models import Government
         from legis.utils import get_scrape_duty
         from network.models import Validator, Blockchain, DataPacket, Plugin, script_created_modifiable_models,max_validation_window, _OperationsChain_genesisId, intelligence_funcs
-        from utils.models import logError, logEvent,request_items, get_model_prefix, get_self_node, get_node, find_or_create_chain_from_object, get_latest_dataPacket, data_sort_priority, testing, check_missing_data, prntDebugn, prntDebug, is_locked, has_field, has_method, convert_to_datetime, sigData_to_hash,get_or_create_model,super_sync,get_model,exists_in_worker,create_dynamic_model,dynamic_bulk_update,seperate_by_type,get_model_prefix,debugging,string_to_dt, get_dynamic_model, rgetattr, value_is_none, get_objType
+        # from utils.models import logError, logEvent,request_items, get_model_prefix, get_self_node, get_node, find_or_create_chain_from_object, get_latest_dataPacket, data_sort_priority, testing, check_missing_data, prntDebugn, prntDebug, is_locked, has_field, has_method, convert_to_datetime, sigData_to_hash,get_or_create_model,super_sync,get_model,exists_in_worker,create_dynamic_model,dynamic_bulk_update,seperate_by_type,get_model_prefix,debugging,string_to_dt, get_dynamic_model, rgetattr, value_is_none, get_objType
+        from utils.utils import logError, logEvent, get_model_prefix, get_self_node, get_node, find_or_create_chain_from_object, get_latest_dataPacket, testing, check_missing_data, prntDebugn, prntDebug, is_locked, has_field, has_method, convert_to_datetime, sigData_to_hash,get_or_create_model,get_model,exists_in_worker,create_dynamic_model,dynamic_bulk_update,seperate_by_type,get_model_prefix,debugging,string_to_dt, get_dynamic_model, rgetattr, value_is_none, get_objType
+        from utils.models import  super_sync, data_sort_priority, request_items
         validator = None
         invalid_validator = None
         val_obj = None
@@ -577,7 +584,7 @@ def process_posts_for_validating(received_json, override_completed=False):
                                                     if obj and has_field(obj, 'Validator_obj') and (not obj.Validator_obj or not obj.Validator_obj.signed or not obj.Validator_obj.is_valid):
                                                         w += 'a'
                                                         if obj.CreatorNode_obj.id not in i['scraping_order'] or (self_is_validator and obj.validatorNodeId != self_node.id) or obj.created != string_to_dt(z['created']):
-                                                            from utils.models import superDelete
+                                                            from utils.utils import superDelete
                                                             superDelete(obj) # obj is from different failed scrape_job
                                                             obj = None
                                                             w += 'b'
@@ -1094,7 +1101,8 @@ def process_posts_for_validating(received_json, override_completed=False):
     return result
 
 def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, broadcast_if_unknown=False, downstream_worker=True, handle_discrepancies=True, backcheck=False, get_missing_blocks=True, next_block=None, next_block_must_val=True, only_if_unkown=False, block_id=None):
-    from utils.models import get_objType, prntDebug, create_job, sigData_to_hash, get_operator_obj, now_utc, prnt, prntn, string_to_dt, e_brake, logEvent, request_items, get_chain_id
+    from utils.models import e_brake, request_items, create_job
+    from utils.utils import get_objType, prntDebug, sigData_to_hash, get_operator_obj, now_utc, prnt, prntn, string_to_dt, logEvent, get_chain_id
     from network.utils import resolve_block_differences, retrieve_missing_blocks, send_missing_blocks
     prntn('---check_validation_consensus',block, now_utc(),do_mark_valid,handle_discrepancies,'next_block:',next_block)
     from network.models import Blockchain, Block, Validator, Node, _OperationsChain_genesisId
@@ -1276,7 +1284,7 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
         
         if block.extraData:
             prnt('block.extraData',block.extraData)
-            from utils.models import get_pointer_type
+            from utils.models utils get_pointer_type
             if any(v for v in block.extraData if get_pointer_type(v) == 'Validator' and v not in [v.id for v in prev_validators]):
                 fetch = [v for v in block.extraData if get_pointer_type(v) == 'Validator' and v not in [v.id for v in prev_validators]]
                 existing_vals = Validator.objects.filter(id__in=fetch).values('id')
@@ -1376,8 +1384,7 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
 
             chain = Blockchain.objects.filter(genesisId=val_obj.re['GenesisId']).first()
             if not chain:
-                from utils.utils import fetch_obj_data
-                from utils.models import find_or_create_chain_from_object
+                from utils.utils import fetch_obj_data, find_or_create_chain_from_object
                 obj_dict = fetch_obj_data(val_obj.re['GenesisId'])
                 if obj_dict:
                     network_chain, obj, commit_chain = find_or_create_chain_from_object(obj_dict)
@@ -1659,8 +1666,8 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
 
 
 def validate_block(block, creator_nodes=None, opBlock_data=None, create_validator=True, fail_reason=None):
-    from utils.models import get_operator_obj, get_objType, sigData_to_hash,now_utc,prnt,dt_to_string,is_id, get_chain_id, toBroadcast
-    from utils.utils import declare_var, quick_hash
+    from utils.utils import declare_var, quick_hash, get_operator_obj, get_objType, sigData_to_hash, now_utc, prnt, is_id, get_chain_id, toBroadcast
+    from utils.locked import dt_to_string
     prnt('---validate_block', block, now_utc(),'fail_reason',fail_reason)
     from network.models import Validator, Block, RevealData, _OperationsChain_genesisId, _block_creation_times, reward_models
     opBlock_data = declare_var(opBlock_data, {})
@@ -2147,8 +2154,8 @@ def validate_obj(obj=None, pointer=None, validators=None, save_obj=True, update_
     if pointer and not obj and save_obj:
         obj = Post.objects.filter(pointerId=pointer.id).first()
     if obj and has_field(obj, 'validated') and not obj.validated and obj.id or pointer and update_pointer and not pointer.Validator_obj or obj and obj.id and has_field(obj, 'Validator_obj') and not obj.Validator_obj:
-        from utils.utils import prntDebug, sigData_to_hash, string_to_dt, has_method, get_model, logEvent, declare_var, round_time, get_timeData, request_items, get_objType, get_plugin
-        from utils.models import find_or_create_chain_from_object
+        from utils.utils import prntDebug, sigData_to_hash, string_to_dt, has_method, get_model, logEvent, declare_var, round_time, get_timeData, get_objType, get_plugin, find_or_create_chain_from_object
+        from utils.models import request_items
         from network.models import Validator, max_validation_window
         validators = declare_var(validators, {})
         if obj and get_objType(obj) == 'Post':
@@ -2654,7 +2661,7 @@ def get_broadcast_list(seed, dt=None, region_id=None, plugin_id=None, relevant_n
         if not relevant_nodes:
             relevant_nodes = opBlock_data['relevant_nodes']
         if all_nodes:
-            from utils.models import get_pointer_type
+            from utils.utils import get_pointer_type
             if get_pointer_type(region_id) == 'Blockchain':
                 from network.models import Blockchain
                 chain = Blockchain.objects.filter(id=region_id).first()
@@ -2700,7 +2707,7 @@ def get_relevant_nodes(dt=None, genesisId=None, chains=None, blockchain=None, pl
     node_ids = []
 
     from network.models import Block, Node, Leger, Blockchain, Sonet, _EarthChain_genesisId, universalChains, _OperationsChain_genesisId, mandatoryChains, reward_models
-    from utils.models import get_pointer_type, get_chain_type, is_id
+    from utils.utils import get_pointer_type, get_chain_type, is_id
     from django.db import models
     prnt('dt',dt)
     if not opBlock and not testing():
@@ -2838,7 +2845,7 @@ def get_relevant_nodes(dt=None, genesisId=None, chains=None, blockchain=None, pl
         prnt('opBlock not found',obj, convert_to_dict(obj))
         from django.db import models
         from network.models import Node, get_default_epochData
-        from utils.models import get_chain_id
+        from utils.utils import get_chain_id
         if obj and isinstance(obj, models.Model) and obj._meta.object_name == 'Block' and obj.networkChain == _OperationsChain_genesisId:
             first_node = Node.objects.order_by('created').first()
             prnt('first_node',first_node)
@@ -2858,8 +2865,8 @@ def get_relevant_nodes(dt=None, genesisId=None, chains=None, blockchain=None, pl
     return {'relevant_nodes':{}, 'epochData':get_default_epochData()}
 
 def check_block_contents(block, retrieve_missing=True, update_items=False, log_missing=False, downstream_worker=True, return_missing=False, input_data=None, uncommitted_required=False):
-    from utils.models import chunk_dict, get_timeData, has_field, has_method, get_dynamic_model, sigData_to_hash, exists_in_worker, get_data, now_utc, prnt, string_to_dt, is_id, declare_var, request_items, logMissing, logError
-    from utils.utils import get_plugin
+    from utils.utils import chunk_dict, get_timeData, has_field, has_method, get_dynamic_model, sigData_to_hash, exists_in_worker, get_data, now_utc, prnt, string_to_dt, is_id, declare_var, logMissing, logError, get_plugin
+    from utils.models import request_items
     prnt('-check_block_contents', block, block.index, now_utc(), retrieve_missing, downstream_worker, uncommitted_required)
     from network.models import Validator, max_commit_window
     input_data = declare_var(input_data, {})
@@ -2896,7 +2903,7 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
                     proceed = False
         if not proceed:
             if genesis_obj:
-                from utils.models import find_or_create_chain_from_object
+                from utils.utils import find_or_create_chain_from_object
                 network_chain, obj, commit_chain = find_or_create_chain_from_object(genesis_obj)
                 if network_chain:
                     network_chain.add_item_to_queue(genesis_obj)
@@ -3010,7 +3017,7 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
                             requested_validators.append(obj.id)
     prnt('next stage check block contents')
     if retrieve_missing or not block.validated:
-        from utils.models import get_operatorData
+        from utils.utils import get_operatorData
         chain_supported = False
         try:
             operatorData = get_operatorData()
@@ -3178,7 +3185,7 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
         block.save(update_fields=['notes'])
     if update_items and block.validated:
         checked_idens = []
-        from utils.models import seperate_by_type, dynamic_bulk_update, get_model, chunk_list
+        from utils.utils import seperate_by_type, dynamic_bulk_update, get_model, chunk_list
         for model_name, iden_list in seperate_by_type(obj_idens, include_only={'has_field':['Block_obj']}, exclude={'fields':[{'commitChain':f'!{block.Blockchain_obj.genesisId}'}]}).items():
             prnt('model_name',model_name,'iden_list',iden_list)
             checked_idens += iden_list
@@ -3242,10 +3249,9 @@ def verify_obj_to_data(obj, target_data, user=None, return_user=False, requireSu
         from django.db.models import Model
         if not isinstance(target_data, Model):
             record_error = False
-        from utils.models import get_user
         from network.models import Validator, Block
         # from utils.locked import sigData_to_hash
-        from utils.models import has_method, has_field, get_pointer_type, string_to_dt, value_is_none, now_utc, sigData_to_hash, get_sigData
+        from utils.models import has_method, has_field, get_pointer_type, string_to_dt, value_is_none, now_utc, sigData_to_hash, get_sigData, get_user
         from transactions.models import Wallet
         from django.db.models import Q
         failed = False
@@ -3440,7 +3446,7 @@ def verify_obj_to_data(obj, target_data, user=None, return_user=False, requireSu
             if user_id:
                 x += 'c'
                 from accounts.models import UserPubKey
-                from utils.models import is_id, hash_upk_id
+                from utils.utils import is_id, hash_upk_id
                 if is_id(pubKey):
                     iden = pubKey
                 else:
@@ -3462,7 +3468,7 @@ def verify_obj_to_data(obj, target_data, user=None, return_user=False, requireSu
             elif node_id:
                 x += 'd'
                 from accounts.models import UserPubKey
-                from utils.models import is_id, hash_upk_id
+                from utils.utils import is_id, hash_upk_id
                 if is_id(pubKey):
                     iden = pubKey
                 else:
@@ -3486,7 +3492,7 @@ def verify_obj_to_data(obj, target_data, user=None, return_user=False, requireSu
                 x += 'g'
                 prnt('pubKey',str(pubKey)[:50])
                 from accounts.models import UserPubKey
-                from utils.models import is_id, hash_upk_id
+                from utils.utils import is_id, hash_upk_id
                 if is_id(pubKey):
                     iden = pubKey
                 else:
@@ -3814,7 +3820,7 @@ def position_sort_old(starting_position, pattern, active_set, number_of_matches,
     '''
 
     from math import gcd
-    from utils.models import is_id
+    from utils.utils import is_id
     from network.models import Node
     if not max_pos:
         highest_node = Node.objects.exclude(Block_obj=None).order_by('-pos').values('pos').first()
@@ -5210,7 +5216,7 @@ def get_commit_data(target, extra_data=None):
 
 def check_commit_data(target, data, return_err=False, return_obj=False):
     from decimal import Decimal
-    from utils.models import get_dynamic_model, value_is_none, has_method, sigData_to_hash, prnt, has_field, string_to_dt, get_or_create_model, logEvent
+    from utils.utils import get_dynamic_model, value_is_none, has_method, sigData_to_hash, prnt, has_field, string_to_dt, get_or_create_model, logEvent
     prnt('-check_commit_data',type(target),target,data)
     # from blockchain.models import 
     err = 0
@@ -5374,7 +5380,7 @@ def convert_to_dict(obj, broadcast=False, withold_fields=True, exclude=None, ful
     if not obj:
         return None
     from django.db.models import Model
-    from utils.models import get_dynamic_model, has_field, has_method, string_to_dt
+    from utils.utils import get_dynamic_model, has_field, has_method, string_to_dt
     from network.models import Signature
     from accounts.models import UserPubKey
     if not isinstance(obj, Model):
@@ -5499,7 +5505,7 @@ def get_signing_data(obj, extra_data=None, include_sig=False, full_pk=False, sor
     if not obj:
         return obj
     from django.db import models
-    from utils.models import get_model, has_method, prnt, prntDebug, string_to_dt
+    from utils.utils import get_model, has_method, prnt, prntDebug, string_to_dt
     # prnt('--get_signing_data',str(obj)[:150],'exclude_fields',exclude_fields)
     data = {}
     model = None
@@ -5587,7 +5593,7 @@ def get_signing_data(obj, extra_data=None, include_sig=False, full_pk=False, sor
     return json_dump
 
 def sign_for_sending(sending_data, operatorData=None, keys=None):
-    from utils.models import now_utc, get_operator_obj, prnt
+    from utils.utils import now_utc, get_operator_obj, prnt
     sending_data['dt'] = dt_to_string(now_utc())
     if not keys:
         keys = get_operator_obj('keyPair', operatorData=operatorData)
@@ -5622,7 +5628,7 @@ def generate_id(data=None, length=ID_LENGTH):
     return s
 
 def hash_obj_id(obj, verify=False, specific_data=None, random_iden=False, return_data=False, model=None, version=None, length=ID_LENGTH, print_data=False):
-    from utils.models import has_method, has_field, get_model_prefix, get_model, prnt, value_is_none, rgetattr
+    from utils.utils import has_method, has_field, get_model_prefix, get_model, prnt, value_is_none, rgetattr
     # prnt('-hash_obj_id', obj)
     # prnt(convert_to_dict(obj))
     if not length:
@@ -5717,7 +5723,8 @@ def hash_obj_id(obj, verify=False, specific_data=None, random_iden=False, return
                         if '.' in i:
                             a = i.find('.')
                             fk_type = i[:a].replace('_obj','')
-                            from utils.models import get_dynamic_model, request_items
+                            from utils.models import request_items
+                            from utils.utils import get_dynamic_model
                             fk = get_dynamic_model(fk_type, id=obj[i[:a]])
                             if not fk:
                                 returned_objs = request_items(requested_items=[obj[i[:a]]], return_updated_objs=True, return_updated_ids=False, return_missing=False, check_consensus=True, downstream_worker=False, get_missing_blocks=False, override_completed=True)
@@ -5757,7 +5764,7 @@ def hash_obj_id(obj, verify=False, specific_data=None, random_iden=False, return
     return None
 
 def sort_for_sign(data, print_data=False, none_is_string=True):
-    from utils.models import is_dt_string, prnt
+    from utils.utils import is_dt_string, prnt
     # prntDebug('-sort_for_sign','type:',type(data), str(data))
 
     def stringify_bool(val):
@@ -5807,7 +5814,7 @@ def sort_for_sign(data, print_data=False, none_is_string=True):
 _super_id = None
 
 def super_id(iden=None, net=None):
-    from utils.models import prntDev, prnt, prntDebug
+    from utils.utils import prntDev, prnt, prntDebug
     prnt('-super_id()',iden)
     global _super_id
     if _super_id is None:
