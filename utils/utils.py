@@ -636,6 +636,8 @@ def get_latest_dataPacket(chain='All'):
         if pointer in ['User', 'Node']:
             chain = 'All'
         plugin_id = get_plugin(get_model(pointer), id=True)
+    else:
+        plugin_id = None
         
     dataPacket = DataPacket.objects.filter(networkChain=chain, jobId=plugin_id, func='share', created__gte=now_utc()-datetime.timedelta(days=7)).first()
     if not dataPacket:
