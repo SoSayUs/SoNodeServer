@@ -1284,7 +1284,7 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
         
         if block.extraData:
             prnt('block.extraData',block.extraData)
-            from utils.models utils get_pointer_type
+            from utils.utils import get_pointer_type
             if any(v for v in block.extraData if get_pointer_type(v) == 'Validator' and v not in [v.id for v in prev_validators]):
                 fetch = [v for v in block.extraData if get_pointer_type(v) == 'Validator' and v not in [v.id for v in prev_validators]]
                 existing_vals = Validator.objects.filter(id__in=fetch).values('id')
