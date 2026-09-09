@@ -25,6 +25,9 @@ from cryptography.fernet import Fernet
 
 from utils.locked import dt_to_string, load_key
 
+from os.path import expanduser
+homepath = expanduser("~")
+
 current_version = 0.1
 
 
