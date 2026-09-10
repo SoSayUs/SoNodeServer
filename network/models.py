@@ -216,7 +216,7 @@ script_created_modifiable_models = ['Region','District','Party']
 unshared_models = ['Post','UserAction','UserNotification','Wallet','Blockchain','EventLog','Keyphrase','KeyphraseTrend']
 share_to_all = ['oh','nod','nrev','reg','usr','upk','uver','udat'] # this sends to relays as well, relay shouldnt need reg, uver and udat. can remove those under process_received_data, may cause relay to request those items in other locations
 intelligence_funcs = ['summarize_meetings', 'summarize_bills']
-node_types = ['server','maintainer','server/maintainer','relay','intelligence']
+node_types = ['server','maintainer','auto','relay','intelligence']
 reward_models = ['2govSo'] # only Government chain - requires Region_obj on model - hardcoded to gov
 
 model_prefixes = {'Sonet':'oh','Plugin':'plg','Signature':'sig','DataPacket':'dpk','Node':'nod','NodeReview':'nrev','Leger':'lgr','CommitData':'cdat','RevealData':'rdat','Block':'blc','Validator':'val','Blockchain':'chn','EventLog':'log',}
@@ -1208,7 +1208,7 @@ class Node(models.Model):
     score_dt = models.DateTimeField(auto_now=False, auto_now_add=False, blank=True, null=True)
     User_obj = models.ForeignKey('accounts.User', blank=True, null=True, on_delete=models.SET_NULL)
     node_name = models.CharField(max_length=50, default="", blank=True, null=True)
-    node_type = models.CharField(max_length=50, default="server/maintainer", blank=True, null=True)
+    node_type = models.CharField(max_length=50, default="auto", blank=True, null=True)
     node_level = models.CharField(max_length=50, default="standard", blank=True, null=True)
     abilities = models.JSONField(default=dict, blank=True, null=True)
     software_version = models.JSONField(default=dict, blank=True, null=True)
@@ -1241,7 +1241,7 @@ class Node(models.Model):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return {'objType': 'Node', 'is_modifiable': True, 'networkChain': 'Sonet', 'modlVer': 1, 'id': None, 'created': None, 'lastUpdate': None, 'trust_score': 0.5, 'influence_score': 0.5, 'score_dt': None, 'User_obj': None, 'node_name': '', 'node_type': 'server/maintainer', 'node_level': 'standard', 'abilities': {}, 'software_version': {}, 'hardware_data': {}, 'address': '', 'onion': '', 'activated_dt': None, 'suspended_dt': None, 'expelled_dt': None, 'not_responding_dt': None, 'chain_array': None, 'region_array': None, 'plugin_array': None, 'region_data': {}, 'Block_obj': None, 'pos': 0, 'activeNode': False, 'rec_change': None, 'iden_length': 11, 'signed': {}}
+            return {'objType': 'Node', 'is_modifiable': True, 'networkChain': 'Sonet', 'modlVer': 1, 'id': None, 'created': None, 'lastUpdate': None, 'trust_score': 0.5, 'influence_score': 0.5, 'score_dt': None, 'User_obj': None, 'node_name': '', 'node_type': 'auto', 'node_level': 'standard', 'abilities': {}, 'software_version': {}, 'hardware_data': {}, 'address': '', 'onion': '', 'activated_dt': None, 'suspended_dt': None, 'expelled_dt': None, 'not_responding_dt': None, 'chain_array': None, 'region_array': None, 'plugin_array': None, 'region_data': {}, 'Block_obj': None, 'pos': 0, 'activeNode': False, 'rec_change': None, 'iden_length': 11, 'signed': {}}
 
     def commit_data(self, version=None):
         if not version:
@@ -2281,7 +2281,7 @@ class Block(models.Model):
             return shuffled_nodes
 
         ability_types = ['cloudflare']
-        node_types = ['server','maintainer','server/maintainer','relay','intelligence']
+        node_types = ['server','maintainer','auto','relay','intelligence']
         prev_opBlock = Block.objects.filter(Blockchain_obj__genesisId=_OperationsChain_genesisId, index__lt=self.index, validated=True).values('id').order_by('-index', 'created').first()
         if prev_opBlock:
             block_id = prev_opBlock['id']
@@ -2355,15 +2355,15 @@ class Block(models.Model):
                             if a in record_data['abilities'] and node_id in record_data['abilities'][a]:
                                 record_data['abilities'][a].remove(node_id)
                 prnt('c1')
-                # assign server/maintainer nodes either server or maintainer
+                # assign auto nodes either server or maintainer
                 tiebreak = 'servers'
-                if 'server/maintainer' in record_data:
+                if 'auto' in record_data:
                     servers = list(record_data['server'])
                     maintainers = list(record_data['maintainer'])
                     already_placed = set(servers) | set(maintainers)
-                    to_distribute = [item for item in record_data['server/maintainer'] if item not in already_placed]
+                    to_distribute = [item for item in record_data['auto'] if item not in already_placed]
                     prnt('c2')
-                    # remove duplicates within record_data['server/maintainer'] while preserving order
+                    # remove duplicates within record_data['auto'] while preserving order
                     seen = set()
                     unique_to_distribute = []
                     for item in to_distribute:
@@ -2404,7 +2404,7 @@ class Block(models.Model):
                     prnt('c5')
                     record_data['server'] = servers
                     record_data['maintainer'] = maintainers
-                    del record_data['server/maintainer']
+                    del record_data['auto']
                 prnt('c6')
                 # for key, value in new_data.items():
                 #     new_data[key] = shuffle_order(value, key)
