@@ -5636,9 +5636,9 @@ def hash_obj_id(obj, verify=False, specific_data=None, random_iden=False, return
     if not length:
         length = ID_LENGTH
     if random_iden:
-        return get_model_prefix(obj) + '$o' + generate_id(length=length)
+        return get_model_prefix(obj) + 'So' + generate_id(length=length)
     if specific_data:
-        return get_model_prefix(obj) + '$o' + generate_id(specific_data, length=length)
+        return get_model_prefix(obj) + 'So' + generate_id(specific_data, length=length)
     from django.db.models import Model
     data = {}
     err = 0
@@ -5680,16 +5680,16 @@ def hash_obj_id(obj, verify=False, specific_data=None, random_iden=False, return
                 if obj._meta.object_name == 'Region' and obj.Name == 'Earth':
                     from network.models import _EarthChain_genesisId
                     return _EarthChain_genesisId
-                return get_model_prefix(obj) + '$o' + generate_id(data, length=length)
+                return get_model_prefix(obj) + 'So' + generate_id(data, length=length)
             elif verify:
                 return None
             else:
-                return get_model_prefix(obj) + '$o' + generate_id(length=length)
+                return get_model_prefix(obj) + 'So' + generate_id(length=length)
         elif isinstance(obj, str) and verify == False:
             err = 10
             if not model:
                 model = get_model(obj)
-            return get_model_prefix(model) + '$o' + generate_id(length=length)
+            return get_model_prefix(model) + 'So' + generate_id(length=length)
         else:
             err = 100
             try:
@@ -5755,11 +5755,11 @@ def hash_obj_id(obj, verify=False, specific_data=None, random_iden=False, return
                     if model._meta.object_name == 'Region' and obj['Name'] == 'Earth':
                         from network.models import _EarthChain_genesisId
                         return _EarthChain_genesisId
-                    return get_model_prefix(model) + '$o' + generate_id(data, length=length)
+                    return get_model_prefix(model) + 'So' + generate_id(data, length=length)
                 elif verify:
                     return None
                 else:
-                    return get_model_prefix(model) + '$o' + generate_id(length=length)
+                    return get_model_prefix(model) + 'So' + generate_id(length=length)
     except Exception as e:
         prnt(f'hash-id-fail49204-{err}',obj,str(e),'data:',data)
     # prnt('err',err)

@@ -199,7 +199,7 @@ _OperationsChain_genesisId = 'Nodes'
 _KeyChain_genesisId = 'Keys'
 _AccountChain_genesisId = 'Accounts'
 _SonetChain_genesisName = 'Sonet'
-_EarthChain_genesisId = 'reg$oshCP31gSfl6p3mLw8dZ'
+_EarthChain_genesisId = 'regSoshCP31gSfl6p3mLw8dZ'
 
 mainChains = [_OperationsChain_genesisId, _KeyChain_genesisId, _AccountChain_genesisId, _SonetChain_genesisName, _EarthChain_genesisId]
 default_apps = ['accounts', 'network', 'posts']

@@ -1064,9 +1064,9 @@ def get_pointer_type(iden):
         return iden['objType']
     elif isinstance(iden, str) and not is_id(iden) and get_app_name(model_name=iden, am_i_model=True) == iden:
         return iden
-    if not iden or '$o' not in iden:
+    if not iden or 'So' not in iden:
         return None
-    x = iden.find('$o')
+    x = iden.find('So')
     prefix = iden[:x]
     return get_app_name(prefix=prefix) 
 
@@ -1080,7 +1080,7 @@ def get_chain_type(iden):
         iden = iden['id']
         if 'networkChain' in iden:
             return iden['networkChain']
-    if not iden or '$o' not in iden:
+    if not iden or 'So' not in iden:
         return None
     m = get_model(iden)()
     if has_field(m, 'networkChain'):
@@ -1302,11 +1302,11 @@ def parse_input(value):
 
 def is_id(obj):
     # prnt('-is_id')
-    # prefix = plugin num + 2 to 5 class chars followed by "$o"
+    # prefix = plugin num + 2 to 5 class chars followed by "So"
     max_length = 35 # character length - does not include prefix - ID_LENGTH of 25
     min_length = 13 # ID_LENGTH of 10
     
-    if isinstance(obj, str) and '$o' in obj[1:10] and obj.replace('$o', '', 1).isalnum() and any(obj[i:i+2] == '$o' and min_length <= len(obj[i+2:]) <= max_length for i in range(2, 11)):
+    if isinstance(obj, str) and 'So' in obj[1:10] and obj.replace('So', '', 1).isalnum() and any(obj[i:i+2] == 'So' and min_length <= len(obj[i+2:]) <= max_length for i in range(2, 11)):
         return True
     return False
 
@@ -1387,7 +1387,7 @@ def get_model_fields(obj=None):
 
 def hash_upk_id(pubKey):
     from utils.locked import generate_id
-    return 'upk$o' + generate_id(pubKey, length=14)    
+    return 'upkSo' + generate_id(pubKey, length=14)    
 
 
 _appInfo = None
