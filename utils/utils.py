@@ -1112,7 +1112,7 @@ def seperate_by_type(obj_list, include_only=None, exclude=None):
     skipping_models = []
     if not obj_list:
         return obj_types
-    
+    from utils.models import data_sort_priority
     obj_list = sorted(obj_list, key=data_sort_priority)
     # prntDebug('obj_list',obj_list)
     for i in obj_list:

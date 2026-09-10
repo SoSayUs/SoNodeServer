@@ -303,7 +303,7 @@ def get_cookies(request, received_cxt, country=None, gov=None):
     #     userData = None
     # prnt('utils.py UserData', userData)
     nodeData = {}
-    from network.models import Block, Sonet, NodeRecord
+    from network.models import Block, Sonet, Leger
     sonet = Sonet.objects.values('Title','Subtitle','LogoLink','created','Domain').first()
     if not sonet:
         sonet = {'Title' : 'Nonet', 'LogoLink' : "img/default_logo.png", 'Domain':''}
@@ -317,7 +317,7 @@ def get_cookies(request, received_cxt, country=None, gov=None):
         nodeData['blockId'] = latest_opBlock['id']
         nodeData['blockDatetime'] = dt_to_string(latest_opBlock['DateTime'])
         nodeData['max_pos'] = latest_opBlock['epochData']['max_pos']
-        nodeRecord = NodeRecord.objects.filter(pointerId='Nodes', Block_obj_id=latest_opBlock['id'], is_valid=True).values('data').first()
+        nodeRecord = Leger.objects.filter(pointerId='Nodes', Block_obj_id=latest_opBlock['id'], is_valid=True).values('data').first()
         if nodeRecord:
             nodeData['id_data'] = nodeRecord['data']
     else:
