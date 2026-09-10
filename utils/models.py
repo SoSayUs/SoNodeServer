@@ -3166,7 +3166,11 @@ def tasker(dt, test=False):
         self_node = Node.objects.filter(id=self_node_id).values('chain_array','region_array','plugin_array').first()
         prnt('self_node',self_node)
         prnt("self_node['chain_array']+['All']",self_node['chain_array']+['All'])
-        dataPackets = DataPacket.objects.filter(Node_obj__id=self_node_id, func='share').filter(Q(networkChain__in=self_node['plugin_array']+self_node['region_array']+['All'])|Q(Region_obj__id__in=self_node['region_array'])).exclude(networkChain=_OperationsChain_genesisId).exclude(data={}).defer('data','notes')
+
+        p_array = self_node['plugin_array'] if self_node['plugin_array'] else []
+        r_array = self_node['region_array'] if self_node['region_array'] else []
+        supported = list(p_array) + list(r_array) + ['All']
+        dataPackets = DataPacket.objects.filter(Node_obj__id=self_node_id, func='share').filter(Q(networkChain__in=supported)|Q(Region_obj__id__in=r_array)).exclude(networkChain=_OperationsChain_genesisId).exclude(data={}).defer('data','notes')
         for dp in dataPackets:
             if not exists_in_worker('broadcast_dp', queue_name=['chat'], iden=dp.id):
                 django_rq.get_queue('chat').enqueue(dp.broadcast_dp, iden=dp.id, job_timeout=300, result_ttl=7200)
