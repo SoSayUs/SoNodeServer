@@ -3220,7 +3220,7 @@ def tasker(dt, test=False):
                 # broadcast commit
         elif dt.minute in [t-10 for t in _block_creation_times]:
             from network.models import RevealData 
-            reveal = RevealData.objects.filter(Node_obj__id=self_node_id, created=dt-datetime.timdelta(minutes=10)).first()
+            reveal = RevealData.objects.filter(Node_obj__id=self_node_id, created=dt-datetime.timedelta(minutes=10)).first()
             if reveal:
                 # broadcast
                 ...
