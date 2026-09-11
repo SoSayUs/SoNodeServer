@@ -1159,7 +1159,7 @@ class DataPacket(models.Model):
 
     def save(self, share=False, *args, **kwargs):
         prntDebug('-dp save...', self.id)
-        prnt(DataPacket.objects.all())
+        # prnt(DataPacket.objects.all())
         if self.func:
             self.func = self.func[:90]
         update_fields = kwargs.get('update_fields', None)
@@ -3465,7 +3465,7 @@ class Blockchain(models.Model):
     
     def save(self, share=False, *args, **kwargs):
         prnt('-save blockchain',self.id)
-        prnt(Blockchain.objects.all())
+        # prnt(Blockchain.objects.all())
 
         self.modlVer = self.latestVer
         update_fields = kwargs.get('update_fields', None)
