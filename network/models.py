@@ -1691,8 +1691,8 @@ class NodeReview(models.Model):
     response_times = models.JSONField(default=dict, blank=True, null=True)
     response_success = models.FloatField(default=0.5)
     job_success = models.FloatField(default=0.5)
-    # reveal_success = models.FloatField(default=0.5)
-    # creator_reveal_violations = models.PositiveSmallIntegerField(default=0)
+    reveal_success = models.FloatField(default=0.5)
+    creator_reveal_violations = models.PositiveSmallIntegerField(default=0)
     interactions = models.IntegerField(default=0)
     avg_response_time = models.DecimalField(max_digits=7, decimal_places=4, default=None, blank=True, null=True)
     last_fail = models.DateTimeField(auto_now=False, auto_now_add=False, blank=True, null=True)
@@ -3557,7 +3557,7 @@ class Blockchain(models.Model):
             specific_data = {'objType':'Block','blockchainId':self.id,'DateTime':dt_to_string(dt),'prev_block_id':prev_block_id,'latest_sonet_block_id':latest_sonet_block_id}
         dummy_block = Block(id=hash_obj_id('Block', specific_data=specific_data), Blockchain_obj=self, networkChain=self.genesisId, created=now, DateTime=dt)
         from utils.utils import quick_hash
-        dummy_block.salt = quick_hash({s['id']:s['salt'] for s in RevealData.objects.filter(dataType='salt', added_to_node__lt=now, added_to_node__gte=now-datetime.timedelta(minutes=10)).distinct('Node_obj__id').order('Node_obj__id', '-created').values('id', 'salt')})
+        dummy_block.salt = quick_hash({s['id']:s['value'] for s in RevealData.objects.filter(dataType='salt', added_to_node__lt=now, added_to_node__gte=now-datetime.timedelta(minutes=10)).distinct('Node_obj__id').order_by('Node_obj__id', '-created').values('id', 'value')})
         prnt('dummy_block:',dummy_block, dt)
         return dummy_block
 
