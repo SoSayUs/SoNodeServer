@@ -1701,7 +1701,7 @@ def validate_block(block, creator_nodes=None, opBlock_data=None, create_validato
             elif prev_block.validated == None:
                 return None, None, None # wait for result of prev_block
             
-            elif block.salt != quick_hash({s['id']:s['salt'] for s in RevealData.objects.filter(dataType='salt', added_to_node__lt=block.created, added_to_node__gte=block.created-datetime.timedelta(minutes=10)).distinct('Node_obj__id').order('Node_obj__id', '-created').values('id', 'salt')}):
+            elif block.salt != quick_hash({s['id']:s['value'] for s in RevealData.objects.filter(dataType='salt', added_to_node__lt=block.created, added_to_node__gte=block.created-datetime.timedelta(minutes=10)).distinct('Node_obj__id').order_by('Node_obj__id', '-created').values('id', 'value')}):
                 hard_pass = True
                 fail_reason = 754
         
@@ -3964,11 +3964,11 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=No
             from network.models import _OperationsChain_genesisId
             if obj.networkChain == _OperationsChain_genesisId:
                 dt = string_to_dt(obj.DateTime) - datetime.timedelta(minutes=20) # block is created 20 mins early
-                shuffle_seed = f'opBlock_seed_{dt}_{obj.seed}'
+                shuffle_seed = f'opBlock_seed_{dt}_{obj.salt}'
             else:
                 if not dt:
                     dt = string_to_dt(obj.DateTime)
-                shuffle_seed = f"{obj.id}_{obj.seed}"
+                shuffle_seed = f"{obj.id}_{obj.salt}"
             if not plugin_id:
                 plugin_id = get_plugin(obj.networkChain, id=True)
             if obj.networkChain in ['Sonet',_OperationsChain_genesisId]:
