@@ -2315,8 +2315,11 @@ class Block(models.Model):
                     prnt("node_data['plugin_array']",node_data['plugin_array'])
                     prnt("node_data['region_array']",node_data['region_array'])
                     prnt("get_chain_id(pointerId)",get_chain_id(pointerId))
+                    c_array = list(node_data['chain_array']) if node_data['chain_array'] else []
+                    p_array = list(node_data['plugin_array']) if node_data['plugin_array'] else []
+                    r_array = list(node_data['region_array']) if node_data['region_array'] else []
                     if node_data['chain_array']:
-                        node_supported = list(node_data['chain_array']) + list(node_data['plugin_array']) + list(node_data['region_array'])
+                        node_supported = c_array + p_array + r_array
                         prnt('node_supported',node_supported)
                     if node_data['chain_array'] and (pointerId in node_supported or get_chain_id(pointerId) in node_supported) and node_data['activated_dt'] and not node_data.get('suspended_dt', None) and not node_data.get('expelled_dt', None):
                         prnt('a1')
