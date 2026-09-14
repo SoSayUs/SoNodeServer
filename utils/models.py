@@ -3216,7 +3216,7 @@ def tasker(dt, test=False):
             if node_count and (node_count < 3 and random.randrange(node_count) == 0 or random.randrange(node_count/3) == 0):
                 from network.models import CommitData 
                 commit = CommitData()
-                commit, reveal = CommitData.create_pair()
+                commit, reveal = commit.create_pair()
                 # broadcast commit
         elif dt.minute in [t-10 for t in _block_creation_times]:
             from network.models import RevealData 

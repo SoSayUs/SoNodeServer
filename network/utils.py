@@ -447,7 +447,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                             validators.append(obj)
                         elif obj.validatorType == 'Block':
                             val_err += 'b'
-                            val_block = Block.objects.filter(id__in=obj.data).first()
+                            val_block = Block.objects.filter(id__in=[i for i in obj.data if is_id(i)]).first()
                             if val_block and val_block.validated == None or val_block and override_completed or not val_block:
                                 val_err += 'c'
                                 validators.append(obj) # check_block_consensus()

@@ -2746,7 +2746,7 @@ class Block(models.Model):
                         break
                 if invalidate:
                     for b in Block.objects.filter(id__in=invalidate):
-                        if not exists_in_worker('is_not_valid', queue=['high','main'], id=b.id):
+                        if not exists_in_worker('is_not_valid', queue_name=['high','main'], id=b.id):
                             django_rq.get_queue('high').enqueue(b.is_not_valid, id=b.id, note=f'followed_previous_fail_b-{self.id}', super_delete_content=super_delete_content, revision_limit=False, job_timeout=120, result_ttl=7200)
 
             if self.Blockchain_obj.genesisId == _OperationsChain_genesisId:
@@ -2758,7 +2758,7 @@ class Block(models.Model):
                 prnt('dependent_blocks',dependent_blocks)
                 if dependent_blocks:
                     for b in dependent_blocks:
-                        if not exists_in_worker('is_not_valid', queue=['high','main'], id=b.id):
+                        if not exists_in_worker('is_not_valid', queue_name=['high','main'], id=b.id):
                             django_rq.get_queue('high').enqueue(b.is_not_valid, id=b.id, note=f'dependent_block_fail_b-{self.id}', super_delete_content=super_delete_content, revision_limit=False, job_timeout=120, result_ttl=7200)
             return
         if revision_limit:

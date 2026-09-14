@@ -1429,19 +1429,20 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
 
         validations = list(Validator.objects.filter(jobId=block_id, validatorType='Block', networkChain=networkChainId).filter(data__has_key=val_obj.id).filter(CreatorNode_obj__id__in=validator_list[:required_validators], created__gte=block_created_dt, created__lt=max_val_dt_full).distinct('CreatorNode_obj__id').order_by('CreatorNode_obj__id','created'))
         prnt('validations',len(validations))
+        found_vals = [v.id for v in validations]
 
         if val_obj.validations and len(val_obj.validations) > len(validations):
             prnt('val_obj.validations',val_obj.validations)
             other_vals = Validator.objects.filter(id__in=[key for key in val_obj.validations], created__gte=block_created_dt).exclude(id__in=[v.id for v in validations]).only('id')
-            found_vals = [v.id for v in validations] + [v.id for v in other_vals]
+            found_vals += [v.id for v in other_vals]
             missing_vals = [val_id for val_id in val_obj.validations if val_id not in found_vals]
             prnt('missing_vals',missing_vals)
             if missing_vals:
                 retreived_vals_list = request_items(missing_vals, supported_chain_list=networkChainId, return_updated_objs=True, check_consensus=False, get_missing_blocks=False, override_completed=False)
                 prnt('retreived_vals_list',retreived_vals_list)
                 if retreived_vals_list:
-                    validations += [v for v in retreived_vals_list if v.CreatorNode_obj.id in validator_list[:required_validators] and v not in validations]
-        if len(validations) < required_validators and now_utc() > max_val_dt_half:
+                    validations += [v for v in retreived_vals_list if v.CreatorNode_obj.id in validator_list[:required_validators] and v not in validations and v.created >= block_created_dt and v.created < max_val_dt_full]
+        if len(found_vals) < required_validators and now_utc() > max_val_dt_half:
             prnt('max_val_dt_half',max_val_dt_half,'now_utc()',now_utc())
             requests = [n for n in validator_list[:required_validators] if n not in [v.CreatorNode_obj.id for v in validations]]
             if requests:
@@ -1449,7 +1450,7 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
                     retreived_vals_list = request_items([val_obj.id], nodes=[n], request_validators=True, supported_chain_list=networkChainId, return_updated_objs=True, check_consensus=False, get_missing_blocks=False, override_completed=False)
                     prnt('retreived_vals_list2',retreived_vals_list)
                     if retreived_vals_list:
-                        validations += [v for v in retreived_vals_list if v.CreatorNode_obj.id in validator_list[:required_validators] and v not in validations]
+                        validations += [v for v in retreived_vals_list if v.CreatorNode_obj.id in validator_list[:required_validators] and v not in validations and v.created >= block_created_dt and v.created < max_val_dt_full]
 
 
         def check_is_valid(validations, val_obj, creator_nodes, validator_list, required_validators, broadcast_list, block_created_dt, max_val_dt_full, block_delay, do_mark_valid, obj_is_block, broadcast_if_unknown):
