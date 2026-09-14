@@ -1048,7 +1048,6 @@ def rgetattr(obj, path):
     return obj
 
 def get_model_prefix(obj):
-    # returns 'sta', 'vot' etc.
     if isinstance(obj, dict):
         return get_app_name(obj['objType'], return_prefix=True)
     elif isinstance(obj, str):
