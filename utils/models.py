@@ -1494,7 +1494,7 @@ def set_model_attrs(obj, data, user=None, dt=None, skip_user_check=False, skip_f
                         if debug:
                             prnt('sync esle',data[f.name])
                         if len(str(data[f.name])) < 10000000:
-                            if str(data[f.name]) == 'Val:N':
+                            if (str(data[f.name])) == 'Val:N':
                                 value = None
                             else:
                                 value = str(data[f.name])
@@ -3216,7 +3216,7 @@ def tasker(dt, test=False):
             if node_count and (node_count < 3 and random.randrange(node_count) == 0 or random.randrange(node_count/3) == 0):
                 from network.models import CommitData 
                 commit = CommitData()
-                commit, reveal = CommitData.create_salt_pair()
+                commit, reveal = CommitData.create_pair()
                 # broadcast commit
         elif dt.minute in [t-10 for t in _block_creation_times]:
             from network.models import RevealData 
