@@ -1668,6 +1668,7 @@ def get_chain_data_view(request):
         plugin_data = []
         from network.models import Plugin
         plugins = Plugin.objects.exclude(Block_obj=None)
+        prnt('plugins',plugins)
         if plugins:
             for p in plugins:
                 data = {'Title':p.Title,'AbbrTitle':p.AbbrTitle,'Subtitle':p.Subtitle,'Description':p.Description,'id':p.id,'user_facing':p.user_facing,'model_prefixes':p.model_prefixes,'user_id':p.User_obj.id,'user_name':p.User_obj.username}
