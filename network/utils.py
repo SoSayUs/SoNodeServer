@@ -251,12 +251,14 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                     prnt('latest_block',latest_block)
                     if latest_block.id != i['data']['blockId']:
                         prnt('x1')
-                        if latest_block.DateTime < string_to_dt(i['data']['dt']):
-                            prnt('x2')
-                            retrieve_missing_blocks(blockchain=chain, target_node=received_data['senderId'], starting_point=i['data']['blockId'], items_to_get=3, retrieve_following=True, downstream_worker=False)
-                        else:
-                            prnt('x3')
-                            send_missing_blocks(blockchain=chain, missing_blocks=[latest_block], starting_index=latest_block.id, send_to=received_data['senderId'], force_check=True)
+                        n_count = Node.objects.filter(nodeActive=True).count()
+                        if random.randint(1, n_count) <= n_count/3:
+                            if latest_block.DateTime < string_to_dt(i['data']['dt']):
+                                prnt('x2')
+                                retrieve_missing_blocks(blockchain=chain, target_node=received_data['senderId'], starting_point=i['data']['blockId'], items_to_get=3, retrieve_following=True, downstream_worker=False)
+                            else:
+                                prnt('x3')
+                                send_missing_blocks(blockchain=chain, missing_blocks=[latest_block], starting_index=latest_block.id, send_to=received_data['senderId'], force_check=True)
 
                 elif i['objType'] in userModels:
                     val_err += 'A'
