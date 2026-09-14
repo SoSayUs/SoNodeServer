@@ -305,15 +305,18 @@ def debugging():
 
 
 def string_to_dt(dt_str):
-    if isinstance(dt_str, datetime.datetime):
-        return dt_str
-    if dt_str and isinstance(dt_str, str):
-        if dt_str == 'Val:N':
-            return None
-        if 'Z' in dt_str:
-            dt = datetime.datetime.fromisoformat(dt_str.replace('Z', '0+00:00'))
-            return dt
-        return datetime.datetime.fromisoformat(dt_str)
+    try:
+        if isinstance(dt_str, datetime.datetime):
+            return dt_str
+        if dt_str and isinstance(dt_str, str):
+            if dt_str == 'Val:N':
+                return None
+            if 'Z' in dt_str:
+                dt = datetime.datetime.fromisoformat(dt_str.replace('Z', '0+00:00'))
+                return dt
+            return datetime.datetime.fromisoformat(dt_str)
+    except:
+        pass
     return None
 
 def now_utc():
@@ -330,9 +333,8 @@ def is_dt_string(val):
     if not isinstance(val, str) or len(val) not in [23, 26, 32]:
         return False
     try:
-        from dateutil.parser import parse
-        parse(val)
-        return True
+        x = string_to_dt(val)
+        return True if x else False
     except Exception:
         return False
 
