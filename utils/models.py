@@ -3211,26 +3211,31 @@ def tasker(dt, test=False):
         prnt("self_node['chain_array']",self_node['chain_array'])
         prnt("self_node['region_array']",self_node['region_array'])
         prnt("self_node['plugin_array']",self_node['plugin_array'])
+        sonet = Sonet.objects.values('id').first()
         if dt.minute in [t-20 for t in _block_creation_times]:
             node_count = Node.objects.filter(activeNode=True).count()
             if node_count and (node_count < 3 and random.randrange(node_count) == 0 or random.randrange(node_count/3) == 0):
                 from network.models import CommitData 
                 commit = CommitData()
                 commit, reveal = commit.create_pair()
-                # broadcast commit
+                dp = DataPacket(Node_obj_id=self_node_id, func='share', networkChain=sonet['id'])
+                dp.add_item_to_share(commit)
+                django_rq.get_queue('chat').enqueue(dp.broadcast_dp, job_timeout=60, result_ttl=7200)
+
         elif dt.minute in [t-10 for t in _block_creation_times]:
             from network.models import RevealData 
             reveal = RevealData.objects.filter(Node_obj__id=self_node_id, created=dt-datetime.timedelta(minutes=10)).first()
             if reveal:
-                # broadcast
-                ...
+                dp = DataPacket(Node_obj_id=self_node_id, func='share', networkChain=sonet['id'])
+                dp.add_item_to_share(reveal)
+                django_rq.get_queue('chat').enqueue(dp.broadcast_dp, job_timeout=60, result_ttl=7200)
         elif dt.minute in _block_creation_times or test==True:
             block_assigned = False
             from network.models import Sonet, universalChains, _SonetChain_genesisName, _EarthChain_genesisId, reward_models
             universalChains.remove(_OperationsChain_genesisId)
             universalChains.remove(_SonetChain_genesisName)
-            s = Sonet.objects.values('id').first()
-            universalChains.append(s['id'])
+            
+            universalChains.append(sonet['id'])
             universalChains.append(_EarthChain_genesisId)
             prnt('universalChains',universalChains)
             chains = Blockchain.objects.filter(genesisId__in=universalChains, last_block_datetime__lte=dt - datetime.timedelta(minutes=block_time_delay()-10)).exclude(queuedData={}).defer('queuedData')
