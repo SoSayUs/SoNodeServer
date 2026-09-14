@@ -153,7 +153,7 @@ def set_object_data_view(request):
                             if has_method(obj, 'boot'):
                                 obj.boot()
                             if do_super_share:
-                                objs, good = super_share(obj, func='super', val_type='set_object', job_id=random.randint(1, 100), adjust_created_time=False)
+                                objs, good = super_share(obj, func='super', val_type='set_object', job_id=hash_obj_id('DataPacket', random_iden=True), adjust_created_time=False)
                                 prnt('obj-good1',good)
                                 if good:
                                     return JsonResponse({'message' : 'Success', 'obj' : get_signing_data(objs[0])})
@@ -1534,13 +1534,13 @@ def tester_queue_view(request):
             prnt('HELLLOO!!')
             import django_rq
             queue = django_rq.get_queue('low')
-            queue.enqueue(tester_queue, job_timeout=1200)
+            # queue.enqueue(tester_queue, job_timeout=1200)
             # queue.enqueue(tester_queue, job_timeout=3600)
             from network.models import Tidy, Validator, _OperationsChain_genesisId
             # from posts.models import Region
             from transactions.models import Wallet,Tx
-            # from utils.locked import check_commit_data
-            from utils.utils import get_data
+            from utils.locked import create_keys, sign_obj
+            from utils.utils import get_model
             from utils.utils import get_plugin
             self_node = get_self_node()
 
