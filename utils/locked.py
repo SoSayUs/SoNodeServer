@@ -1535,24 +1535,25 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
         
 
         def val_is_val(v, val_obj, validations, next_block):
-            if not check_commit_data(val_obj, v.data[val_obj.id]):
-                prnt('vx1')
-                pass
-            elif v.CreatorNode_obj.expelled_dt and v.CreatorNode_obj.expelled_dt < val_obj.created:
-                prnt('vx2',v.CreatorNode_obj.expelled_dt)
-                pass
-            elif next_block and v.id in next_block.extraData:
-                prnt('v2')
-                if check_commit_data(v, next_block.extraData[v.id]):
+            if v not in validations:
+                if not check_commit_data(val_obj, v.data[val_obj.id]):
+                    prnt('vx1')
+                    pass
+                elif v.CreatorNode_obj.expelled_dt and v.CreatorNode_obj.expelled_dt < val_obj.created:
+                    prnt('vx2',v.CreatorNode_obj.expelled_dt)
+                    pass
+                elif next_block and v.id in next_block.extraData:
+                    prnt('v2')
+                    if check_commit_data(v, next_block.extraData[v.id]):
+                        if verify_obj_to_data(v, v):
+                            validations.append(v)
+                elif not next_block:
+                    prnt('v4')
                     if verify_obj_to_data(v, v):
                         validations.append(v)
-            elif not next_block:
-                prnt('v4')
-                if verify_obj_to_data(v, v):
-                    validations.append(v)
-            else:
-                prnt('else')
-                prnt(convert_to_dict(v))
+                else:
+                    prnt('else')
+                    prnt(convert_to_dict(v))
             return validations
         # vals must be on next_block if next_block or block.Block_obj
         if next_block:
@@ -1586,7 +1587,7 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
                 is_valid, consensus_found, validations_list = check_is_valid(validations_list, val_obj, creator_nodes, validator_list, required_validators, broadcast_list, block_created_dt, max_val_dt_full, block_delay, do_mark_valid, obj_is_block, broadcast_if_unknown)
                 if is_valid:
                     any_is_valid = True
-                    if len(validations_list) > len(greatest_validations):
+                    if len([v for v in validations_list if v.is_valid]) > len([v for v in greatest_validations if v.is_valid]):
                         greatest_validations = validations_list
                 if is_valid and consensus_found:
                     return is_valid, next_block.id, validations_list

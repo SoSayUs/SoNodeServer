@@ -2254,7 +2254,7 @@ def resolve_chain_fork(chainId, request_count=50, node_count=50, starting_hash=N
 
     anchored_paths = []
     for node_id, node in node_list.items():
-        success, response = connect_to_node(node,'network/request_chain_path',data={'blockchainId': chainId,'count': request_count,'start': starting_hash},self_node=self_node,operatorData=operatorData)
+        success, response = connect_to_node(node,'network/request_chain_path',data={'genesisId': chainId,'count': request_count,'start': starting_hash},self_node=self_node,operatorData=operatorData)
         if success:
             data = response.json()
             if data.get('message') == 'Success':

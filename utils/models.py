@@ -970,8 +970,9 @@ def sync_model(xModel, jsonContent, skip_fields=[], do_save=True, opBlock_data={
                     if not xModel.Block_obj or xModel.Block_obj.id != received_data['Block_obj']:
                         prnt('pq2b')
                         previously_updated = False
-                elif received_data['lastUpdate'] != xModel.lastUpdate:
+                elif received_data['lastUpdate'] != dt_to_string(xModel.lastUpdate):
                     prnt('pq2c')
+                    prnt(received_data['lastUpdate'], dt_to_string(xModel.lastUpdate))
                     previously_updated = False
                 if previously_updated and string_to_dt(received_data['lastUpdate']) <= string_to_dt(xModel.lastUpdate):
                     prnt('previously updated - skipping sync')

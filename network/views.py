@@ -362,36 +362,36 @@ def request_chain_path_view(request):
                 raw_data = request.body.decode('utf-8')
                 received_data = json.loads(raw_data)
                 prnt('received_data',type(received_data),received_data)
-                blockchainId = received_data.get('blockchainId', None)
+                genesisId = received_data.get('genesisId', None)
                 count = int(received_data.get('count', 50))
                 start = received_data.get('start', None)
                 hash_history = received_data.get('hash_history', None)
-                prntDebug('blockchainId',blockchainId,'count',count,'start',start)
-                if blockchainId:
-                    chain = Blockchain.objects.filter(id=blockchainId).exists()
+                prntDebug('genesisId',genesisId,'count',count,'start',start)
+                if genesisId:
+                    chain = Blockchain.objects.filter(genesisId=genesisId).exists()
                     if not chain:
-                        return JsonResponse({'message' : 'Chain Not Found', 'blockchainId' : blockchainId})
+                        return JsonResponse({'message' : 'Chain Not Found', 'genesisId' : genesisId})
                     result = []
                     if start:
-                        start_block = Block.objects.filter(networkChain=blockchainId, hash=start, validated=True).values('index','hash').first()
+                        start_block = Block.objects.filter(networkChain=genesisId, hash=start, validated=True).values('index','hash').first()
                         if start_block:
-                            preceeding = Block.objects.filter(networkChain=blockchainId, index__lt=start_block['index'], validated=True).values('hash').order_by('-index')[:int(count/2)]
-                            proceeding = Block.objects.filter(networkChain=blockchainId, index__gt=start_block['index'], validated=True).values('hash').order_by('index')[:int(count/2)]
+                            preceeding = Block.objects.filter(networkChain=genesisId, index__lt=start_block['index'], validated=True).values('hash').order_by('-index')[:int(count/2)]
+                            proceeding = Block.objects.filter(networkChain=genesisId, index__gt=start_block['index'], validated=True).values('hash').order_by('index')[:int(count/2)]
                             result = [b['hash'] for b in reversed(preceeding)] + [start_block['hash']] + [b['hash'] for b in proceeding]
                             prnt('result2:',result)
                     elif hash_history:
-                        block = Block.objects.filter(networkChain=blockchainId, hash__in=hash_history, validated=True).values("id","index").order_by('-index').first()
+                        block = Block.objects.filter(networkChain=genesisId, hash__in=hash_history, validated=True).values("id","index").order_by('-index').first()
                         if block:
-                            blocks = Block.objects.filter(networkChain=blockchainId, index__gte=block['index'], validated=True).values("id","hash").order_by('index','created')[:count]
+                            blocks = Block.objects.filter(networkChain=genesisId, index__gte=block['index'], validated=True).values("id","hash").order_by('index','created')[:count]
                             result = [b['hash'] for b in blocks]
                     else:
-                        blocks = Block.objects.filter(networkChain=blockchainId, validated=True).values('hash').order_by('-index')[:count]
+                        blocks = Block.objects.filter(networkChain=genesisId, validated=True).values('hash').order_by('-index')[:count]
                         result = [b['hash'] for b in reversed(blocks)]
                         prnt('result1:',result)
                     return JsonResponse({'message' : 'Success', 'result': json.dumps(result)})
     except Exception as e:
         prnt('request_chain_path_view fail',str(e))
-        return JsonResponse({'message' : 'Error', 'blockchainId' : blockchainId, 'error': str(e)})
+        return JsonResponse({'message' : 'Error', 'genesisId' : genesisId, 'error': str(e)})
 
 @csrf_exempt
 def is_data_processing_view(request, iden):
