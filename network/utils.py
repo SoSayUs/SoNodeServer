@@ -361,7 +361,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                         prnt('obj is upk')
                         if is_new or not obj.Block_obj:
                             val_err += '1'
-                            prntDebug('is new')
+                            prntDebug('is new', obj.Block_obj)
 
                             # sig_data = get_sigData(target_data, first_key=False)
                             # target_dt = sig_data['dt']
