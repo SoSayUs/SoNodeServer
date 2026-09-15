@@ -564,6 +564,24 @@ class EventLogAdmin(AutoForeignKeyAdmin):
     class Meta:
         model = EventLog
 
+class CommitDataAdmin(AutoForeignKeyAdmin):
+    list_display = ['id','Node_obj','dataType',full_utc('created'),full_utc('added_to_node')]
+    list_display_links = []
+    list_editable = []
+    list_filter = []
+    search_fields = AutoForeignKeyAdmin.search_fields + ['dataType', 'id']
+    class Meta:
+        model = CommitData
+
+class RevealDataAdmin(AutoForeignKeyAdmin):
+    list_display = ['id','Node_obj','dataType',full_utc('created'),full_utc('added_to_node')]
+    list_display_links = []
+    list_editable = []
+    list_filter = []
+    search_fields = AutoForeignKeyAdmin.search_fields + ['dataType', 'id']
+    class Meta:
+        model = RevealData
+
 admin.site.register(User, UserAdmin)
 admin.site.register(UserPubKey, UserPubKeyAdmin)
 admin.site.register(SuperSign, SuperSignAdmin)
@@ -593,5 +611,7 @@ admin.site.register(Validator, ValidatorAdmin)
 admin.site.register(Block, BlockAdmin)
 admin.site.register(Blockchain, BlockchainAdmin)
 admin.site.register(EventLog, EventLogAdmin)
+admin.site.register(CommitData, CommitDataAdmin)
+admin.site.register(RevealData, RevealDataAdmin)
 
 
