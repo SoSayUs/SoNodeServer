@@ -1564,9 +1564,9 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
             else:
                 next_blocks = list(Block.objects.filter(networkChain=block.networkChain, prv_hash=block.hash).exclude(validated=False).only('extraData'))
         initial_vals_list = []
-        if block.Block_obj and block.Block_obj.validated:
-            for v in validations:
-                initial_vals_list = val_is_val(v, val_obj, initial_vals_list, block.Block_obj)
+        # if block.Block_obj and block.Block_obj.validated:
+        #     for v in validations:
+        #         initial_vals_list = val_is_val(v, val_obj, initial_vals_list, block.Block_obj)
         if not next_blocks:
             validations_list = initial_vals_list
             for v in validations:
