@@ -1564,14 +1564,17 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
             else:
                 next_blocks = list(Block.objects.filter(networkChain=block.networkChain, prv_hash=block.hash).exclude(validated=False).only('extraData'))
         initial_vals_list = []
-        # if block.Block_obj and block.Block_obj.validated:
-        #     for v in validations:
-        #         initial_vals_list = val_is_val(v, val_obj, initial_vals_list, block.Block_obj)
         if not next_blocks:
             validations_list = initial_vals_list
             for v in validations:
                 prnt('v_id1',v.id)
                 validations_list = val_is_val(v, val_obj, validations_list, None)
+            return check_is_valid(validations_list, val_obj, creator_nodes, validator_list, required_validators, broadcast_list, block_created_dt, max_val_dt_full, block_delay, do_mark_valid, obj_is_block, broadcast_if_unknown)
+        elif block.Block_obj and block.Block_obj.validated:
+            validations_list = initial_vals_list
+            for v in validations:
+                prnt('v_id2',v.id)
+                validator_list = val_is_val(v, val_obj, validations_list, block.Block_obj)
             return check_is_valid(validations_list, val_obj, creator_nodes, validator_list, required_validators, broadcast_list, block_created_dt, max_val_dt_full, block_delay, do_mark_valid, obj_is_block, broadcast_if_unknown)
         else:
             prnt('next_blocks len',len(next_blocks))
@@ -1579,9 +1582,9 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
             greatest_validations = []
             for next_block in next_blocks:
                 prnt('next_block val check',next_block)
-                validations_list = initial_vals_list
+                validations_list = initial_vals_list.copy()
                 for v in validations:
-                    prnt('v_id2',v.id)
+                    prnt('v_id3',v.id)
                     validations_list = val_is_val(v, val_obj, validations_list, next_block)
 
                 is_valid, consensus_found, validations_list = check_is_valid(validations_list, val_obj, creator_nodes, validator_list, required_validators, broadcast_list, block_created_dt, max_val_dt_full, block_delay, do_mark_valid, obj_is_block, broadcast_if_unknown)
@@ -3456,7 +3459,7 @@ def verify_obj_to_data(obj, target_data, user=None, return_user=False, requireSu
                 upk = UserPubKey.objects.filter(id=iden, User_obj__id=user_id).only('User_obj', 'created', 'end_life_dt', 'publicKey').first()
 
         if False:
-        # if not users and not failed and not upks or not users and return_user:
+            # if not users and not failed and not upks or not users and return_user:
             x += '8'
             # prntDebug(f'not user1-- user_id:{user_id}, node_id:{node_id}, wallet_id:{wallet_id}')
             if not failed:
