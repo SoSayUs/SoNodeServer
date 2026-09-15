@@ -57,14 +57,14 @@ def set_object_data_view(request):
     objData_json = 'objData_jsonxx'
     objData = 'objDataxx'
     good = 'unknown'
-    x = 'x1'
+    err = 'x1'
     try:
         if request.method == 'POST':
             raw_data = request.body.decode('utf-8')
             received_data = json.loads(raw_data)
 
             objData = received_data.get('objData')
-            x = 'x2'
+            err = 'x2'
             objData_json = json.loads(objData)
             try:
                 extra_objData = received_data.get('extra_objData')
@@ -74,7 +74,7 @@ def set_object_data_view(request):
             do_super_share = received_data.get('super_share',True)
             from utils.utils import get_sigData
             if isinstance(objData_json, list) and all(get_pointer_type(x['id']) in ['UserPubKey','Node','Wallet'] for x in objData_json):
-                x = 'x3'
+                err = 'x3'
                 share_items = []
                 order_map = {name: i for i, name in enumerate(['UserPubKey','Node','Wallet'])}
                 objData_json.sort(key=lambda x: order_map.get(get_pointer_type(x['id']), float('inf')))
@@ -91,7 +91,7 @@ def set_object_data_view(request):
                         for key in upk.User_obj.get_keys(dt=x['lastUpdate']):
                             prnt('k1',key.id)
                             if key.id == sig_data['pk']:
-                                x = 'x3a'
+                                err = 'x3a'
                                 upk, sigs, upk_valid, updatedDB = sync_model(upk, x)
                                 if upk_valid:
                                     upk.boot()
@@ -103,7 +103,7 @@ def set_object_data_view(request):
                             node = Node(id=x['id'], User_obj_id=x['User_obj'])
                         if upk_valid:
                             if upk.verify(get_signing_data(x), get_sigData(x)['sig'], upk.publicKey):
-                                x = 'x3b'
+                                err = 'x3b'
                                 if upk.id == sig_data['pk']:
                                     obj, sigs = super_sync(node, x, do_save=False)
                                     prnt('super sync complete')
@@ -121,18 +121,18 @@ def set_object_data_view(request):
                         for key in wallet.User_obj.get_keys(dt=x['lastUpdate']):
                             prnt('k2',key.id)
                             if key.id == sig_data['pk']:
-                                x = 'x3c'
+                                err = 'x3c'
                                 obj, sigs, valid_obj, updatedDB = sync_model(wallet, x)
                                 if valid_obj:
                                     share_items.append(obj)
                                     break
-                x = 'x4'
+                err = 'x4'
                 if len(share_items) == len(objData_json):
                     share_with_network(share_items, share_node=True)
                     return JsonResponse({'message' : 'Success', 'obj' : get_signing_data(obj)})
             elif assess_received_header(request.headers):
                 prnt('set super object..',objData_json)
-                x = 'x5'
+                err = 'x5'
                 superKeys = get_superuser_keys(data=objData_json)
                 prnt('superKeys',superKeys)
                 sig_data = get_sigData(objData_json)
@@ -147,7 +147,7 @@ def set_object_data_view(request):
                     if has_field(obj, 'Validator_obj') and obj.Validator_obj:
                         obj.Validator_obj = None
 
-                    x = obj
+                    err = obj
                     from utils.locked import verify_obj_to_data, convert_to_dict
                     if verify_obj_to_data(obj, objData_json):
                         if has_field(obj, 'Validator_obj'):
@@ -156,7 +156,7 @@ def set_object_data_view(request):
                         prntDebug('synced:',updatedDB,'valid_obj',valid_obj)
                         prnt('synced:',updatedDB,'valid_obj',valid_obj)
                         if valid_obj:
-                            x = 'x6'
+                            err = 'x6'
                             if has_method(obj, 'boot'):
                                 obj.boot()
                             if do_super_share:
@@ -175,10 +175,10 @@ def set_object_data_view(request):
                                 if good:
                                     return JsonResponse({'message' : 'Success', 'obj' : get_signing_data(obj)})
                     
-            return JsonResponse({'message' : 'A problem occured', 'obj':objData,  'err': f' -- is_good: {good} -- x: {x}'})
+            return JsonResponse({'message' : 'A problem occured', 'obj':objData,  'err': f' -- is_good: {good} -- x: {err}'})
     except Exception as e:
-        prnt('set obj fail','x:',x, str(e))
-        return JsonResponse({'message' : f'A problem occured', 'err': f'{str(e)} -- objData: {objData} -- objData_json: {objData_json} -- good: {good} -- x: {x}'})
+        prnt('set obj fail','x:',err, str(e))
+        return JsonResponse({'message' : f'A problem occured', 'err': f'{str(e)} -- objData: {objData} -- objData_json: {objData_json} -- good: {good} -- x: {err}'})
     
 @csrf_exempt
 def get_object_data_view(request, obj_type='Region'):
