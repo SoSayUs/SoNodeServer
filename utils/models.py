@@ -962,10 +962,10 @@ def sync_model(xModel, jsonContent, skip_fields=[], do_save=True, opBlock_data={
             if has_field(xModel, 'lastUpdate') and xModel.lastUpdate and 'lastUpdate' in received_data:
                 prnt('pq2')
                 previously_updated = True
-                if 'Validator_obj' in received_data and received_data['Validator_obj']:
+                if 'Validator_obj' in received_data and not value_is_none(received_data['Validator_obj']):
                     if not xModel.Validator_obj or xModel.Validator_obj.id != received_data['Validator_obj']:
                         previously_updated = False
-                elif 'Block_obj' in received_data and received_data['Block_obj']:
+                elif 'Block_obj' in received_data and not value_is_none(received_data['Block_obj']):
                     if not xModel.Block_obj or xModel.Block_obj.id != received_data['Block_obj']:
                         previously_updated = False
                 elif received_data['signed'] != xModel.signed:
@@ -3096,7 +3096,7 @@ def tasker(dt, test=False):
     if e_brake(1):
         return
     # runs every 10 minutes
-    from network.models import DataPacket, Block, Blockchain, Node, Validator, _OperationsChain_genesisId, _block_creation_times, mandatoryChains, selectableChains, block_time_delay
+    from network.models import DataPacket, Block, Blockchain, Node, Sonet, _OperationsChain_genesisId, _block_creation_times, mandatoryChains, selectableChains, block_time_delay
     from utils.locked import check_validation_consensus
     result = {'dt':dt_to_string(dt),'now_utc':dt_to_string(now_utc())}
     # skip if start time is excessively delayed
@@ -3231,7 +3231,7 @@ def tasker(dt, test=False):
                 django_rq.get_queue('chat').enqueue(dp.broadcast_dp, job_timeout=60, result_ttl=7200)
         elif dt.minute in _block_creation_times or test==True:
             block_assigned = False
-            from network.models import Sonet, universalChains, _SonetChain_genesisName, _EarthChain_genesisId, reward_models
+            from network.models import universalChains, _SonetChain_genesisName, _EarthChain_genesisId, reward_models
             universalChains.remove(_OperationsChain_genesisId)
             universalChains.remove(_SonetChain_genesisName)
             

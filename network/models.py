@@ -4027,7 +4027,7 @@ class Blockchain(models.Model):
 
                                     cq = cq + 'D'
                                     if not has_field(i, 'Block_obj') or not i.Block_obj:
-                                    # if not has_field(i, 'Block_obj') or not i.Block_obj or i.Block_obj.Blockchain_obj.genesisId == i.id or self.genesisId == i.id:
+                                        # if not has_field(i, 'Block_obj') or not i.Block_obj or i.Block_obj.Blockchain_obj.genesisId == i.id or self.genesisId == i.id:
                                         prev_fails = Validator.objects.filter(validatorType='Block', is_valid=False, data__fail_reason__contains=[i.id]).exclude(signed={}).values('jobId','CreatorNode_obj__id').order_by('jobId','CreatorNode_obj__id')
                                         seen_jobs = set()
                                         seen_creators = set()
@@ -5068,7 +5068,7 @@ class Tidy:
                         chain.add_item_to_queue(idens)
                 prnt('request_idens',request_idens)
                 if request_idens:
-                    from utils.utils import request_items
+                    from utils.models import request_items
                     request_items(requested_items=request_idens, nodes=None, check_consensus=True, downstream_worker=True)
 
                 if model_name == 'Post':

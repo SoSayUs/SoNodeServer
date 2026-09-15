@@ -612,7 +612,7 @@ class UserPubKey(models.Model):
         return is_obj_commit_valid(self)
     
     def save(self, sig=None, share=False, is_new=False, bypass_verify=False):
-        prntDebug('-save upk',self.id)
+        prntDebug('-save upk',self.id, self.Block_obj)
         if is_new:
             prnt('is new')
             upk = UserPubKey.objects.filter(id=self.id).exists()

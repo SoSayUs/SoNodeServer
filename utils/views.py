@@ -80,14 +80,18 @@ def set_object_data_view(request):
                 objData_json.sort(key=lambda x: order_map.get(get_pointer_type(x['id']), float('inf')))
                 upk_valid = False
                 for x in objData_json:
+                    prnt('x',x)
                     sig_data = get_sigData(x, first_key=True)
+                    prnt("sig_data['pk']",sig_data['pk'])
                     if get_pointer_type(x['id']) == 'UserPubKey':
                         from accounts.models import UserPubKey
                         upk = UserPubKey.objects.filter(id=x['id']).first()
                         if not upk:
                             upk = UserPubKey(id=x['id'], User_obj_id=x['User_obj'])
                         for key in upk.User_obj.get_keys(dt=x['lastUpdate']):
+                            prnt('k1',key.id)
                             if key.id == sig_data['pk']:
+                                x = 'x3a'
                                 upk, sigs, upk_valid, updatedDB = sync_model(upk, x)
                                 if upk_valid:
                                     upk.boot()
@@ -99,6 +103,7 @@ def set_object_data_view(request):
                             node = Node(id=x['id'], User_obj_id=x['User_obj'])
                         if upk_valid:
                             if upk.verify(get_signing_data(x), get_sigData(x)['sig'], upk.publicKey):
+                                x = 'x3b'
                                 if upk.id == sig_data['pk']:
                                     obj, sigs = super_sync(node, x, do_save=False)
                                     prnt('super sync complete')
@@ -114,7 +119,9 @@ def set_object_data_view(request):
                         if not wallet:
                             wallet = Wallet(id=x['id'], User_obj_id=x['User_obj'])
                         for key in wallet.User_obj.get_keys(dt=x['lastUpdate']):
+                            prnt('k2',key.id)
                             if key.id == sig_data['pk']:
+                                x = 'x3c'
                                 obj, sigs, valid_obj, updatedDB = sync_model(wallet, x)
                                 if valid_obj:
                                     share_items.append(obj)

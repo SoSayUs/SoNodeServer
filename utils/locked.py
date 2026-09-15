@@ -90,8 +90,8 @@ def process_gathered_data(received_data, override_completed=False):
         from legis.models import Government
         from legis.utils import get_scrape_duty
         from network.models import Validator, Blockchain, script_created_modifiable_models,max_validation_window, _OperationsChain_genesisId, intelligence_funcs
-        from utils.models import request_items
-        from utils.utils import logError, logEvent, value_is_none, testing, check_missing_data, prntDebugn, prntDebug, is_locked, has_field, has_method, convert_to_datetime, sigData_to_hash,get_or_create_model,super_sync,get_model,exists_in_worker,create_dynamic_model,dynamic_bulk_update,seperate_by_type,get_model_prefix,debugging, get_dynamic_model, rgetattr
+        from utils.models import request_items, super_sync
+        from utils.utils import logError, logEvent, value_is_none, testing, check_missing_data, prntDebugn, prntDebug, is_locked, has_field, has_method, convert_to_datetime, sigData_to_hash,get_or_create_model,get_model,exists_in_worker,create_dynamic_model,dynamic_bulk_update,seperate_by_type,get_model_prefix,debugging, get_dynamic_model, rgetattr
         
         gov = None
         gov_level = received_data['gov_level']
