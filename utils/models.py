@@ -964,11 +964,14 @@ def sync_model(xModel, jsonContent, skip_fields=[], do_save=True, opBlock_data={
                 previously_updated = True
                 if 'Validator_obj' in received_data and not value_is_none(received_data['Validator_obj']):
                     if not xModel.Validator_obj or xModel.Validator_obj.id != received_data['Validator_obj']:
+                        prnt('pq2a')
                         previously_updated = False
                 elif 'Block_obj' in received_data and not value_is_none(received_data['Block_obj']):
                     if not xModel.Block_obj or xModel.Block_obj.id != received_data['Block_obj']:
+                        prnt('pq2b')
                         previously_updated = False
                 elif received_data['signed'] != xModel.signed:
+                    prnt('pq2c')
                     previously_updated = False
                 if previously_updated and string_to_dt(received_data['lastUpdate']) <= string_to_dt(xModel.lastUpdate):
                     prnt('previously updated - skipping sync')
