@@ -3214,7 +3214,7 @@ def tasker(dt, test=False):
         sonet = Sonet.objects.values('id').first()
         if dt.minute in [t-20 for t in _block_creation_times]:
             node_count = Node.objects.filter(activeNode=True).count()
-            if node_count and (node_count < 3 and random.randrange(node_count) == 0 or random.randrange(node_count/3) == 0):
+            if node_count and (node_count <= 3 and random.randrange(node_count) == 0 or random.randrange(node_count/3) == 0):
                 from network.models import CommitData 
                 commit = CommitData()
                 commit, reveal = commit.create_pair()
