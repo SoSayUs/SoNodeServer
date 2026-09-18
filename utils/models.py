@@ -3808,10 +3808,11 @@ def compute_node_trust():
     # should also track when a node goes dark, lower trust score if happens often
 
     from django.db import transaction
-    from network.models import Node, NodeReview
+    from network.models import Node, NodeReview, striking_days, recent_failure_count
     import time
     import math
     from collections import defaultdict
+    now = round_time(now_utc())
     self_node_id = get_operator_obj('local_nodeId')
     log_dt_end = round_time(now_utc(), dir='down', amount='hour')
     log_dt_start = log_dt_end - datetime.timedelta(hours=1)
@@ -3839,6 +3840,16 @@ def compute_node_trust():
     review_map = {}
     peer_reviews = defaultdict(list)
     for r in reviews:
+
+        recent_failures = 0
+        for dt_str, value in r.failures.items():
+            try:
+                dt = string_to_dt(dt_str)
+            except:
+                dt = string_to_dt(value)
+            if dt > now - datetime.timedelta(days=striking_days):
+                recent_failures += 1
+            
         peer_reviews[r.TargetNode_obj.id].append({
         "response_success": r.response_success,
         "job_success": job_successes.get(r.CreatorNode_obj.id, 0.5),
@@ -3847,18 +3858,10 @@ def compute_node_trust():
         "reveal_success": reveal_successes.get(r.TargetNode_obj.id, 0.5),
         "trust_score": r.trust_score,
         "interactions": r.interactions,
-        "timestamp": int(r.lastUpdate.timestamp())
+        "timestamp": int(r.lastUpdate.timestamp()),
+        "recent_failures": recent_failures
             })
 
-        # peer_reviews[r.TargetNode_obj.id].append({
-        # "response_success": r.response_success,
-        # "job_success": job_successes.get(r.CreatorNode_obj.id, 0.5),
-        # "block_success": block_successes.get(r.TargetNode_obj.id, 0.5),
-        # "consensus_alignment": alignments.get(r.TargetNode_obj.id, 0.5),
-        # "trust_score": r.trust_score,
-        # "interactions": r.interactions,
-        # "timestamp": int(r.lastUpdate.timestamp())
-        #     })
         if r.CreatorNode_obj.id == self_node_id:
             review_map[r.TargetNode_obj.id] = r
 
@@ -3876,17 +3879,6 @@ def compute_node_trust():
         "reveal_success": 0.15,
     }
 
-    # reviews = []
-    # block_successes.clear()
-    # alignments.clear()
-    # job_successes.clear()
-
-    # METRIC_WEIGHTS = {
-    #     "response_success": 0.15,
-    #     "job_success": 0.35,
-    #     "block_success": 0.25,
-    #     "consensus_alignment": 0.25,
-    # }
     REVIEW_HALF_LIFE_HOURS = 48
     MIN_INTERACTIONS = 10
 
@@ -3904,6 +3896,7 @@ def compute_node_trust():
         reviews_for_node = peer_reviews.get(node_id, [])
         total_weighted_score = 0
         total_weight = 0
+        total_failures = 0
 
         for r in reviews_for_node:
             if r['interactions'] < MIN_INTERACTIONS:
@@ -3916,6 +3909,14 @@ def compute_node_trust():
             w = recency_weight(r['timestamp']) * interaction_weight(r['interactions']) * reviewer_influence
             total_weighted_score += metric_score(r) * w
             total_weight += w
+
+            if r.get("recent_failures", 0) >= recent_failure_count:
+                total_failures += 1
+        if total_failures >= (len(nodes)/3):
+            node.suspended_dt = now
+            node.save(update_fields=['suspended_dt'])
+
+
 
         observed_trust = total_weighted_score / total_weight if total_weight > 0 else 0.5
 
@@ -3962,6 +3963,7 @@ def compute_node_trust():
             review.trust_score = updated_trust
             review.interactions = 0
             updated_reviews.append(review)
+        
 
 
     NodeReview.objects.bulk_update(updated_reviews, ['trust_score','interactions'])
