@@ -669,40 +669,6 @@ class DataPacket(models.Model):
                 except Exception as e:
                     prnt('err 42311', str(e))
 
-                def get_creator_reveal_violations(node_obj, log_dt_start, log_dt_end):
-                    """
-                    For each slot in this window where node_obj was the assigned creator,
-                    check *this node's own* EventLog (local receipt time) for a commit and
-                    a matching valid reveal from node_obj within that slot's windows.
-                    No commit at all -> not a violation. Commit with no valid reveal in the
-                    reveal window -> violation.
-                    """
-                    from network.models import EventLog
-
-                    violations = 0
-                    for slot_dt in get_slots_in_window(log_dt_start, log_dt_end):  # PLUG: your twice-hourly slot generator
-                        if not is_assigned_creator(node_obj, slot_dt):              # PLUG: your assignment algo
-                            continue
-
-                        commit_start = slot_dt - datetime.timedelta(minutes=20)
-                        commit_end = slot_dt - datetime.timedelta(minutes=10)
-
-                        committed = EventLog.objects.filter(
-                            Node_obj=node_obj, func__contains='salt_committed:',
-                            created__gte=commit_start, created__lt=commit_end,
-                        ).exists()
-                        if not committed:
-                            continue  # never committed -> not a violation
-
-                        revealed = EventLog.objects.filter(
-                            Node_obj=node_obj, func__contains='salt_revealed:',
-                            created__gte=commit_end, created__lt=slot_dt,
-                        ).exists()
-                        if not revealed:
-                            violations += 1
-
-                    return violations
-                    
                 try:
                     reviews = NodeReview.objects.filter(CreatorNode_obj__id=self_node_id)
                     prnt('reviews', reviews.count())
@@ -1538,8 +1504,7 @@ class Node(models.Model):
                 review.interactions += 1
                 review.failures[dt_to_string(now)] = note
                 review.save(update_fields=['last_fail','failures','interactions'])
-            prnt('failure added I hope',self)
-            self.assess_activity(self_node_id=self_node_id)  
+            # self.assess_activity(self_node_id=self_node_id)
             prnt('done add_failure')
 
     def accessed(self, response_time=None, address_type='address', self_node=None):
@@ -1825,7 +1790,7 @@ class CommitData(models.Model):
         r.networkChain = sonet_id
 
         self.created = now
-        self.hash = quick_hash(r.salt)
+        self.hash = quick_hash(r.value)
         self.id = hash_obj_id(self, random_iden=True)
         self.Node_obj = self_node
         self.networkChain = sonet_id
@@ -3637,7 +3602,7 @@ class Blockchain(models.Model):
             prnt('node_id0',node.id)
             node_data = {
                 'activated_dt': dt_to_string(node.activated_dt),
-                'suspended_dt': dt_to_string(node.suspended_dt),
+                'suspended_dt': True if node.suspended_dt else False,
                 'expelled_dt': dt_to_string(node.expelled_dt),
                 'chain_array': node.chain_array,
                 'plugin_array': node.plugin_array,
@@ -3765,7 +3730,7 @@ class Blockchain(models.Model):
             prnt('node',node)
             node_data = {
                 'activated_dt': dt_to_string(node.activated_dt),
-                'suspended_dt': dt_to_string(node.suspended_dt),
+                'suspended_dt': True if node.suspended_dt else False,
                 'expelled_dt': dt_to_string(node.expelled_dt),
                 'chain_array': node.chain_array,
                 'plugin_array': node.plugin_array,
