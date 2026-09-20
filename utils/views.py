@@ -814,46 +814,49 @@ def workers_status_view(request):
         return JsonResponse({'error': 'Forbidden'}, status=403)
     from django_rq import get_queue
     from rq.worker import Worker
+    from utils.utils import self_is_active
 
     workers = {
         'high':{'current':{},'queued':0},
         'main':{'current':{},'queued':0},
         'low':{'current':{},'queued':0},
         'chat':{'current':{},'queued':0},
-        'super':{'current':{},'queued':0}
+        'super':{'current':{},'queued':0},
+        'isActive': self_is_active()
         }
     # if not currently_running_only:
     for queue_name in workers:
-        queue = get_queue(queue_name)
-        conn = queue.connection
-        # running
-        for w in Worker.all(conn):
-            if queue_name in [q.name for q in w.queues]:
-                job = w.get_current_job()
+        if queue_name != 'isActive':
+            queue = get_queue(queue_name)
+            conn = queue.connection
+            # running
+            for w in Worker.all(conn):
+                if queue_name in [q.name for q in w.queues]:
+                    job = w.get_current_job()
+                    if job:
+                        data = {}
+                        if '.' in job.func_name:
+                            x = job.func_name.rfind('.')+1
+                            data["func"] = job.func_name[x:]
+                        else:
+                            data["func"] = job.func_name
+                        data["args"] = ''
+                        for a in job.args:
+                            if a:
+                                try:
+                                    data["args"] = a.id
+                                    break
+                                except:
+                                    pass
+                        if not data["args"]:
+                            data["args"] = dt_to_string(job.started_at) if job.started_at else '-'
+                        workers[queue_name]['current'] = data
+                    break
+            job_ids = queue.job_ids
+            for job_id in job_ids:
+                job = queue.fetch_job(job_id)
                 if job:
-                    data = {}
-                    if '.' in job.func_name:
-                        x = job.func_name.rfind('.')+1
-                        data["func"] = job.func_name[x:]
-                    else:
-                        data["func"] = job.func_name
-                    data["args"] = ''
-                    for a in job.args:
-                        if a:
-                            try:
-                                data["args"] = a.id
-                                break
-                            except:
-                                pass
-                    if not data["args"]:
-                        data["args"] = dt_to_string(job.started_at) if job.started_at else '-'
-                    workers[queue_name]['current'] = data
-                break
-        job_ids = queue.job_ids
-        for job_id in job_ids:
-            job = queue.fetch_job(job_id)
-            if job:
-                workers[queue_name]['queued'] += 1
+                    workers[queue_name]['queued'] += 1
     
     return JsonResponse(workers, safe=False)
 

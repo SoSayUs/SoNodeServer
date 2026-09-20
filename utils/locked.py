@@ -1428,7 +1428,7 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
         prnt('next_block',next_block)
 
         validations = list(Validator.objects.filter(jobId=block_id, validatorType='Block', networkChain=networkChainId).filter(data__has_key=val_obj.id).filter(CreatorNode_obj__id__in=validator_list[:required_validators], created__gte=block_created_dt, created__lt=max_val_dt_full).distinct('CreatorNode_obj__id').order_by('CreatorNode_obj__id','created'))
-        prnt('validations',len(validations))
+        prnt('validations',len(validations),[v.id for v in validations])
         found_vals = [v.id for v in validations]
 
         if val_obj.validations and len(val_obj.validations) > len(validations):
@@ -1442,15 +1442,16 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
                 prnt('retreived_vals_list',retreived_vals_list)
                 if retreived_vals_list:
                     validations += [v for v in retreived_vals_list if v.CreatorNode_obj.id in validator_list[:required_validators] and v not in validations and v.created >= block_created_dt and v.created < max_val_dt_full]
-        if len(found_vals) < required_validators and now_utc() > max_val_dt_half:
+        if len(found_vals) < required_validators and now_utc() > max_val_dt_half and block.networkChain != _OperationsChain_genesisId:
             prnt('max_val_dt_half',max_val_dt_half,'now_utc()',now_utc())
             requests = [n for n in validator_list[:required_validators] if n not in [v.CreatorNode_obj.id for v in validations]]
             if requests:
                 for n in requests:
-                    retreived_vals_list = request_items([val_obj.id], nodes=[n], request_validators=True, supported_chain_list=networkChainId, return_updated_objs=True, check_consensus=False, get_missing_blocks=False, override_completed=False)
-                    prnt('retreived_vals_list2',retreived_vals_list)
-                    if retreived_vals_list:
-                        validations += [v for v in retreived_vals_list if v.CreatorNode_obj.id in validator_list[:required_validators] and v not in validations and v.created >= block_created_dt and v.created < max_val_dt_full]
+                    if len(validations) < required_validators:
+                        retreived_vals_list = request_items([val_obj.id], nodes=[n], request_validators=True, supported_chain_list=networkChainId, return_updated_objs=True, check_consensus=False, get_missing_blocks=False, override_completed=False)
+                        prnt('retreived_vals_list2',retreived_vals_list)
+                        if retreived_vals_list:
+                            validations += [v for v in retreived_vals_list if v.CreatorNode_obj.id in validator_list[:required_validators] and v not in validations and v.created >= block_created_dt and v.created < max_val_dt_full]
 
 
         def check_is_valid(validations, val_obj, creator_nodes, validator_list, required_validators, broadcast_list, block_created_dt, max_val_dt_full, block_delay, do_mark_valid, obj_is_block, broadcast_if_unknown):
@@ -1511,7 +1512,7 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
                     val_obj.broadcast(validations=validations, validators_only=False, target_node_id=None)
                 return completed_validation, True, validations
             elif total >= required_validators and percent < (required_consensus*100):
-                prntDebug(f'stage3 opt2, total:{total}, required_validators:{required_validators}')
+                prntDebug(f'stage3 opt2, total:{total}, required_validators:{required_validators}, acheived:{percent < (required_consensus*100)}%')
                 if obj_is_block and val_obj.validated != False and do_mark_valid:
                     prnt("now_utc() < (block_created_dt + datetime.timedelta(hours=24))", now_utc(), (block_created_dt + datetime.timedelta(hours=24)),val_obj.id)
                     val_obj.is_not_valid(note='failed_by_validators')
@@ -1570,12 +1571,12 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
                 prnt('v_id1',v.id)
                 validations_list = val_is_val(v, val_obj, validations_list, None)
             return check_is_valid(validations_list, val_obj, creator_nodes, validator_list, required_validators, broadcast_list, block_created_dt, max_val_dt_full, block_delay, do_mark_valid, obj_is_block, broadcast_if_unknown)
-        elif block.Block_obj and block.Block_obj.validated:
-            validations_list = initial_vals_list
-            for v in validations:
-                prnt('v_id2',v.id)
-                validator_list = val_is_val(v, val_obj, validations_list, block.Block_obj)
-            return check_is_valid(validations_list, val_obj, creator_nodes, validator_list, required_validators, broadcast_list, block_created_dt, max_val_dt_full, block_delay, do_mark_valid, obj_is_block, broadcast_if_unknown)
+        # elif block.Block_obj and block.Block_obj.validated:
+        #     validations_list = initial_vals_list
+        #     for v in validations:
+        #         prnt('v_id2',v.id)
+        #         validator_list = val_is_val(v, val_obj, validations_list, block.Block_obj)
+        #     return check_is_valid(validations_list, val_obj, creator_nodes, validator_list, required_validators, broadcast_list, block_created_dt, max_val_dt_full, block_delay, do_mark_valid, obj_is_block, broadcast_if_unknown)
         else:
             prnt('next_blocks len',len(next_blocks))
             any_is_valid = False
@@ -1764,7 +1765,7 @@ def validate_block(block, creator_nodes=None, opBlock_data=None, create_validato
                         else:
                             creator_nodes, validator_nodes = get_node_assignment(block, opBlock_data=opBlock_data)
                     prnt('creator_nodes',creator_nodes,'block.CreatorNode_obj',block.CreatorNode_obj)
-                    if block.CreatorNode_obj.id in creator_nodes:
+                    if block.CreatorNode_obj.id in creator_nodes or block.networkChain ==  _OperationsChain_genesisId:
                         fail_reason = 4
                         if verify_obj_to_data(block, block):
                             fail_reason = 701
@@ -2505,6 +2506,7 @@ def get_broadcast_list(seed, dt=None, region_id=None, plugin_id=None, relevant_n
         if loop:
             total = len(ordered_ids)
             for i, node_id in enumerate(ordered_ids):
+                # prnt()
                 recipients = []
                 count = 0
                 j = 1
@@ -3990,13 +3992,14 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=No
                 required_validators = len(node_ids)
             else:
                 required_validators = get_required_validator_count(obj=obj, node_ids=node_ids, opBlock_data=opBlock_data)
-            # prnt('required_validators',required_validators)
+            prnt('shuffled_nodes',shuffled_nodes)
+            prnt('required_validators',required_validators)
             if full_creator_list:
                 creator_nodes = shuffled_nodes
             else:
                 creator_nodes = shuffled_nodes[:opBlock_data['epochData']['block_creator_count']]
             # if len(shuffled_nodes) >= required_validators + available_creators:
-            validator_nodes = list(reversed(shuffled_nodes[-required_validators:]))
+            validator_nodes = list(reversed(shuffled_nodes[-int(required_validators):]))
             # else:
             #     validator_nodes = list(reversed(shuffled_nodes[-required_validators:]))
             prnt('assignment path 1a',obj,creator_nodes, validator_nodes)
@@ -4050,7 +4053,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=No
                     node_ids = cross_language_shuffle(node_ids, dt_to_string(dt))
 
                     creator_nodes = node_ids[:opBlock_data['epochData']['block_creator_count']]
-                    validator_nodes = list(reversed(node_ids[-required_validators:]))
+                    validator_nodes = list(reversed(node_ids[-int(required_validators):]))
                     prnt('assignment path 1b',obj,creator_nodes, validator_nodes)
                     return creator_nodes, validator_nodes
 
@@ -4121,7 +4124,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=No
                 # prnt('required_validators1',required_validators)
 
                 creator_nodes = shuffled_nodes[:opBlock_data['epochData']['block_creator_count']]
-                validator_nodes = list(reversed(shuffled_nodes[-required_validators:]))
+                validator_nodes = list(reversed(shuffled_nodes[-int(required_validators):]))
                 prnt('assignment path 1c',obj,creator_nodes, validator_nodes)
                 return creator_nodes, validator_nodes
 
@@ -4204,7 +4207,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=No
 
         user_assigned_nodes = position_sort(obj.nodeCreatorId, obj.pattern, opBlock_data['relevant_nodes'], opBlock_data['epochData']['user_peer_count'])
 
-        if len(user_assigned_nodes) >= opBlock_data['epochData']['block_creator_count'] + required_validators:
+        if len(user_assigned_nodes) >= opBlock_data['epochData']['block_creator_count'] + int(required_validators):
             validator_nodes = user_assigned_nodes[opBlock_data['epochData']['block_creator_count']:]
         else:
             validator_nodes = user_assigned_nodes
@@ -4255,7 +4258,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=No
             required_scrapers, required_validators = get_required_validator_count(dt=dt, func=func, node_ids=node_ids, include_initializers=True)
             # prnt('shuffled_nodes',shuffled_nodes,'required_validators',required_validators)
             creator_nodes = shuffled_nodes[:required_scrapers]
-            validator_nodes = list(reversed(shuffled_nodes[-required_validators:]))
+            validator_nodes = list(reversed(shuffled_nodes[-int(required_validators):]))
             prnt('assignment path 5',creator_nodes, validator_nodes)
             return creator_nodes, validator_nodes
     return [], []

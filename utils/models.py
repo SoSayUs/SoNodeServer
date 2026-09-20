@@ -3094,7 +3094,7 @@ def tasker(dt, test=False):
     except:
         prnt('\n--tasker',dt)
     dt = round_time(dt, amount='10mins', dir='down')
-    prnt('dt_utc',dt)
+    prnt('dt_utc !!',dt)
     check_super_commands()
 
     if e_brake(1):
@@ -3104,6 +3104,7 @@ def tasker(dt, test=False):
     from utils.locked import check_validation_consensus
     result = {'dt':dt_to_string(dt),'now_utc':dt_to_string(now_utc())}
     # skip if start time is excessively delayed
+
     difference = now_utc() - dt
     diff_mins = difference.total_seconds() / 60
     if diff_mins < 10 or test:
@@ -3222,7 +3223,11 @@ def tasker(dt, test=False):
                 from network.models import CommitData 
                 commit = CommitData()
                 commit, reveal = commit.create_pair()
+                from utils.locked import sign_obj
+                commit = sign_obj(commit, do_save=True)
+                reveal = sign_obj(reveal, do_save=True)
                 dp = DataPacket(Node_obj_id=self_node_id, func='share', networkChain=sonet['id'])
+                dp.save()
                 dp.add_item_to_share(commit)
                 django_rq.get_queue('chat').enqueue(dp.broadcast_dp, job_timeout=60, result_ttl=7200)
 
@@ -3231,6 +3236,7 @@ def tasker(dt, test=False):
             reveal = RevealData.objects.filter(Node_obj__id=self_node_id, created=dt-datetime.timedelta(minutes=10)).first()
             if reveal:
                 dp = DataPacket(Node_obj_id=self_node_id, func='share', networkChain=sonet['id'])
+                dp.save()
                 dp.add_item_to_share(reveal)
                 django_rq.get_queue('chat').enqueue(dp.broadcast_dp, job_timeout=60, result_ttl=7200)
         elif dt.minute in _block_creation_times or test==True:
@@ -3796,6 +3802,7 @@ def compute_consensus_alignment(log_dt_start, log_dt_end):
     return results
 
 def compute_node_trust():
+    prnt('-compute_node_trust')
     """
     Compute trust and influence scores for all nodes using all NodeReviews received.
     Weights each review by:
@@ -3834,22 +3841,24 @@ def compute_node_trust():
 
     nodes = {n.id: n for n in Node.objects.exclude(activated_dt=None)}
 
-    reviews = NodeReview.objects.filter(TargetNode_obj__id__in=nodes, CreatorNode_obj__id__in=nodes, lastUpdate__gte=now_utc() - datetime.timedelta(minutes=120)).only('TargetNode_obj__id','CreatorNode_obj__id','response_success','job_success','trust_score','interactions','lastUpdate')
+    reviews = NodeReview.objects.filter(TargetNode_obj__id__in=nodes, CreatorNode_obj__id__in=nodes, lastUpdate__gte=now_utc() - datetime.timedelta(minutes=120)).only('TargetNode_obj__id','CreatorNode_obj__id','response_success','job_success','trust_score','interactions','failures','lastUpdate').order_by('TargetNode_obj','CreatorNode_obj')
     updated_reviews = []
 
     review_map = {}
     peer_reviews = defaultdict(list)
     for r in reviews:
+        prnt('r',r.TargetNode_obj,r.CreatorNode_obj)
 
         recent_failures = 0
-        for dt_str, value in r.failures.items():
-            try:
-                dt = string_to_dt(dt_str)
-            except:
-                dt = string_to_dt(value)
-            if dt > now - datetime.timedelta(days=striking_days):
-                recent_failures += 1
-            
+        if r.failures:
+            for dt_str, value in r.failures.items():
+                try:
+                    dt = string_to_dt(dt_str)
+                except:
+                    dt = string_to_dt(value)
+                if dt > now - datetime.timedelta(days=striking_days):
+                    recent_failures += 1
+        prnt('recent_failures',recent_failures)
         peer_reviews[r.TargetNode_obj.id].append({
         "response_success": r.response_success,
         "job_success": job_successes.get(r.CreatorNode_obj.id, 0.5),
@@ -3893,6 +3902,7 @@ def compute_node_trust():
         return sum(r[k] * w for k, w in METRIC_WEIGHTS.items())
 
     for node_id, node in nodes.items():
+        prnt('node_id',node_id)
         reviews_for_node = peer_reviews.get(node_id, [])
         total_weighted_score = 0
         total_weight = 0
@@ -3912,11 +3922,21 @@ def compute_node_trust():
 
             if r.get("recent_failures", 0) >= recent_failure_count:
                 total_failures += 1
+        prnt('total_failures',total_failures,"len(nodes)/3",len(nodes)/3)
         if total_failures >= (len(nodes)/3):
-            node.suspended_dt = now
-            node.save(update_fields=['suspended_dt'])
-
-
+            if not node.suspended_dt:
+                node.suspended_dt = now
+                node.save(update_fields=['suspended_dt'])
+            if node.id == self_node_id:
+                from utils.utils import self_is_active
+                self_is_active(False)
+        else:
+            if node.suspended_dt:
+                node.suspended_dt = None
+                node.save(update_fields=['suspended_dt'])
+            if node.id == self_node_id and node.activeNode:
+                from utils.utils import self_is_active
+                self_is_active(True)
 
         observed_trust = total_weighted_score / total_weight if total_weight > 0 else 0.5
 

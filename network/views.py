@@ -9,7 +9,7 @@ from utils.models import (assess_received_header, set_model_attrs, share_with_ne
     )
 from utils.utils import (prnt, prntDebug, testing, get_self_node, get_operator_obj,
     get_dynamic_model, now_utc, get_or_create_model, has_field,
-    string_to_dt, get_model, exists_in_worker, get_timeData
+    string_to_dt, get_model, exists_in_worker, get_timeData, self_is_active
     )
 from utils.locked import convert_to_dict, get_signing_data, dt_to_string
 import datetime
@@ -29,7 +29,7 @@ def get_broadcast_list_view(request, iden=None):
         obj = 'objx'
         obj_json = 'jsonx'
         try:
-            if not get_self_node().activated_dt:
+            if not self_is_active():
                 return JsonResponse({'message' : 'deactivated_node'})
             if request.method == 'POST' and assess_received_header(request.headers) or request.user.is_superuser:
                 A = '1'
@@ -70,7 +70,7 @@ def get_broadcast_list_view(request, iden=None):
 def get_current_node_list_view(request, pointer=None):
     prnt('-get_current_node_list_view', pointer)
     try:
-        if not get_self_node().activeNode:
+        if not self_is_active():
             return JsonResponse({'message' : 'deactivated_node'})
 
         from utils.locked import get_relevant_nodes
@@ -355,7 +355,7 @@ def request_dp_view(request, packet_id):
 def request_chain_path_view(request):
     prnt('-request_chain_path_view')
     try:
-        if not get_self_node().activated_dt:
+        if not self_is_active():
             return JsonResponse({'message' : 'deactivated_node'})
         if request.method == 'POST':
             if assess_received_header(request.headers, if_self_active=True, allow_inactive=True):
@@ -537,7 +537,8 @@ def request_data_view(request):
     e = 'e'
     err = 'x'
     try:
-        if not get_self_node().activated_dt:
+        # if not get_self_node().activated_dt:
+        if not self_is_active():
             return JsonResponse({'message' : 'deactivated_node'})
         if request.method == 'POST':
             if assess_received_header(request.headers, if_self_active=True, allow_inactive=True):
@@ -1252,7 +1253,7 @@ def request_data_view(request):
 @csrf_exempt
 def request_obj_view(request):
     prnt('-request_obj_view')
-    if not get_self_node().activated_dt:
+    if not self_is_active():
         return JsonResponse({'message' : 'deactivated_node'})
     if request.method == 'POST':
         try:
@@ -1277,7 +1278,7 @@ def request_obj_view(request):
 @csrf_exempt
 def request_is_valid_view(request):
     prnt('-request_is_valid_view')
-    if not get_self_node().activated_dt:
+    if not self_is_active():
         return JsonResponse({'message' : 'deactivated_node'})
     if request.method == 'POST':
         try:

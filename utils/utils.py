@@ -69,6 +69,7 @@ def prntDebugn(*args):
 
 
 _self_nodeId = None
+_self_is_active = None
 _self_address = None
 _self_local_address = None
 _node_keys = None
@@ -668,6 +669,13 @@ def get_self_node(operatorData=None):
     except Exception as e:
         prnt('get_self_node err',str(e))
     return None
+
+def self_is_active(var=None):
+    global _self_is_active
+    if var is None:
+        return _self_is_active
+    else:
+        _self_is_active = var
 
 # avoid this
 def get_user(node=None, user_id=None, node_id=None, public_key=None, obj=None, target=None, request_missing=True):

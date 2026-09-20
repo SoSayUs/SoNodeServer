@@ -32,9 +32,9 @@ import django_rq
 
 _number_of_peers = 2 # used for downstream_broadcast
 failure_range = 1.1 # minimum number of hours since last access for node to receive suspended_dt
-recent_failure_count = 7 # minimum number of fails for node to receive suspended_dt
+recent_failure_count = 14 # minimum number of fails for node to receive suspended_dt
 fails_to_strike = 10 # x failures == 1 strike
-recent_failure_range = 3 # how many days between strikes for node if x failures
+recent_failure_range = 1 # how many days between strikes for node if x failures
 too_many_strike_count = 10 # deactivate node after x strikes
 striking_days = 30 # too_many_strike count within this number of days before being deactivated
 max_commit_window = 11 # number of days for an obj to be committed to a block
@@ -80,14 +80,14 @@ def get_required_validator_count(dt=None, obj=None, func=None, genesisId=None, n
             prnt('obj',obj)
             if obj._meta.object_name == 'Tx' and obj.SenderBlock_obj:
                 prnt('sender')
-                return obj.SenderBlock_obj.get_required_validator_count(node_ids=node_ids, opBlock_data=opBlock_data)
+                return int(obj.SenderBlock_obj.get_required_validator_count(node_ids=node_ids, opBlock_data=opBlock_data))
             elif obj._meta.object_name == 'Tx' and obj.ReceiverBlock_obj:
                 prnt('receiver')
-                return obj.ReceiverBlock_obj.get_required_validator_count(node_ids=node_ids, opBlock_data=opBlock_data)
+                return int(obj.ReceiverBlock_obj.get_required_validator_count(node_ids=node_ids, opBlock_data=opBlock_data))
             elif obj._meta.object_name == 'Tx' and obj.senderBlockId:
                 prnt('sender by senderBlockId')
                 temp_block = Block(id='obj.senderBlockId', DateTime=obj.created, Blockchain_obj_id=get_chain_id(obj.networkChain))
-                return temp_block.get_required_validator_count(node_ids=node_ids, opBlock_data=opBlock_data)
+                return int(temp_block.get_required_validator_count(node_ids=node_ids, opBlock_data=opBlock_data))
         # else account for userTransaction initialization, before block is created
         if not dt:
             if has_field(obj, 'DateTime'):
@@ -1342,6 +1342,9 @@ class Node(models.Model):
                             prnt('**suspend node**', self, self.suspended_dt)
                             self.save(update_fields=['suspended_dt'])
 
+                            from utils.utils import self_is_active
+                            self_is_active(False)
+
                             if not self_node_id:
                                 self_node_id = get_operator_obj('self_nodeId')
                             
@@ -1470,6 +1473,8 @@ class Node(models.Model):
             prnt('**expelled node**', self, self.suspended_dt)
             self.strikes = {'suspend_dt':self.suspended_dt}
             self.save(update_fields=['suspended_dt'])
+            from utils.utils import self_is_active
+            self_is_active(False)
             self_node_id = get_operator_obj('self_nodeId')
             nodeChain = Blockchain.objects.filter(genesisId=_OperationsChain_genesisId).first()
             if nodeChain:
@@ -1536,10 +1541,15 @@ class Node(models.Model):
         if self.suspended_dt:
             self.suspended_dt = None
             self.save(update_fields=['suspended_dt'])
+            # if self.activeNode:
+            #     from utils.utils import self_is_active
+            #     self_is_active(True)
             
     def deactivate(self):
         self.suspended_dt = now_utc()
         self.save(update_fields=['suspended_dt'])
+        from utils.utils import self_is_active
+        self_is_active(False)
     
     def reactivate(self):
         # self_node = get_self_node()
@@ -1551,6 +1561,9 @@ class Node(models.Model):
         # update = sign_obj(update)
         # self.deactivated = False
         self.save(update_fields=['suspended_dt'])
+        # if self.activeNode:
+        #     from utils.utils import self_is_active
+        #     self_is_active(True)
 
     def broadcast_state(self, node_data=None):
         if node_data:
@@ -1825,7 +1838,8 @@ class RevealData(models.Model):
             return {'objType': 'RevealData', 'networkChain': 'Sonet', 'modlVer': 1, 'id': None, 'created': None, 'dataType': '', 'value': '', 'Node_obj': None, 'signed': {}}
 
     def save_requirements(self):
-        commit = CommitData.objects.filter(Node_obj=self.Node_obj, created=self.created, objType=self.objType).first()
+        prnt('-save_requirements', self.id)
+        commit = CommitData.objects.filter(Node_obj=self.Node_obj, created=self.created, dataType=self.dataType).first()
         if commit:
             dt = round_time(commit.created, amount='10mins') + datetime.timedelta(minutes=10)
             if commit.added_to_node >= commit.created and commit.added_to_node < dt:
@@ -2015,7 +2029,7 @@ class Block(models.Model):
                     return 1, node_data
                 return 1
         elif self.networkChain == _OperationsChain_genesisId:
-            count = (len(node_data['relevant_nodes'])*0.9)
+            count = int(len(node_data['relevant_nodes'])*0.9)
             prnt('get_required_validator_count',node_data['relevant_nodes'])
             if count < 10:
                 count = len(node_data['relevant_nodes'])
@@ -2039,8 +2053,8 @@ class Block(models.Model):
             return len(node_ids) - 1 # minus creator, all remaining
         elif num > len(node_ids):
             if return_node_data:
-                return ((len(node_ids)-1)*0.75), node_data
-            return ((len(node_ids)-1)*0.75) # minus creator, 75% of remaining
+                return int((len(node_ids)-1)*0.75), node_data
+            return int((len(node_ids)-1)*0.75) # minus creator, 75% of remaining
         else:
             if return_node_data:
                 return num, node_data #_block_validator_count at time of block
@@ -2531,11 +2545,16 @@ class Block(models.Model):
         now = now_utc()
         nodes = Node.objects.filter(id__in=all_nodes['active']).defer('chain_array','Block_obj','User_obj','abilities','region_data')
         update_list = []
+        self_node_id = get_operator_obj('local_nodeId')
         for n in nodes:
             n.activeNode = True
             n.suspended_dt = None
             n.updated_on_node = now
             update_list.append(n)
+            if n.id == self_node_id:
+                from utils.utils import self_is_active
+                self_is_active(True)
+
         dynamic_bulk_update(model=Node, items_field_update=['activeNode','suspended_dt','updated_on_node'], items=update_list) 
         update_list.clear()
 
@@ -2545,6 +2564,10 @@ class Block(models.Model):
             n.activeNode = False
             n.updated_on_node = now
             update_list.append(n)
+            if n.id == self_node_id:
+                from utils.utils import self_is_active
+                self_is_active(False)
+
         dynamic_bulk_update(model=Node, items_field_update=['activeNode','updated_on_node'], items=update_list) 
         update_list.clear()
 
@@ -2922,6 +2945,8 @@ class Block(models.Model):
         last_block = Block.objects.filter(Blockchain_obj=self.Blockchain_obj, validated=True).order_by('-created').first()
         if last_block:
             last_dt = last_block.created
+            if self.Blockchain_obj.genesisId == _OperationsChain_genesisId:
+                last_block.build_node_record()
         else:
             last_dt = self.Blockchain_obj.created
         self.Blockchain_obj.last_block_datetime = last_dt
@@ -3602,7 +3627,7 @@ class Blockchain(models.Model):
             prnt('node_id0',node.id)
             node_data = {
                 'activated_dt': dt_to_string(node.activated_dt),
-                'suspended_dt': True if node.suspended_dt else False,
+                'suspended_dt': dt_to_string(node.suspended_dt),
                 'expelled_dt': dt_to_string(node.expelled_dt),
                 'chain_array': node.chain_array,
                 'plugin_array': node.plugin_array,
@@ -3623,11 +3648,26 @@ class Blockchain(models.Model):
                 if prev_node_change and node.id in prev_node_change.data:
                     prnt('x',sort_for_sign(node_data),'xx--', sort_for_sign(prev_node_change.data[node.id]))
                     if sort_for_sign(node_data) == sort_for_sign(prev_node_change.data[node.id]):
+                        prnt('x1')
                         proceed = False
-            if proceed:        
+            if proceed:    
+                prnt('a0')    
                 if node.id not in latest_data or node_data != latest_data[node.id]:
                     prnt('a1')
                     data[node.id] = node_data
+                else:
+                    prnt('b1')
+                    try:
+                        prnt('node_data',node_data)
+                        prnt('latest_data[node.id]',latest_data[node.id])
+                    except Exception as e:
+                        prnt('err b1',str(e))
+
+        def truthy(v):
+            if isinstance(v, str):
+                return v.strip().lower() not in ("", "false")
+            return bool(v)
+
         matches = []
         mismatches = []
         for node_id, node_data in data.items():
@@ -3636,21 +3676,21 @@ class Blockchain(models.Model):
                 block_data = block.data[node_id].copy()
                 prnt('block_data',block_data)
                 proceed = False
-                if not node_data['activated_dt'] and not block_data['activated_dt']:
+                if not truthy(node_data['activated_dt']) and not truthy(block_data['activated_dt']):
                     proceed = True
-                elif node_data['activated_dt'] and block_data['activated_dt']:
+                elif truthy(node_data['activated_dt']) and truthy(block_data['activated_dt']):
                     proceed = True
                 if proceed:
                     proceed = False
-                    if not node_data['suspended_dt'] and not block_data['suspended_dt']:
+                    if not truthy(node_data['suspended_dt']) and not truthy(block_data['suspended_dt']):
                         proceed = True
-                    elif node_data['suspended_dt'] and block_data['suspended_dt']:
+                    elif truthy(node_data['suspended_dt']) and truthy(block_data['suspended_dt']):
                         proceed = True
                     if proceed:
                         proceed = False
-                        if not node_data['expelled_dt'] and not block_data['expelled_dt']:
+                        if not truthy(node_data['expelled_dt']) and not truthy(block_data['expelled_dt']):
                             proceed = True
-                        elif node_data['expelled_dt'] and block_data['expelled_dt']:
+                        elif truthy(node_data['expelled_dt']) and truthy(block_data['expelled_dt']):
                             proceed = True
                 if proceed:
                     del node_data['activated_dt']
@@ -3660,6 +3700,7 @@ class Blockchain(models.Model):
                     del block_data['suspended_dt']
                     del block_data['expelled_dt']
                     if sort_for_sign(block_data) == sort_for_sign(node_data):
+                        prnt('a2')
                         matches.append(node_id)
                     else:
                         prnt('sort_for_sign(block_data)',sort_for_sign(block_data))
@@ -3678,7 +3719,7 @@ class Blockchain(models.Model):
 
         if total:
             matched = len(matches) >= 0.8 * total # requires 80% match for approval
-            prnt('matched',matched)
+            prnt('matched',matched, 'matches',matches, 'total',total)
             if matched:
                 return True
         # if sort_for_sign(block.data) == sort_for_sign(data):
@@ -3712,6 +3753,7 @@ class Blockchain(models.Model):
 
         # get node changes since last opBlock
         # activated_dt, new nodes, change in supported_regions, change in abilities, change in node_type
+        self_node_id = get_operator_obj('local_nodeId')
         nodes = []
         latest_data = {}
         data = {}
@@ -3730,7 +3772,7 @@ class Blockchain(models.Model):
             prnt('node',node)
             node_data = {
                 'activated_dt': dt_to_string(node.activated_dt),
-                'suspended_dt': True if node.suspended_dt else False,
+                'suspended_dt': dt_to_string(node.suspended_dt),
                 'expelled_dt': dt_to_string(node.expelled_dt),
                 'chain_array': node.chain_array,
                 'plugin_array': node.plugin_array,
@@ -3741,6 +3783,8 @@ class Blockchain(models.Model):
                 'pos': node.pos,
                 'block': node.Block_obj.id if node.Block_obj else None
             }
+            if node.id == self_node_id and (not node.activated_dt or node.suspended_dt or node.expelled_dt):
+                return None
             proceed = True
             if node.rec_change:
                 prnt('node.rec_change',node.rec_change)
@@ -4261,7 +4305,7 @@ class Blockchain(models.Model):
             creator_nodes, validator_list, broadcast_list = new_block.get_assigned_nodes()
             self_node = get_self_node()
             from posts.models import Region
-            for node_id in validator_list[:required_validators]:
+            for node_id in validator_list[:int(required_validators)]:
                 if node_id != self_node.id:
                     log = EventLog(
                         jobId=new_block.id, 
