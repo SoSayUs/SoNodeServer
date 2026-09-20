@@ -3860,6 +3860,8 @@ def compute_node_trust():
                     recent_failures += 1
         prnt('recent_failures',recent_failures)
         peer_reviews[r.TargetNode_obj.id].append({
+        "TargetNode_obj": r.TargetNode_obj.id,
+        "CreatorNode_obj": r.CreatorNode_obj.id,
         "response_success": r.response_success,
         "job_success": job_successes.get(r.CreatorNode_obj.id, 0.5),
         "block_success": block_successes.get(r.TargetNode_obj.id, 0.5),
@@ -3921,7 +3923,7 @@ def compute_node_trust():
             total_weight += w
 
             if r.get("recent_failures", 0) >= recent_failure_count:
-                prnt('fff:',r.TargetNode_obj,r.CreatorNode_obj)
+                prnt('fff:',r.get('CreatorNode_obj'))
                 total_failures += 1
         prnt('total_failures',total_failures,"len(nodes)/3",len(nodes)/3)
         if total_failures >= (len(nodes)/3):

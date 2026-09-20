@@ -93,7 +93,7 @@ def get_current_node_list_view(request, pointer=None):
 
 @csrf_exempt # redundant but used by node software
 def get_node_request_view(request, node_id):
-    prnt('-get_node_request view')
+    prnt('-get_node_request view',node_id)
     try:
         
         if node_id == 'self':

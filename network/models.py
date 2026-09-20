@@ -4931,16 +4931,7 @@ class Tidy:
                         obj_idens.append(p.pointerId)
                     else:
                         obj_idens.append(p.id)
-                    # if p.Update_obj:
-                    #     obj_idens.append(p.Update_obj.id)
                 prntDebug('earliest_dt',earliest_dt,'obj_idens',obj_idens)
-                # if obj_idens:
-                #     in_queue = Blockchain.objects.filter(queuedData__has_any_keys=obj_idens)
-                # else:
-                #     in_queue = None
-                # if in_queue:
-                #     for c in in_queue:
-                #         found_in_queue = [i for i in c.queuedData if i in obj_idens]
                 found_in_queue = []
                 prnt('found_in_queue',found_in_queue)
                 if obj_idens:
@@ -4952,17 +4943,18 @@ class Tidy:
                             prnt('k',key)
                             if key in b.data:
                                 prnt('a1')
-                                if key in obj_idens_copy:
-                                    prnt('a2')
-                                    obj_idens_copy.remove(key)
-                                    prnt('obj_idens_copy',obj_idens_copy)
+                                # if key in obj_idens_copy:
+                                #     prnt('a2')
+                                #     obj_idens_copy.remove(key)
+                                #     prnt('obj_idens_copy',obj_idens_copy)
                                 if key not in has_block:
-                                    prnt('a3')
-                                    has_block[key] = b
-                                elif not has_block[key].validated:
-                                    prnt('a4')
-                                    has_block[key] = b
-                                prntDebug('rmv2', key)
+                                    # prnt('a3')
+                                    has_block[key] = []
+                                # elif not has_block[key].validated:
+                                has_block[key].append(b)
+                                    # prnt('a4')
+                                    # has_block[key] = b
+                                # prntDebug('rmv2', key)
                             if not obj_idens_copy:
                                 break
                 # if model_name in []
@@ -4992,32 +4984,31 @@ class Tidy:
                         # or has_field(p, 'Update_obj') and p.Update_obj and p.Update_obj.id in has_block:
                         prnt('opt1')
                         # if p.pointerId in has_block:
-                        if has_field(p, 'blockId') and has_method(p, 'get_pointer'):
-                            p.blockId = has_block[obj_iden].id
-                            p.save()
-                            pointer = p.get_pointer()
-                            if has_field(pointer,'Block_obj'):
-                                if not pointer.Block_obj or (pointer.id not in pointer.Block_obj.data or not check_commit_data(pointer, pointer.Block_obj.data[pointer.id]) and pointer.id not in pointer.Block_obj.extraData or not check_commit_data(pointer, pointer.Block_obj.extraData[pointer.id])):
-                                    if has_block[p.pointerId].validated:
-                                        if p.pointerId in has_block[p.pointerId].data and check_commit_data(pointer, has_block[p.pointerId].data[p.pointerId]) or p.id in has_block[p.pointerId].extraData and check_commit_data(pointer, has_block[p.pointerId].extraData[p.pointerId]):
-                                            # has_block[p.pointerId].data[p.pointerId] == get_commit_data(pointer):
-                                            pointer.Block_obj = has_block[p.pointerId]
-                                            super(get_model(pointer._meta.object_name), pointer).save()
-                                            next = False
-                        elif has_field(p, 'Block_obj'):
-                            if not p.Block_obj or (p.id not in p.Block_obj.data or not check_commit_data(p, p.Block_obj.data[p.id]) and p.id not in p.Block_obj.extraData or not check_commit_data(p, p.Block_obj.extraData[p.id])):
-                                if has_block[p.id].validated:
-                                    if p.id in has_block[p.id].data and check_commit_data(p, has_block[p.id].data[p.id]) or p.id in has_block[p.id].extraData and check_commit_data(p, has_block[p.id].extraData[p.id]):
-                                        p.Block_obj = has_block[p.id]
-                                        super(get_model(p._meta.object_name), p).save()
-                                        next = False
-                            # else:
-                                # prnt('get_commit_data(p)',get_commit_data(p))
-                                # prnt('has_block[p.id].data[p.id]',has_block[p.id].data[p.id])
+                        for block in has_block[obj_iden]:
+                            if next:
+                                if has_field(p, 'blockId') and has_method(p, 'get_pointer'):
+                                    p.blockId = block.id
+                                    p.save()
+                                    pointer = p.get_pointer()
+                                    if has_field(pointer,'Block_obj'):
+                                        if not pointer.Block_obj or (pointer.id not in pointer.Block_obj.data or not check_commit_data(pointer, pointer.Block_obj.data[pointer.id]) and pointer.id not in pointer.Block_obj.extraData or not check_commit_data(pointer, pointer.Block_obj.extraData[pointer.id])):
+                                            if p.pointerId in has_block:
+                                                for b in has_block[p.pointerId]:
+                                                    if b.validated:
+                                                        if p.pointerId in b.data and check_commit_data(pointer, b.data[p.pointerId]) or p.id in b.extraData and check_commit_data(pointer, b.extraData[p.pointerId]):
+                                                            # has_block[p.pointerId].data[p.pointerId] == get_commit_data(pointer):
+                                                            pointer.Block_obj = b
+                                                            super(get_model(pointer._meta.object_name), pointer).save()
+                                                            next = False
+                                                            break
+                                elif has_field(p, 'Block_obj'):
+                                    if not p.Block_obj or (p.id not in p.Block_obj.data or not check_commit_data(p, p.Block_obj.data[p.id]) and p.id not in p.Block_obj.extraData or not check_commit_data(p, p.Block_obj.extraData[p.id])):
+                                        if block.validated:
+                                            if p.id in block.data and check_commit_data(p, block.data[p.id]) or p.id in block.extraData and check_commit_data(p, block.extraData[p.id]):
+                                                p.Block_obj = block
+                                                super(get_model(p._meta.object_name), p).save()
+                                                next = False
 
-                        # if p.Update_obj and has_field(p.Update_obj,'Block_obj') and not p.Update_obj.Block_obj:
-                        #     p.Update_obj.Block_obj = has_block[p.Update_obj.id]
-                        #     super(get_model(pointer._meta.object_name), pointer).save()
                     prnt('next',next)
                     if obj_iden in obj_idens or next:
                         prnt('opt2')
@@ -5025,10 +5016,6 @@ class Tidy:
                             pointer = p.get_pointer()
                         else:
                             pointer = p
-                        # if has_field(pointer, 'Block_obj') and pointer.Block_obj:
-                        #     pointer.Block_obj = None
-                        #     super(get_model(pointer._meta.object_name), pointer).save()
-
                         find_chain = True
                         if has_field(pointer, 'created'):
                             # if pointer.created < dt - datetime.timedelta(days=max_commit_window):
@@ -5060,16 +5047,7 @@ class Tidy:
                                 add_to_queue[network_chain].append(pointer)
                                 prnt('pointer add_to_queue',pointer,network_chain)
                                 add_to_chain += 1
-                            # elif has_field(p, 'blockId') and has_field(pointer, 'proposed_modification') and not pointer.proposed_modification:
-                            #     p.blockId = 'N/A'
-                            #     p.save()
-                    # elif p.Update_obj and p.Update_obj.id in obj_idens:
-                    #     # prnt('opt3')
-                    #     blockchain, obj, secondChain = find_or_create_chain_from_object(p.Update_obj)
-                    #     if blockchain:
-                    #         if blockchain not in add_to_queue:
-                    #             add_to_queue[blockchain] = []
-                    #         add_to_queue[blockchain].append(p.Update_obj)
+
                 prnt('done run',runs)
                 if add_to_queue:
                     prnt('has add_to_queue2')
