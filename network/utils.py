@@ -347,14 +347,16 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                                         is_new = False
                                 else:
                                     val_err += '8'
-                                    node, sigs, updatedDB = set_model_attrs(obj, i, get_missing_blocks=get_missing_blocks)
-                                    node_is_valid = verify_data(get_signing_data(node), i['signed'])
-                                    prnt('node_is_valid',node_is_valid, 'updatedDB',updatedDB)
-                                    if node_is_valid:
-                                        val_err += '9'
-                                        node.save(bypass_lock=True, bypass_upk_block=True)
-                                        save_sigs(sigs)
-                                        obj = node
+                                    if not obj.lastUpdate or obj.lastUpdate < string_to_dt(i['lastUpdate']):
+                                        val_err += 'a'
+                                        node, sigs, updatedDB = set_model_attrs(obj, i, get_missing_blocks=get_missing_blocks)
+                                        node_is_valid = verify_data(get_signing_data(node), i['signed'])
+                                        prnt('node_is_valid',node_is_valid, 'updatedDB',updatedDB)
+                                        if node_is_valid:
+                                            val_err += 'b'
+                                            node.save(bypass_lock=True, bypass_upk_block=True)
+                                            save_sigs(sigs)
+                                            obj = node
                     
                     elif obj._meta.object_name == 'UserPubKey':
                         val_err += 'G'

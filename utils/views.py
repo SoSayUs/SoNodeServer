@@ -816,6 +816,13 @@ def workers_status_view(request):
     from rq.worker import Worker
     from utils.utils import self_is_active
 
+    # prnt('self_is_active()1',self_is_active())
+    # self_is_active(True)
+    # prnt('self_is_active()2',self_is_active())
+    # import os
+    # import sys
+    # prnt('pid', os.getpid(), 'mod', id(sys.modules[self_is_active.__module__]))
+
     workers = {
         'high':{'current':{},'queued':0},
         'main':{'current':{},'queued':0},

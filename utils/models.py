@@ -3921,6 +3921,7 @@ def compute_node_trust():
             total_weight += w
 
             if r.get("recent_failures", 0) >= recent_failure_count:
+                prnt('fff:',r.TargetNode_obj,r.CreatorNode_obj)
                 total_failures += 1
         prnt('total_failures',total_failures,"len(nodes)/3",len(nodes)/3)
         if total_failures >= (len(nodes)/3):

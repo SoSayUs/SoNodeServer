@@ -670,12 +670,13 @@ def get_self_node(operatorData=None):
         prnt('get_self_node err',str(e))
     return None
 
+import redis
+_r = redis.Redis()
+
 def self_is_active(var=None):
-    global _self_is_active
     if var is None:
-        return _self_is_active
-    else:
-        _self_is_active = var
+        return _r.get("self_is_active") == b"1"
+    _r.set("self_is_active", b"1" if var else b"0")
 
 # avoid this
 def get_user(node=None, user_id=None, node_id=None, public_key=None, obj=None, target=None, request_missing=True):

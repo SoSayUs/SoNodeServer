@@ -1522,7 +1522,7 @@ class Node(models.Model):
                 review = NodeReview(TargetNode_obj=self, CreatorNode_obj_id=self_node_id)
             review.accessed = now_utc()
             if response_time:
-                if len(review.response_times) >= 250:
+                if len(review.response_times) >= 20:
                     sorted_keys = sorted(review.response_times.keys(), key=lambda k: k)
                     review.response_times.pop(sorted_keys[0])
                 review.response_times[dt_to_string(now_utc())] = {'addr':address_type, 'time':float(response_time)}
