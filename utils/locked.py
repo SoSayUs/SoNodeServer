@@ -324,7 +324,7 @@ def process_gathered_data(received_data, override_completed=False):
                     break
 
     q += '19'
-    from utils.utils import connect_to_node
+    from utils.models import connect_to_node
     validator = sign_obj(validator)
     obj_list = [convert_to_dict(validator)]
     for i in content:
@@ -1470,7 +1470,7 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
                         # rebraodcast blcok to all missing validators
                         prnt(f're broadcasting block {block_id}, total vals:{total}, required_validators:{required_validators}')
                         broadcast_block_to = [n for n in validator_list[:required_validators] if n not in [v.CreatorNode_obj.id for v in validations]]
-                        val_obj.broadcast(broadcast_list=broadcast_list, validator_list=broadcast_block_to, validations=validations, validators_only=True, target_node_id=None)
+                        val_obj.broadcast_block(broadcast_list=broadcast_list, validator_list=broadcast_block_to, validations=validations, validators_only=True, target_node_id=None)
 
                 
                 elif obj_is_block and val_obj.networkChain == _OperationsChain_genesisId:
@@ -1509,7 +1509,7 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
                 if obj_is_block and do_mark_valid:
                     completed_validation = val_obj.mark_valid(downstream_worker=downstream_worker)
                 if do_mark_valid and obj_is_block and not val_obj.validated and now_utc() < (block_created_dt + datetime.timedelta(hours=3)):
-                    val_obj.broadcast(validations=validations, validators_only=False, target_node_id=None)
+                    val_obj.broadcast_block(validations=validations, validators_only=False, target_node_id=None)
                 return completed_validation, True, validations
             elif total >= required_validators and percent < (required_consensus*100):
                 prntDebug(f'stage3 opt2, total:{total}, required_validators:{required_validators}, acheived:{percent < (required_consensus*100)}%')
@@ -1523,14 +1523,14 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
                         else:
                             prnt('xa2')
                             validator_list += creator_nodes
-                            val_obj.broadcast(validator_list=validator_list, validations=[v for v in validations if v.CreatorNode_obj.id == self_node_id], validators_only=True, target_node_id=None)
+                            val_obj.broadcast_block(validator_list=validator_list, validations=[v for v in validations if v.CreatorNode_obj.id == self_node_id], validators_only=True, target_node_id=None)
                 return False, True, validations
             
             if obj_is_block:
                 if broadcast_if_unknown and now_utc() < max_val_dt_full and val_obj.validated == None:
                     # broadcast to all nodes
                     prnt('re broadcast_if_unknown',broadcast_if_unknown)
-                    val_obj.broadcast(validations=validations, validators_only=False, target_node_id=None)
+                    val_obj.broadcast_block(validations=validations, validators_only=False, target_node_id=None)
             prnt('end check_validators',val_obj)
             return is_valid, False, validations
         
@@ -1671,7 +1671,7 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
     return check_validators(block, {'creator_nodes':creator_nodes,'validator_list':validator_list,'required_validators':required_validators,'required_consensus':required_consensus,'block_delay':block_delay,'broadcast_list':broadcast_list, 'next_block':next_block}, do_mark_valid=do_mark_valid, broadcast_if_unknown=broadcast_if_unknown)
 
 
-def validate_block(block, creator_nodes=None, opBlock_data=None, create_validator=True, fail_reason=None):
+def validate_block(block, creator_nodes=None, opBlock_data=None, create_validator=True, fail_reason=None, broadcast_val=True):
     from utils.utils import declare_var, quick_hash, get_operator_obj, get_objType, sigData_to_hash, now_utc, prnt, is_id, get_chain_id, toBroadcast
     from utils.locked import dt_to_string
     prnt('---validate_block', block, now_utc(),'fail_reason',fail_reason)
@@ -1686,6 +1686,7 @@ def validate_block(block, creator_nodes=None, opBlock_data=None, create_validato
         fail_reason = 0
     else:
         validated = False
+        matches = []
         prnt('create val')
         if not fail_reason:
             transaction_type = None
@@ -1713,6 +1714,7 @@ def validate_block(block, creator_nodes=None, opBlock_data=None, create_validato
         
             
             if not hard_pass and block.Tx_obj:
+                fail_reason = 70
                 if block.Tx_obj.senderBlockId != block.id:
                     sender_block = Block.objects.filter(id=block.Tx_obj.senderBlockId).first()
                     if sender_block and not sender_block.validated:
@@ -1855,7 +1857,8 @@ def validate_block(block, creator_nodes=None, opBlock_data=None, create_validato
                             if block.networkChain == _OperationsChain_genesisId:
                                 fail_reason = 101
                                 
-                                if block.Blockchain_obj.verify_new_opBlock_data(block):
+                                matches = block.Blockchain_obj.verify_new_opBlock_data(block)
+                                if matches:
                                     prnt('valid = true22 Nodes')
                                     validated = True
                                     fail_reason = 'None'
@@ -1895,6 +1898,8 @@ def validate_block(block, creator_nodes=None, opBlock_data=None, create_validato
         prnt('setp3 is_valid:', validated)
         validator = Validator(CreatorNode_obj_id=self_node_id, jobId=block.id, networkChain=block.networkChain, validatorType='Block', func='tasker')
         validator.data[block.id] = get_commit_data(block)
+        if matches:
+            validator.data['matches'] = matches
         if block.Tx_obj:
             validator.data[block.Tx_obj.id] = get_commit_data(block.Tx_obj)
         if not validated:
@@ -1912,8 +1917,9 @@ def validate_block(block, creator_nodes=None, opBlock_data=None, create_validato
                 prnt('created validator',validator, dt_to_string(now_utc()))
                 block.validations[validator.id] = get_commit_data(validator)
                 block.save()
-                toBroadcast(validator.id, extra={'re':block.id})
-                block.broadcast(validators_only=True)
+                if broadcast_val:
+                    toBroadcast(validator.id, extra={'re':block.id})
+                    block.broadcast_block(validators_only=True)
         prnt('done validating block',block.id)
     prnt('validator:',validator,"is_new_validation",is_new_validation,'validator.is_valid',validator.is_valid,'fail_reason',str(fail_reason)[:300])
     return validator.is_valid, validator, is_new_validation
@@ -2414,6 +2420,13 @@ def validate_obj(obj=None, pointer=None, validators=None, save_obj=True, update_
                             if target and has_method(target, 'boot'):
                                 if not Post.all_objects.filter(pointerId=target.id).exists():
                                     target.boot()
+                                if save_obj and get_objType(target) != 'Post':
+                                    err += 'p'
+                                    p = Post.all_objects.filter(pointerId=target.id).first()
+                                    if not p.validated:
+                                        p, updated_fields = update_post(obj=target, p=p, save_p=False)
+                                        p.validated = True
+                                        p.save()
                             if target and has_method(target, 'sync_with_post'):
                                 synced = target.sync_with_post()
                                 if synced == False:
@@ -2839,12 +2852,14 @@ def get_relevant_nodes(dt=None, genesisId=None, chains=None, blockchain=None, pl
         if record:
             if node_ids_only:
                 return node_ids
+
             # can adjust Node query here, needed data should be in Leger
             sonet = Sonet.objects.values('Domain').first()
             if strings_only:
                 relevant_nodes = {n['id']:{'address':n['address'],'onion':n['onion'],'pos':n['pos']} for n in Node.objects.filter(id__in=node_ids).values('address','onion','id','pos')}
             else:
                 relevant_nodes = {n.id: n for n in Node.objects.filter(id__in=node_ids).defer('chain_array','plugin_array','region_array','Block_obj','User_obj','abilities','region_data')}
+            
             relevant_nodes = {i:relevant_nodes[i] for i in node_ids}
             prnt('nrec',record,'1 node_ids',node_ids, 'relevant_nodes',relevant_nodes)
             return {'relevant_nodes':dict(relevant_nodes.items()),'epochData': opBlock.epochData if opBlock else {}}
@@ -4664,7 +4679,12 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
                 upks = UserPubKey.objects.filter(id__in=public_key).only('id','publicKey')
                 if not len(public_key) == upks.count():
                     prnt('upk cound fail 1')
-                    return
+                    fetch_upks = []
+                    if not UserPubKey.objects.filter(id=public_key).exists():
+                        fetch_upks.append(public_key)
+                        from utils.models import request_items
+                        request_items(fetch_upks)
+                    return False
                 public_key_data = {upk.id:{'pubKey':upk.publicKey} for upk in upks if target_keys is None or upk.id in target_keys}
             elif isinstance(public_key, QuerySet) or isinstance(public_key, list) and any(pk for pk in public_key if isinstance(pk, models.Model)):
                 prnt('a4b')
@@ -4743,6 +4763,13 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
             prnt('upk_data',upk_data)
             if len(public_key_data) != len(upk_data):
                 prnt('upk count fail 2')
+                fetch_upks = []
+                for upk_id in upk_data:
+                    if not UserPubKey.objects.filter(id=upk_id).exists():
+                        fetch_upks.append(upk_id)
+                if fetch_upks:
+                    from utils.models import request_items
+                    request_items(fetch_upks)
                 return False
         # else:
             # prnt('a6')
@@ -4875,7 +4902,7 @@ def verify_data(data, public_key, signature=None, key_type=None, skip_sort=False
             except Exception as e:
                 prnt('signed_snapshot err5',str(e))
                 key_data_str = str(data) + s
-            prnt(f'-verifying...',upk_id, len(key_data_str), key_data_str)
+            prnt(f'-verifying...',upk_id, len(key_data_str), str(key_data_str)[:5000])
 
             key_type = detect_security(key_data['pubKey'], key_type='pubkey')
             is_valid = simpleVerify(key_data_str, key_data['signature'], key_data['pubKey'], key_type=key_type)

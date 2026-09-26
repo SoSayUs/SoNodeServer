@@ -363,9 +363,9 @@ class Tx(models.Model):
                 self.save()
                 if downstream_worker:
                     queue = django_rq.get_queue('main')
-                    queue.enqueue(receiverBlock.broadcast, broadcast_list={self_node.id:validator_list}, target_node_id=self_node.id, job_timeout=150)
+                    queue.enqueue(receiverBlock.broadcast_block, broadcast_list={self_node.id:validator_list}, target_node_id=self_node.id, job_timeout=150)
                 else:
-                    receiverBlock.broadcast(broadcast_list={self_node.id:validator_list}, target_node_id=self_node.id)
+                    receiverBlock.broadcast_block(broadcast_list={self_node.id:validator_list}, target_node_id=self_node.id)
                 prnt('self.updated_on_node:', self.updated_on_node, 'now_uct()', now_utc(),'self.ReceiverBlock_obj:', self.ReceiverBlock_obj)
                 prnt('done send_for_block_creation1')
                 return receiverBlock

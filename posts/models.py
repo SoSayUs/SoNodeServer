@@ -1527,8 +1527,8 @@ class Post(models.Model):
             self.set_score(save_item=False)
         save_mutable_fields(self, *args, **kwargs)
     
-    def delete(self, *args, **kwargs):
-        if not self.validated:
+    def delete(self, force_delete=False, *args, **kwargs):
+        if not self.validated or force_delete:
             super(Post, self).delete(*args, **kwargs)
 
 

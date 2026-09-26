@@ -117,7 +117,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
         prntDebug('--received_data len:',len(sorted_data))
         # get_model_prefix
 
-        def save_to_db(bulk_update_items):
+        def save_to_db(bulk_update_items, current_model_type):
             prntDebug('save_to_db',len(bulk_update_items))
             nonlocal return_updated_objs
             nonlocal return_updated_ids
@@ -131,7 +131,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
             if bulk_create_objs:
                 created_items = dynamic_bulk_create(current_model_type, items=bulk_create_objs, return_items=True, retrieve_missing=get_missing_blocks)
                 prnt('created_items',[i.id for i in created_items])
-                synced_idens += [i.id for i in created_items]
+                synced_idens += [i.id for i in created_items if i.id not in synced_idens]
                 prnt('proof:',[i['id'] for i in get_model(current_model_type).objects.filter(id__in=synced_idens).values('id')])
                 if return_updated_objs:
                     updated_objs = updated_objs + created_items
@@ -144,7 +144,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
             prnt('bulk_update_objs',bulk_update_objs)
             if bulk_update_objs:
                 updated_items = dynamic_bulk_update(current_model_type, items=bulk_update_objs, return_items=True, retrieve_missing=get_missing_blocks)
-                synced_idens += [i.id for i in updated_items]
+                synced_idens += [i.id for i in updated_items if i.id not in synced_idens]
                 prnt('proof:',[i['id'] for i in get_model(current_model_type).objects.filter(id__in=synced_idens).values('id')])
                 if return_updated_objs:
                     updated_objs = updated_objs + updated_items
@@ -179,311 +179,344 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                     to_queue[i.networkChain].append(i)
             to_chain_items.clear()
             prnt('to_queue',to_queue)
-            for chainId, objs in to_queue.items():
-                blockchain = Blockchain.objects.filter(id=chainId).first()
+            for genId, objs in to_queue.items():
+                blockchain = Blockchain.objects.filter(genesisId=genId).first()
                 prnt('blockchain',blockchain)
                 if blockchain:
                     blockchain.add_item_to_queue(objs)
             to_queue.clear()
+            return synced_idens
             
 
         current_model_type = None
         bulk_update_items = {}
+        received_idens = [f['id'] for f in sorted_data if 'id' in f]
+        completed_idens = []
         for i in sorted_data:
             prntDebugn('ixi:',str(i)[:2000])
-            if not current_model_type:
-                current_model_type = i['objType']
-            if current_model_type != i['objType'] or len(bulk_update_items) >= 1000:
-                prnt('bulk_update_items p1', len(bulk_update_items))
-                if bulk_update_items:
-                    save_to_db(bulk_update_items)
-                current_model_type = i['objType']
-                bulk_update_items = {}
-            valid_obj = False
-            bad_commit = False
-            val_err = '-'
-            updatedDB = False
-            if block_dict: # not doing anything currently
-                hash = sigData_to_hash(i)
-                receivedHash = [data['hash'] for iden, data in block_dict['data'].items() if iden == i['id'] and 'hash' in data][0]
-                if receivedHash == hash:
-                    hashMatch = True
-                else:
-                    hashMatch = False
-            try:
-                prnt('try')
-                # check self_node that plugin and region are supported before sync for each item 
-
-                userModels = ['User', 'Node', 'Tx', 'UserPubKey']
-                if i['objType'] in storedModels and i['id'] in storedModels[i['objType']] and storedModels[i['objType']][i['id']].signed:
-                    val_err += 'a'
-                    obj = storedModels[i['objType']][i['id']]
-                    del storedModels[i['objType']][i['id']]
-                    is_new = False
-                else:
-                    val_err += 'b'
-                    obj, is_new = get_or_create_model(i['objType'], return_is_new=True, id=i['id'])
-                
-                if bad_commit:
-                    prnt('bad_commit',bad_commit)
-                elif i['objType'] == 'Sonet':
-                    from network.models import Sonet
-                    if not Sonet.objects.all().exists():
-                        if verify_data(get_signing_data(i), i['signed']):
-                            sonet, sigs, updatedDB = set_model_attrs(obj, i, get_missing_blocks=get_missing_blocks)
-                            new_sonet_valid = verify_data(get_signing_data(sonet), i['signed'])
-                            prnt('new_sonet_valid',new_sonet_valid)
-                            if new_sonet_valid:
-                                from utils.locked import bytes_to_base64url
-                                sonet.save(sig=bytes_to_base64url(sigs[-1].sig))
-                                sonet.boot()
-                                obj = sonet
-                                save_sigs(sigs)
+            def process_item(i, synced_idens, received_invalids, bulk_update_items, current_model_type, completed_idens, databaseUpdated, save_one=False):
+                prnt('-process_item',i['id'])
+                # nonlocal databaseUpdated
+                completed_idens.append(i['id'])
+                prnt('completed_idens',completed_idens)
+                if not save_one:
+                    if not current_model_type:
+                        current_model_type = i['objType']
+                    if current_model_type != i['objType'] or len(bulk_update_items) >= 1000:
+                        prnt('bulk_update_items p1', len(bulk_update_items))
+                        if bulk_update_items:
+                            synced_idens = save_to_db(bulk_update_items, current_model_type)
+                        current_model_type = i['objType']
+                        bulk_update_items = {}
+                valid_obj = False
+                bad_commit = False
+                val_err = '-'
+                updatedDB = False
+                if block_dict: # not doing anything currently
+                    hash = sigData_to_hash(i)
+                    receivedHash = [data['hash'] for iden, data in block_dict['data'].items() if iden == i['id'] and 'hash' in data][0]
+                    if receivedHash == hash:
+                        hashMatch = True
                     else:
-                        val_err += '3'
-                        obj, sigs, valid_obj, updatedDB = sync_model(obj, i, do_save=False, force_sync=force_sync, get_missing_blocks=get_missing_blocks)
-                        val_err += f"_{valid_obj}_{updatedDB}_"
-                elif i['objType'] == 'chain_status':
-                    prnt('xxx',i)
-                    chain = Blockchain.objects.filter(id=i['data']['chainId']).only('id').first()
-                    prnt('chain',chain.id)
-                    latest_block = chain.get_last_block(is_validated=True, do_not_return_self=True)
-                    prnt('latest_block',latest_block)
-                    if latest_block.id != i['data']['blockId']:
-                        prnt('x1')
-                        n_count = Node.objects.filter(nodeActive=True).count()
-                        if random.randint(1, n_count) <= n_count/3:
-                            if latest_block.DateTime < string_to_dt(i['data']['dt']):
-                                prnt('x2')
-                                retrieve_missing_blocks(blockchain=chain, target_node=received_data['senderId'], starting_point=i['data']['blockId'], items_to_get=3, retrieve_following=True, downstream_worker=False)
-                            else:
-                                prnt('x3')
-                                send_missing_blocks(blockchain=chain, missing_blocks=[latest_block], starting_index=latest_block.id, send_to=received_data['senderId'], force_check=True)
+                        hashMatch = False
+                try:
+                    # prnt('try')
+                    # check self_node that plugin and region are supported before sync for each item 
 
-                elif i['objType'] in userModels:
-                    val_err += 'A'
-                    if obj._meta.object_name == 'User':
-                        prnt('obj is user')
-                        val_err += 'B'
-                        if is_new:
-                            val_err += '1'
-                            prntDebug('is new')
+                    userModels = ['User', 'Node', 'Tx', 'UserPubKey']
+                    if i['objType'] in storedModels and i['id'] in storedModels[i['objType']] and storedModels[i['objType']][i['id']].signed:
+                        val_err += 'a'
+                        obj = storedModels[i['objType']][i['id']]
+                        del storedModels[i['objType']][i['id']]
+                        is_new = False
+                    else:
+                        val_err += 'b'
+                        obj, is_new = get_or_create_model(i['objType'], return_is_new=True, id=i['id'])
+                
+                    # def process_item(i, obj, val_err):
+                    
+                    if any(field for field in i if ('_obj' in field or field == 'pointerId') and i[field] in received_idens and i[field] not in completed_idens):
+                        for field in i:
+                            if ('_obj' in field or field == 'pointerId') and i[field] in received_idens and i[field] not in completed_idens:
+                                prnt('field_id', field, i[field])
+                                for x in sorted_data:
+                                    if x['id'] == i[field] and x['id'] != i['id']:
+                                        synced_idens, received_invalids, bulk_update_items, current_model_type, databaseUpdated = process_item(x, synced_idens, received_invalids, bulk_update_items, None, completed_idens, databaseUpdated, save_one=True)
+                                        current_model_type = i['objType']
+                                        break
+                                
+                    if bad_commit:
+                        prnt('bad_commit',bad_commit)
+                    elif i['objType'] == 'Sonet':
+                        from network.models import Sonet
+                        if not Sonet.objects.all().exists():
                             if verify_data(get_signing_data(i), i['signed']):
+                                sonet, sigs, updatedDB = set_model_attrs(obj, i, get_missing_blocks=get_missing_blocks)
+                                new_sonet_valid = verify_data(get_signing_data(sonet), i['signed'])
+                                prnt('new_sonet_valid',new_sonet_valid)
+                                if new_sonet_valid:
+                                    from utils.locked import bytes_to_base64url
+                                    sonet.save(sig=bytes_to_base64url(sigs[-1].sig))
+                                    sonet.boot()
+                                    obj = sonet
+                                    save_sigs(sigs)
+                        else:
+                            val_err += '3'
+                            obj, sigs, valid_obj, updatedDB = sync_model(obj, i, do_save=False, force_sync=force_sync, get_missing_blocks=get_missing_blocks)
+                            val_err += f"_{valid_obj}_{updatedDB}_"
+                    elif i['objType'] == 'chain_status':
+                        prnt('xxx',i)
+                        chain = Blockchain.objects.filter(id=i['data']['chainId']).only('id').first()
+                        prnt('chain',chain.id)
+                        latest_block = chain.get_last_block(is_validated=True, do_not_return_self=True)
+                        prnt('latest_block',latest_block)
+                        if latest_block.id != i['data']['blockId']:
+                            prnt('x1')
+                            n_count = Node.objects.filter(activeNode=True).count()
+                            if random.randint(1, n_count) <= n_count/3:
+                                if latest_block.DateTime < string_to_dt(i['data']['dt']):
+                                    prnt('x2')
+                                    retrieve_missing_blocks(blockchain=chain, target_node=received_data['senderId'], starting_point=i['data']['blockId'], items_to_get=3, retrieve_following=True, downstream_worker=False)
+                                else:
+                                    prnt('x3')
+                                    send_missing_blocks(blockchain=chain, missing_blocks=[latest_block], starting_index=latest_block.id, send_to=received_data['senderId'], force_check=True)
+
+                    elif i['objType'] in userModels:
+                        val_err += 'A'
+                        if obj._meta.object_name == 'User':
+                            prnt('obj is user')
+                            val_err += 'B'
+                            if is_new:
+                                val_err += '1'
+                                prntDebug('is new')
+                                if verify_data(get_signing_data(i), i['signed']):
+                                    val_err += '2'
+                                    prnt('create user')
+                                    user, sigs, updatedDB = set_model_attrs(obj, i, get_missing_blocks=get_missing_blocks)
+                                    new_user_valid = verify_data(get_signing_data(user), i['signed'])
+                                    prnt('new_user_valid',new_user_valid)
+                                    if new_user_valid:
+                                        user.save(bypass_verify=True)
+                                        obj = user
+                                        save_sigs(sigs)
+                                        if has_method(obj, 'boot'):
+                                            obj.boot()
+                                        new = False
+                            else:
+                                val_err += 'C'
+                                # check on UserVerification_obj here - isVerified is no longer used
+                                if has_field(obj, 'isVerified') and obj.isVerified == False and i['isVerified'] == 'True' or has_field(obj, 'isVerified') and obj.isVerified == True and i['isVerified'] == 'False':
+                                    val_err += '1'
+                                    is_verified = obj.assess_verification()
+                                    obj, sigs, valid_obj, updatedDB = sync_model(obj, i, do_save=False, force_sync=force_sync, get_missing_blocks=get_missing_blocks)
+                                    if not is_verified:
+                                        obj.isVerified = False
+                                        # obj.save()
+                                else:
+                                    val_err += '2'
+                                    obj, sigs, valid_obj, updatedDB = sync_model(obj, i, do_save=False, force_sync=force_sync, get_missing_blocks=get_missing_blocks)
+                            val_err += 'D'
+                            # check if username already taken
+                            must_rename = False
+                            u = User.objects.filter(username=i['username']).exclude(id=i['id']).first()
+                            if u and u.lastpdate > string_to_dt(i['lastUpdate']):
+                                u.alerts['must_rename'] = True
+                                # u.save() # shuold broadcast?
+                                bulk_update_items[u.id] = {'is_new':False,'updatedDB':True,'obj':u}
+
+                            elif u:
+                                must_rename = True
+                            if must_rename:
+                                obj.alerts['must_rename'] = True
+                                # obj.save()
+                        elif obj._meta.object_name == 'Tx':
+                            val_err += 'E'
+                            # if 'ReceiverBlock_obj' in i and value_is_none(i['ReceiverBlock_obj']):
+                            # receiverBlock = Block.objects.filter(Tx_obj=self.Tx_obj, Blockchain_obj__genesisId=self.Tx_obj.ReceiverWallet_obj.id).exclude(id=self.Tx_obj.senderBlockId).first()
+                            # if receiverBlock:
+                            #     obj.ReceiverBlock_obj = Block.objects.filter(id=i['receiverBlockId']).first()
+                            if 'senderBlockId' in i and not value_is_none(i['senderBlockId']):
+                                obj.SenderBlock_obj = Block.objects.filter(id=i['senderBlockId']).first()
+                            val_err += '1'
+                            obj, sigs, valid_obj, updatedDB = sync_model(obj, i, do_save=False, force_sync=force_sync, get_missing_blocks=get_missing_blocks)
+                        elif obj._meta.object_name == 'Node':
+                            val_err += 'F'
+                            is_active = True
+                            if obj.expelled_dt or i['expelled_dt']:
+                                # handle disavowed claims appropriately
+                                val_err += '1'
+                                pass
+                            if obj.suspended_dt and i['suspended_dt'] == 'None':
                                 val_err += '2'
-                                prnt('create user')
-                                user, sigs, updatedDB = set_model_attrs(obj, i, get_missing_blocks=get_missing_blocks)
-                                new_user_valid = verify_data(get_signing_data(user), i['signed'])
-                                prnt('new_user_valid',new_user_valid)
-                                if new_user_valid:
-                                    user.save(bypass_verify=True)
-                                    obj = user
+                                is_active = obj.assess_activity()
+                            if is_active:
+                                val_err += '3'
+                                if verify_data(get_signing_data(i), i['signed']):
+                                    from utils.locked import bytes_to_base64url
+                                    val_err += '5'
+                                    if is_new:
+                                        val_err += '6'
+                                        prnt('create node')
+                                        node, sigs, updatedDB = set_model_attrs(obj, i, get_missing_blocks=get_missing_blocks)
+                                        new_node_valid = verify_data(node, i['signed'], sigs)
+                                        prnt('new_node_valid',new_node_valid)
+                                        if new_node_valid:
+                                            val_err += '7'
+                                            node.save(bypass_lock=True, bypass_upk_block=True)
+                                            obj = node
+                                            save_sigs(sigs)
+                                            is_new = False
+                                    else:
+                                        val_err += '8'
+                                        if not obj.lastUpdate or obj.lastUpdate < string_to_dt(i['lastUpdate']):
+                                            val_err += 'a'
+                                            node, sigs, updatedDB = set_model_attrs(obj, i, get_missing_blocks=get_missing_blocks)
+                                            node_is_valid = verify_data(get_signing_data(node), i['signed'])
+                                            prnt('node_is_valid',node_is_valid, 'updatedDB',updatedDB)
+                                            if node_is_valid:
+                                                val_err += 'b'
+                                                node.save(bypass_lock=True, bypass_upk_block=True)
+                                                save_sigs(sigs)
+                                                obj = node
+                        
+                        elif obj._meta.object_name == 'UserPubKey':
+                            val_err += 'G'
+                            prnt('obj is upk')
+                            if is_new or not obj.Block_obj:
+                                val_err += '1'
+                                prntDebug('is new', obj.Block_obj)
+
+                                # sig_data = get_sigData(target_data, first_key=False)
+                                # target_dt = sig_data['dt']
+
+                                if verify_data(get_signing_data(i), i['signed'], upk_bypass=True):
+                                    val_err += '2'
+                                    valid_obj = True
+                                    prntDebug('creta upk')
+                                    if not User.objects.filter(id=i['User_obj']).exists():
+                                        user = User(id=i['User_obj'], modlVer=1)
+                                        user.save(bypass_verify=True)
+                                    # double check:
+                                    # make sure not injecting unauthorized super keys
+                                    # nodeId must correlate with keyType = 'node', upk.user must match node.user
+                                    # new upks are signed by older upk from same user, if no prev upk, must be created at same time as user
+                                    obj, sigs, updatedDB = set_model_attrs(obj, i, get_missing_blocks=get_missing_blocks)
+                                    obj.save(bypass_verify=True)
                                     save_sigs(sigs)
                                     if has_method(obj, 'boot'):
                                         obj.boot()
-                                    new = False
-                        else:
-                            val_err += 'C'
-                            # check on UserVerification_obj here - isVerified is no longer used
-                            if has_field(obj, 'isVerified') and obj.isVerified == False and i['isVerified'] == 'True' or has_field(obj, 'isVerified') and obj.isVerified == True and i['isVerified'] == 'False':
-                                val_err += '1'
-                                is_verified = obj.assess_verification()
-                                obj, sigs, valid_obj, updatedDB = sync_model(obj, i, do_save=False, force_sync=force_sync, get_missing_blocks=get_missing_blocks)
-                                if not is_verified:
-                                    obj.isVerified = False
-                                    # obj.save()
+                                    new_upk_valid = verify_data(get_signing_data(obj), i['signed'])
+                                    prnt('new_upk_valid?',new_upk_valid)
+                                    is_new = False
                             else:
-                                val_err += '2'
+                                val_err += '3'
                                 obj, sigs, valid_obj, updatedDB = sync_model(obj, i, do_save=False, force_sync=force_sync, get_missing_blocks=get_missing_blocks)
-                        val_err += 'D'
-                        # check if username already taken
-                        must_rename = False
-                        u = User.objects.filter(username=i['username']).exclude(id=i['id']).first()
-                        if u and u.lastpdate > string_to_dt(i['lastUpdate']):
-                            u.alerts['must_rename'] = True
-                            # u.save() # shuold broadcast?
-                            bulk_update_items[u.id] = {'is_new':False,'updatedDB':True,'obj':u}
 
-                        elif u:
-                            must_rename = True
-                        if must_rename:
-                            obj.alerts['must_rename'] = True
-                            # obj.save()
-                    elif obj._meta.object_name == 'Tx':
-                        val_err += 'E'
-                        # if 'ReceiverBlock_obj' in i and value_is_none(i['ReceiverBlock_obj']):
-                        # receiverBlock = Block.objects.filter(Tx_obj=self.Tx_obj, Blockchain_obj__genesisId=self.Tx_obj.ReceiverWallet_obj.id).exclude(id=self.Tx_obj.senderBlockId).first()
-                        # if receiverBlock:
-                        #     obj.ReceiverBlock_obj = Block.objects.filter(id=i['receiverBlockId']).first()
-                        if 'senderBlockId' in i and not value_is_none(i['senderBlockId']):
-                            obj.SenderBlock_obj = Block.objects.filter(id=i['senderBlockId']).first()
-                        val_err += '1'
-                        obj, sigs, valid_obj, updatedDB = sync_model(obj, i, do_save=False, force_sync=force_sync, get_missing_blocks=get_missing_blocks)
-                    elif obj._meta.object_name == 'Node':
-                        val_err += 'F'
-                        is_active = True
-                        if obj.expelled_dt or i['expelled_dt']:
-                            # handle disavowed claims appropriately
-                            val_err += '1'
-                            pass
-                        if obj.suspended_dt and i['suspended_dt'] == 'None':
-                            val_err += '2'
-                            is_active = obj.assess_activity()
-                        if is_active:
-                            val_err += '3'
-                            if verify_data(get_signing_data(i), i['signed']):
-                                from utils.locked import bytes_to_base64url
-                                val_err += '5'
-                                if is_new:
-                                    val_err += '6'
-                                    prnt('create node')
-                                    node, sigs, updatedDB = set_model_attrs(obj, i, get_missing_blocks=get_missing_blocks)
-                                    new_node_valid = verify_data(node, i['signed'], sigs)
-                                    prnt('new_node_valid',new_node_valid)
-                                    if new_node_valid:
-                                        val_err += '7'
-                                        node.save(bypass_lock=True, bypass_upk_block=True)
-                                        obj = node
-                                        save_sigs(sigs)
-                                        is_new = False
-                                else:
-                                    val_err += '8'
-                                    if not obj.lastUpdate or obj.lastUpdate < string_to_dt(i['lastUpdate']):
-                                        val_err += 'a'
-                                        node, sigs, updatedDB = set_model_attrs(obj, i, get_missing_blocks=get_missing_blocks)
-                                        node_is_valid = verify_data(get_signing_data(node), i['signed'])
-                                        prnt('node_is_valid',node_is_valid, 'updatedDB',updatedDB)
-                                        if node_is_valid:
-                                            val_err += 'b'
-                                            node.save(bypass_lock=True, bypass_upk_block=True)
-                                            save_sigs(sigs)
-                                            obj = node
-                    
-                    elif obj._meta.object_name == 'UserPubKey':
-                        val_err += 'G'
-                        prnt('obj is upk')
-                        if is_new or not obj.Block_obj:
-                            val_err += '1'
-                            prntDebug('is new', obj.Block_obj)
-
-                            # sig_data = get_sigData(target_data, first_key=False)
-                            # target_dt = sig_data['dt']
-
-                            if verify_data(get_signing_data(i), i['signed'], upk_bypass=True):
-                                val_err += '2'
-                                valid_obj = True
-                                prntDebug('creta upk')
-                                if not User.objects.filter(id=i['User_obj']).exists():
-                                    user = User(id=i['User_obj'], modlVer=1)
-                                    user.save(bypass_verify=True)
-                                # double check:
-                                # make sure not injecting unauthorized super keys
-                                # nodeId must correlate with keyType = 'node', upk.user must match node.user
-                                # new upks are signed by older upk from same user, if no prev upk, must be created at same time as user
-                                obj, sigs, updatedDB = set_model_attrs(obj, i, get_missing_blocks=get_missing_blocks)
-                                obj.save(bypass_verify=True)
-                                save_sigs(sigs)
-                                if has_method(obj, 'boot'):
-                                    obj.boot()
-                                new_upk_valid = verify_data(get_signing_data(obj), i['signed'])
-                                prnt('new_upk_valid?',new_upk_valid)
-                                is_new = False
-                        else:
-                            val_err += '3'
-                            obj, sigs, valid_obj, updatedDB = sync_model(obj, i, do_save=False, force_sync=force_sync, get_missing_blocks=get_missing_blocks)
-
-                elif not force_sync and is_locked(obj) and not has_field(obj, 'lastUpdate'):
-                    valid_obj = True
-                    val_err += 'X'
-                else:
-                    val_err += 'H'
-                    try:
-                        if 'func' in i and 'created' in i:
-                            pos = f"{i['func']}_{i['created']}"
-                        else:
-                            pos = f"{i['created']}"
-                        if pos not in opBlock_dict:
-                            val_err += '1' # was causing issues with getting maintainers/intelligence/all
-                        opBlock_dict['index'][i['id']] = pos
-                        if has_field(obj, 'proposed_modification'):
-                            val_err += '4'
-                            obj, sigs, valid_obj, updatedDB = sync_model(obj, i, do_save=False, force_sync=force_sync, get_missing_blocks=get_missing_blocks)
-                            if has_field(obj, 'Update_obj'):
-                                obj.Update_obj = None
-                            if has_field(obj, 'Validator_obj'):
-                                obj.Validator_obj = None
-                            if has_field(obj, 'Block_obj'):
-                                obj.Block_obj = None
-                            val_err += f"_{valid_obj}_{updatedDB}_"
-                            mod_obj = get_dynamic_model(obj._meta.object_name, proposed_modification=obj.id)
-                            if mod_obj and mod_obj.created <= string_to_dt(obj.lastUpdate):
-                                prnt('delete1',mod_obj.id)
-                                modded_chain = Blockchain.objects.filter(genesisId=mod_obj.id).first()
-                                if modded_chain:
-                                    super(get_model(modded_chain._meta.object_name), modded_chain).delete()
-                                post = Post.objects.filter(pointerId=mod_obj.id).first()
-                                if post:
-                                    post.validated = False
-                                    post.delete()
-                                super(get_model(mod_obj._meta.object_name), mod_obj).delete()
-                            Post.objects.filter(pointerId=obj.id, validated=True).update(validated=False, blockId=None)
-                        else:
-                            val_err += '3'
-                            obj, sigs, valid_obj, updatedDB = sync_model(obj, i, do_save=False, force_sync=force_sync, get_missing_blocks=get_missing_blocks)
-                            if has_field(obj, 'Update_obj'):
-                                obj.Update_obj = None
-                            if has_field(obj, 'Validator_obj'):
-                                obj.Validator_obj = None
-                            if has_field(obj, 'Block_obj'):
-                                obj.Block_obj = None
-                            val_err += f"_{valid_obj}_{updatedDB}_"
-
-                        if valid_obj and obj._meta.object_name == 'UserVote':
-                            userVotes.append(obj)
-
-                    except Exception as e:
-                        prntDebug('---fail5937564, val_err:',val_err,str(e),str(i)[:1000])
-                        logError(e, code='482764', func='processed_received_data', extra=str(i)[:1000])
-                if valid_obj and obj._meta.object_name == 'Validator':
-                    val_err += 'I'
-                    if obj not in validators:
-                        if obj.validatorType != 'Block' or is_new:
-                            val_err += 'a'
-                            validators.append(obj)
-                        elif obj.validatorType == 'Block':
-                            val_err += 'b'
-                            val_block = Block.objects.filter(id__in=[i for i in obj.data if is_id(i)]).first()
-                            if val_block and val_block.validated == None or val_block and override_completed or not val_block:
-                                val_err += 'c'
-                                validators.append(obj) # check_block_consensus()
-                            elif val_block and val_block.validated:
-                                val_err += 'd'
-                                if 'unsupported_chain' in val_block.notes or 'problem_idens' in val_block.notes or 'found_idens' not in val_block.notes:
-                                    validators.append(obj) # check_block_contents()
-                                    val_err += 'e'
-                if not valid_obj:
-                    received_invalids.append({i['id']:val_err,'updatedDB':updatedDB})
-                elif updatedDB:
-                    if not has_method(obj, 'save_requirements') or obj.save_requirements():
-                        if obj._meta.object_name == 'Region': # ParentRegion_obj must be saved before bulk update
-                            val_err += 'J'
-                            obj.save(sigs)
-                            save_sigs(sigs)
-                        else:
-                            bulk_update_items[obj.id] = {'is_new':is_new,'updatedDB':updatedDB,'obj':obj, 'sigs':sigs}
-                        synced_idens.append(obj.id)
+                    elif not force_sync and is_locked(obj) and not has_field(obj, 'lastUpdate'):
+                        valid_obj = True
+                        val_err += 'X'
                     else:
-                        updatedDB = False
-                    
-                elif has_field(obj, 'Validator_obj') and not obj.Validator_obj:
-                    synced_idens.append(obj.id)
-                elif override_completed:
-                    synced_idens.append(obj.id)
-                if not databaseUpdated and valid_obj and updatedDB:
-                    databaseUpdated = True
-                prnt('process data progress:',val_err,'len(bulk_update_items)',len(bulk_update_items))
-            except Exception as e:
-                prntDebug('-process data fail593, err:',val_err,str(e),str(i)[:1000])
-                logError(e, code='09863', func='processed_received_data', extra={'err':str(e),'i':str(i)[:1000]})
+                        val_err += 'H'
+                        try:
+                            if 'func' in i and 'created' in i:
+                                pos = f"{i['func']}_{i['created']}"
+                            else:
+                                pos = f"{i['created']}"
+                            if pos not in opBlock_dict:
+                                val_err += '1' # was causing issues with getting maintainers/intelligence/all
+                            opBlock_dict['index'][i['id']] = pos
+                            if has_field(obj, 'proposed_modification'):
+                                val_err += '4'
+                                obj, sigs, valid_obj, updatedDB = sync_model(obj, i, do_save=False, force_sync=force_sync, get_missing_blocks=get_missing_blocks)
+                                if has_field(obj, 'Update_obj'):
+                                    obj.Update_obj = None
+                                if has_field(obj, 'Validator_obj'):
+                                    obj.Validator_obj = None
+                                if has_field(obj, 'Block_obj'):
+                                    obj.Block_obj = None
+                                val_err += f"_{valid_obj}_{updatedDB}_"
+                                mod_obj = get_dynamic_model(obj._meta.object_name, proposed_modification=obj.id)
+                                if mod_obj and mod_obj.created <= string_to_dt(obj.lastUpdate):
+                                    prnt('delete1',mod_obj.id)
+                                    modded_chain = Blockchain.objects.filter(genesisId=mod_obj.id).first()
+                                    if modded_chain:
+                                        super(get_model(modded_chain._meta.object_name), modded_chain).delete()
+                                    post = Post.objects.filter(pointerId=mod_obj.id).first()
+                                    if post:
+                                        post.validated = False
+                                        post.delete()
+                                    super(get_model(mod_obj._meta.object_name), mod_obj).delete()
+                                Post.objects.filter(pointerId=obj.id, validated=True).update(validated=False, blockId=None)
+                            else:
+                                val_err += '3'
+                                obj, sigs, valid_obj, updatedDB = sync_model(obj, i, do_save=False, force_sync=force_sync, get_missing_blocks=get_missing_blocks)
+                                if has_field(obj, 'Update_obj'):
+                                    obj.Update_obj = None
+                                if has_field(obj, 'Validator_obj'):
+                                    obj.Validator_obj = None
+                                if has_field(obj, 'Block_obj'):
+                                    obj.Block_obj = None
+                                val_err += f"_{valid_obj}_{updatedDB}_"
+
+                            if valid_obj and obj._meta.object_name == 'UserVote':
+                                userVotes.append(obj)
+
+                        except Exception as e:
+                            prntDebug('---fail5937564, val_err:',val_err,str(e),str(i)[:1000])
+                            logError(e, code='482764', func='processed_received_data', extra=str(i)[:1000])
+                    # return obj, sigs, valid_obj, updatedDB, val_err
+                
+                    if valid_obj and obj._meta.object_name == 'Validator':
+                        val_err += 'I'
+                        if obj not in validators:
+                            if obj.validatorType != 'Block' or is_new:
+                                val_err += 'a'
+                                validators.append(obj)
+                            elif obj.validatorType == 'Block':
+                                val_err += 'b'
+                                val_block = Block.objects.filter(id__in=[i for i in obj.data if is_id(i)]).first()
+                                if val_block and val_block.validated == None or val_block and override_completed or not val_block:
+                                    val_err += 'c'
+                                    validators.append(obj) # check_block_consensus()
+                                elif val_block and val_block.validated:
+                                    val_err += 'd'
+                                    if 'unsupported_chain' in val_block.notes or 'problem_idens' in val_block.notes or 'found_idens' not in val_block.notes:
+                                        validators.append(obj) # check_block_contents()
+                                        val_err += 'e'
+                    if not valid_obj:
+                        received_invalids.append({i['id']:val_err,'updatedDB':updatedDB})
+                    elif updatedDB:
+                        if not has_method(obj, 'save_requirements') or obj.save_requirements():
+                            if obj._meta.object_name == 'Region': # ParentRegion_obj must be saved before bulk update
+                                val_err += 'J'
+                                obj.save(sigs)
+                                save_sigs(sigs)
+                                if is_new and has_method(obj, 'boot'):
+                                    if not has_field(obj, 'proposed_modification') or not obj.proposed_modification:
+                                        prntDebug('booting obj', obj.id)
+                                        obj.boot()
+
+                            elif save_one:
+                                synced_idens = save_to_db({obj.id: {'is_new':is_new,'updatedDB':updatedDB,'obj':obj, 'sigs':sigs}}, i['objType'])
+                            else:
+                                bulk_update_items[obj.id] = {'is_new':is_new,'updatedDB':updatedDB,'obj':obj, 'sigs':sigs}
+                            synced_idens.append(obj.id)
+                        else:
+                            updatedDB = False
+                        
+                    elif has_field(obj, 'Validator_obj') and not obj.Validator_obj:
+                        synced_idens.append(obj.id)
+                    elif override_completed:
+                        synced_idens.append(obj.id)
+                    if not databaseUpdated and valid_obj and updatedDB:
+                        databaseUpdated = True
+                    prnt('process data progress:',val_err,'len(bulk_update_items)',len(bulk_update_items))
+                
+                except Exception as e:
+                    prntDebug('-process data fail593, err:',val_err,str(e),str(i)[:1000])
+                    logError(e, code='09863', func='processed_received_data', extra={'err':str(e),'i':str(i)[:1000]})
+                return synced_idens, received_invalids, bulk_update_items, current_model_type, completed_idens, databaseUpdated
+            synced_idens, received_invalids, bulk_update_items, current_model_type, completed_idens, databaseUpdated = process_item(i, synced_idens, received_invalids, bulk_update_items, current_model_type, completed_idens, databaseUpdated)
 
         if received_invalids:
             # logError('received_invalids', code='4684', func='processed_received_data', extra={'received_invalids_count':len(received_invalids),'received_invalids':received_invalids[:500]})
@@ -491,19 +524,19 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
 
         if bulk_update_items:
             prnt('bulk_update_items p2', len(bulk_update_items))
-            save_to_db(bulk_update_items)
+            synced_idens = save_to_db(bulk_update_items, current_model_type)
             
         prnt('stage3-',databaseUpdated)
         func = 'process_received_data'
         v_list = {key:None for key in synced_idens}
         validated_obj_idens = []
+        now = now_utc()
         prnt('validators:',len(validators))
         if validators:
             prnt('validators...')
-            now = now_utc()
             chain_list = {}
             validIds = []
-            
+            # prnt(now)
             prnt('vals step1a',validators)
             from network.models import Validator
             for validator in validators:
@@ -528,76 +561,77 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
             #         data[networkChain] = get_relevant_nodes(dt=job_dt, blockchain=networkChain, plugin_id=plugin_id, sublist='maintainer')
             #     return data[networkChain], data
             
-            if validated_idens:
-                q = 13
-                for model_name, id_list in seperate_by_type(validated_idens).items():
-                    prnt('model_name',model_name)
-                    q = 131
-                    to_queue = {}
-                    objIdens = id_list
-                    while objIdens:
-                        q = 132
-                        objs = list(get_dynamic_model(model_name, list=True, id__in=objIdens[:500]))
-                        del objIdens[:500]
-                        bulk_update = []
-                        for obj in objs:
-                            prnt('obj',obj)
-                            try:
-                                if obj.id not in v_list:
-                                    prnt('obj not with validator list', obj.id)
-                                else:
-                                    if has_field(obj, 'Validator_obj'):
-                                        if obj.Validator_obj and obj.Validator_obj.is_valid:
-                                            prnt('previously validated', obj.id)
-                                            validated_obj_idens.append(obj.id)
-                                            # objs.remove(obj)
-                                        else:
-                                            prnt('else',obj.id)
-                                            pos = None
-                                            # if has_field(obj, 'func'):
-                                            #     pos = f"{obj.func}_{dt_to_string(obj.created)}"
-                                            # if pos and pos in opBlock_dict:
-                                            #     # pos = opBlock_dict['index'][obj.id]
-                                            #     target_opBlock = opBlock_dict[pos]
-                                            # elif has_field(obj, 'created') and has_field(obj, 'blockchainId') and obj.blockchainId:
-                                            #     opBlock_data = get_relevant_nodes(dt=string_to_dt(obj.created), blockchain=obj.blockchainId)
-                                            #     opBlock_dict[pos] = {'node_ids':[n for n in opBlock_data['relevant_nodes']],'number_of_peers':opBlock_data['epochData']['number_of_peers'],'relevant_nodes':opBlock_data['relevant_nodes']}
-                                            #     opBlock_dict['index'][obj.id] = pos
-                                            #     target_opBlock = opBlock_dict[pos]
-                                            # else:
-                                            target_opBlock = {}
-                                            obj = validate_obj(obj=obj, pointer=obj, opBlock_data=target_opBlock, save_obj=False, update_pointer=False)
-                                            if obj and obj.Validator_obj:
-                                                obj.updated_on_node = now
-                                                validated_obj_idens.append(obj.id)
-                                                if has_field(obj, 'networkChain') and obj.networkChain:
-                                                    if obj.networkChain not in to_queue:
-                                                        to_queue[obj.networkChain] = []
-                                                    to_queue[obj.networkChain].append(obj)
-                                                
-                                                if has_method(obj, 'upon_validation'):
-                                                    obj.upon_validation()
-                                                if has_method(obj, 'on_confirmation'):
-                                                    i = obj.on_confirmation()
-                                                    if i:
-                                                        obj = i
-                                                bulk_update.append(obj)
-                            except Exception as e:
-                                prnt('***ERROR*** 9898',str(e))
-                        dynamic_bulk_update(model_name, items_field_update=['Validator_obj','updated_on_node'], items=bulk_update) 
-                        q = 133
-                        objs.clear()
-                    if to_queue:
-                        ...
-                        # for chainId, objs in to_queue.items():
-                        #     if chainId not in chain_list:
-                        #         blockchain = Blockchain.objects.filter(id=chainId).first()
-                        #         if blockchain:
-                        #             chain_list[chainId] = blockchain
-                        #     if chainId in chain_list:
-                        #         chain_list[chainId].add_item_to_queue(objs)
-                    to_queue.clear()
         if synced_idens:
+            q = 13
+            idens = [i for i in synced_idens if not i.startswith(get_model_prefix('Update')) and not i.startswith(get_model_prefix('Notification'))]
+            for model_name, id_list in seperate_by_type(idens).items():
+                prnt('model_name',model_name)
+                q = 131
+                to_queue = {}
+                objIdens = id_list
+                while objIdens:
+                    q = 132
+                    objs = list(get_dynamic_model(model_name, list=True, id__in=objIdens[:500]))
+                    del objIdens[:500]
+                    bulk_update = []
+                    for obj in objs:
+                        prnt('obj',obj)
+                        try:
+                            # if obj.id not in v_list:
+                            #     prnt('obj not with validator list', obj.id)
+                            # else:
+                            if has_field(obj, 'Validator_obj'):
+                                if obj.Validator_obj and obj.Validator_obj.is_valid:
+                                    prnt('previously validated', obj.id)
+                                    validated_obj_idens.append(obj.id)
+                                    # objs.remove(obj)
+                                else:
+                                    prnt('else',obj.id)
+                                    pos = None
+                                    # if has_field(obj, 'func'):
+                                    #     pos = f"{obj.func}_{dt_to_string(obj.created)}"
+                                    # if pos and pos in opBlock_dict:
+                                    #     # pos = opBlock_dict['index'][obj.id]
+                                    #     target_opBlock = opBlock_dict[pos]
+                                    # elif has_field(obj, 'created') and has_field(obj, 'blockchainId') and obj.blockchainId:
+                                    #     opBlock_data = get_relevant_nodes(dt=string_to_dt(obj.created), blockchain=obj.blockchainId)
+                                    #     opBlock_dict[pos] = {'node_ids':[n for n in opBlock_data['relevant_nodes']],'number_of_peers':opBlock_data['epochData']['number_of_peers'],'relevant_nodes':opBlock_data['relevant_nodes']}
+                                    #     opBlock_dict['index'][obj.id] = pos
+                                    #     target_opBlock = opBlock_dict[pos]
+                                    # else:
+                                    target_opBlock = {}
+                                    obj = validate_obj(obj=obj, pointer=obj, opBlock_data=target_opBlock, save_obj=False, update_pointer=False)
+                                    if obj and obj.Validator_obj:
+                                        obj.updated_on_node = now_utc()
+                                        validated_obj_idens.append(obj.id)
+                                        if has_field(obj, 'networkChain') and obj.networkChain:
+                                            if obj.networkChain not in to_queue:
+                                                to_queue[obj.networkChain] = []
+                                            to_queue[obj.networkChain].append(obj)
+                                        
+                                        if has_method(obj, 'upon_validation'):
+                                            obj.upon_validation()
+                                        if has_method(obj, 'on_confirmation'):
+                                            i = obj.on_confirmation()
+                                            if i:
+                                                obj = i
+                                        bulk_update.append(obj)
+                        except Exception as e:
+                            prnt('***ERROR*** 9898',str(e))
+                    dynamic_bulk_update(model_name, items_field_update=['Validator_obj','updated_on_node'], items=bulk_update) 
+                    q = 133
+                    objs.clear()
+                if to_queue:
+                    ...
+                    # for chainId, objs in to_queue.items():
+                    #     if chainId not in chain_list:
+                    #         blockchain = Blockchain.objects.filter(id=chainId).first()
+                    #         if blockchain:
+                    #             chain_list[chainId] = blockchain
+                    #     if chainId in chain_list:
+                    #         chain_list[chainId].add_item_to_queue(objs)
+                to_queue.clear()
+        # if synced_idens:
             pointerIdens = [i for i in validated_obj_idens if not i.startswith(get_model_prefix('Update')) and not i.startswith(get_model_prefix('Notification')) and not i.startswith(get_model_prefix('BillText'))]
             prnt('vals step2.5a',len(pointerIdens))
             from posts.models import update_post
@@ -610,6 +644,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                 del pointerIdens[:500]
                 prnt('posts len',posts.count())
                 for p in posts:
+                    prnt('pppp:',p)
                     try:
                         # if p.pointerId in opBlock_dict['index']: # was causing issues with getting maintainers/intelligence/all
                         #     pos = opBlock_dict['index'][p.pointerId]
@@ -618,7 +653,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                         target_opBlock = {}
                         if validate_obj(obj=p, pointer=None, opBlock_data=target_opBlock, save_obj=False, update_pointer=False, verify_validator=False):
                             p.validated = True
-                            p.updated_on_node = now
+                            p.updated_on_node = now_utc()
                             p, updated_fields = update_post(p=p, save_p=False)
                             bulk_update.append(p)
                             if updated_fields:
@@ -643,7 +678,11 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                     updates = Update.objects.filter(id__in=updateIdens[:500]).exclude(validated=True).order_by('id')
                     del updateIdens[:500]
                     for u in updates:
-                        prnt('u',u)
+                        prnt('uuuu',u)
+                        try:
+                            prnt('now',now)
+                        except Exception as e:
+                            prnt('NOW ERROR',str(e))
                         try:
                             if u.id not in v_list:
                                 prnt('obj not with validator list', u.id)
@@ -657,7 +696,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                                     u = validate_obj(obj=u, pointer=None, opBlock_data=target_opBlock, save_obj=False, verify_validator=False, update_pointer=False)
                                     if u and u.Validator_obj:
                                         u.validated = True
-                                        u.updated_on_node = now
+                                        u.updated_on_node = now_utc()
                                         validated_idens.append(u.id)
                                         if has_method(u, 'upon_validation'):
                                             u.upon_validation()
@@ -719,7 +758,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                         n = validate_obj(obj=n, pointer=None, opBlock_data=target_opBlock, save_obj=False, update_pointer=False)
                         if n and n.Validator_obj:
                             n.validated = True
-                            n.updated_on_node = now
+                            n.updated_on_node = now_utc()
                             if has_method(n, 'upon_validation'):
                                 n.upon_validation()
                             if has_method(n, 'on_confirmation'):
@@ -1034,7 +1073,10 @@ def rebroadcast_block(dp_id):
                 if current_blocks:
                     prnt('block.CreatorNode_obj.id,',[block.CreatorNode_obj.id for block in current_blocks])
                 
-                if string_to_dt(dp.headers['Blockdt']) > now_utc():
+                prnt("dp.headers['Seedid']",dp.headers['Seedid'])
+                if string_to_dt(dp.headers['Blockdt']) - datetime.timedelta(minutes=10) > now_utc():
+                    # validate and rebroadcast only
+                    prnt('pz2')
                     is_good = False
                     prev_block = Block.objects.filter(networkChain=dp.headers['Blockchainid'], hash=dp.headers['Prevhash'], validated=True).values('id').first()
                     latest_block = Block.objects.filter(networkChain=dp.headers['Blockchainid'], validated=True).values('id').order_by('-index').first()
@@ -1065,94 +1107,160 @@ def rebroadcast_block(dp_id):
                                     if dp:
                                         dp.completed(note)
                                     return False
-
-
-                prnt("dp.headers['Seedid']",dp.headers['Seedid'])
-                if current_blocks and 'Seedid' in dp.headers and any(block.CreatorNode_obj.id != dp.headers['Seedid'] for block in current_blocks):
-                    prnt('pz1')
-                    new_block = None
-                    for block in current_blocks:
-                        block_dt = block.DateTime
-                        opBlock_data = get_relevant_nodes(dt=(block.DateTime-datetime.timedelta(minutes=20)), genesisId=block.Blockchain_obj.genesisId, include_relays=True)
-                        creator_nodes, validator_nodes = get_node_assignment(block, opBlock_data=opBlock_data, full_creator_list=True)
-                        prnt('creator_nodes',creator_nodes)
-                        new_index = 1
-                        current_index = 0
+                    
+                    blocks = {}
+                    if 'block_list' in received_json:
+                        block_list = decompress_data(received_json['block_list'])
                         try:
-                            new_index = creator_nodes.index(dp.headers['Seedid'])
-                            current_index = creator_nodes.index(block.CreatorNode_obj.id)
-                        except Exception as e:
-                            prnt('err xa',str(e))
-                            if block.CreatorNode_obj.id in creator_nodes and dp.headers['Seedid'] not in creator_nodes:
-                                new_index = 1
-                                current_index = 0
-                            elif dp.headers['Seedid'] in creator_nodes and block.CreatorNode_obj.id not in creator_nodes:
-                                new_index = 0
-                                current_index = 1
-                            elif dp.headers['Seedid'] not in creator_nodes and block.CreatorNode_obj.id not in creator_nodes:
-                                node = Node.objects.filter(id=dp.headers['Seedid'], expelled_dt=None).first()
-                                if node and node.activated_dt < block.CreatorNode_obj.activated_dt:
-                                    new_index = 0
-                                    current_index = 1
-                                else:
-                                    new_index = 1
-                                    current_index = 0
-                            prnt('current_index',current_index)
-                            prnt('new_index',new_index)
-                        if new_index < current_index:
-                            prnt('replace current block')
-                            # keep new block, delete current
-                            block.delete()
-                            if not new_block:
-                                if 'block_list' in received_json:
-                                    block_list = decompress_data(received_json['block_list'])
-                                    try:
-                                        block_list = json.loads(block_list)
-                                    except:
-                                        pass
-                                    for b in block_list:
-                                        try:
-                                            block_dict = json.loads(b['block_dict'])
-                                        except:
-                                            block_dict = b['block_dict']
-                                        if block_dict['id'] in dp.headers['Blockid']:
-                                            blockchain = Blockchain.objects.filter(genesisId=dp.headers['Genesisid']).first()
-                                            new_block = blockchain.create_block(block_dict=block_dict)
-                            
-                            broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], plugin_id=dp.headers.get('Pluginid', None), seed_nodes=[dp.headers['Seedid']], include_relays=True, peer_count=10, loop=False, all_nodes=True)
-                            received_data = received_json.copy()
-                            headers = dp.headers
-                            # del received_data['headers']
-                        elif current_index < new_index:
-                            prnt('keep current block')
-                            # keep current block
-                            competing_dp = DataPacket.objects.filter(Node_obj__id=block.CreatorNode_obj.id, func__contains=f"received_blocks:{block.id}").first()
-                            result = process_received_dp(competing_dp, 'process_blocks', override_completed=True, skip_log_check=True)
-                            if result and 'dp' in result:
-                                prnt('rebroadcast')
-                                log = result['dp']
-                                received_data = log.data.copy()
-                                headers = dp.headers
-                                broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], plugin_id=dp.headers.get('Pluginid', None), seed_nodes=[dp.headers['Seedid']], include_relays=True, peer_count=10, loop=False, all_nodes=True)
-                                # del received_data['headers']
-                            else:
-                                prnt('no dp')
-                                if dp:
-                                    dp.completed('received_blocks_non_winner2')
-                                return False
-                            received_json = {}
-                        
-                    if not block or now_utc() < (string_to_dt(block_dt) - datetime.timedelta(minutes=10)):
-                        prnt('wait to process block')
-                        received_json = {} # do not begin validations until 10 minutes from block.DateTime
+                            block_list = json.loads(block_list)
+                        except:
+                            pass
+                        for b in block_list:
+                            try:
+                                block_dict = json.loads(b['block_dict'])
+                            except:
+                                block_dict = b['block_dict']
+                            blocks[block_dict['index']] = b
+                    elif 'block_dict' in received_json:
+                        blocks[received_json['block_dict']['index']] = received_json
+                    from utils.locked import verify_obj_to_data
+                    import operator
+                    for index, b in sorted(blocks.items(), key=operator.itemgetter(0)):
+                        try:
+                            new_block_dict = json.loads(b['block_dict'])
+                        except:
+                            new_block_dict = b['block_dict']
+                        block = Block.objects.filter(hash=new_block_dict['hash']).defer('data','extraData').exists()
+                        if not block:
+                            if verify_obj_to_data(Block(), new_block_dict):
+                                blockchain = Blockchain.objects.filter(id=new_block_dict['Blockchain_obj']).defer('queuedData').first()
+                                block = blockchain.create_block(block_dict=b)
+                                from utils.locked import validate_block
+                                is_valid, validator, is_new_validation = validate_block(block, broadcast_val=False)
+                    received_data = received_json.copy()
+                    headers = dp.headers
+                    include_relays = False
+                    if 'Genesisid' in headers and headers['Genesisid'] in universalChains:
+                        include_relays = True
+                    if 'Validators-Only' in dp.headers and dp.headers['Validators-Only'] == 'True':
+                        prnt('validators only')
+                        broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], loop=True, all_nodes=False, dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], plugin_id=dp.headers.get('Pluginid', None), seed_nodes=[dp.headers['Seedid']], include_relays=include_relays)
                     else:
-                        process_blocks(dp)
+                        prnt('not validators only')
+                        broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], plugin_id=dp.headers.get('Pluginid', None), seed_nodes=[dp.headers['Seedid']], include_relays=include_relays, peer_count=10, loop=False, all_nodes=True)
+                    
                     if dp.headers['Seedid'] != get_operator_obj('self_nodeId'):
                         downstream_broadcast(broadcast_list, 'network/receive_blocks', received_data, headers=headers, skip_self=True)
                     dp.rebroadcast_dt = now_utc()
                     dp.save()
+
+                elif string_to_dt(dp.headers['Blockdt']) > now_utc():
+                    # check_consensus
+                    prnt('pz1')
+                    process_blocks(dp)
+                    received_data = received_json.copy()
+                    headers = dp.headers
+                    include_relays = False
+                    if 'Genesisid' in headers and headers['Genesisid'] in universalChains:
+                        include_relays = True
+                    if 'Validators-Only' in dp.headers and dp.headers['Validators-Only'] == 'True':
+                        prnt('validators only')
+                        broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], loop=True, all_nodes=False, dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], plugin_id=dp.headers.get('Pluginid', None), seed_nodes=[dp.headers['Seedid']], include_relays=include_relays)
+                    else:
+                        prnt('not validators only')
+                        broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], plugin_id=dp.headers.get('Pluginid', None), seed_nodes=[dp.headers['Seedid']], include_relays=include_relays, peer_count=10, loop=False, all_nodes=True)
+                    
+                    if dp.headers['Seedid'] != get_operator_obj('self_nodeId'):
+                        downstream_broadcast(broadcast_list, 'network/receive_blocks', received_data, headers=headers, skip_self=True)
+                    dp.rebroadcast_dt = now_utc()
+                    dp.save()
+                # elif current_blocks and 'Seedid' in dp.headers and any(block.CreatorNode_obj.id != dp.headers['Seedid'] for block in current_blocks):
+                #     prnt('pz3')
+                #     # this path is supposed to keep only the first block on creator list and remove the rest. does not seem to happen
+                #     new_block = None
+                #     for block in current_blocks:
+                #         block_dt = block.DateTime
+                #         opBlock_data = get_relevant_nodes(dt=(block.DateTime-datetime.timedelta(minutes=20)), genesisId=block.Blockchain_obj.genesisId, include_relays=True)
+                #         creator_nodes, validator_nodes = get_node_assignment(block, opBlock_data=opBlock_data, full_creator_list=True)
+                #         prnt('creator_nodes',creator_nodes)
+                #         new_index = 1
+                #         current_index = 0
+                #         try:
+                #             new_index = creator_nodes.index(dp.headers['Seedid'])
+                #             current_index = creator_nodes.index(block.CreatorNode_obj.id)
+                #         except Exception as e:
+                #             prnt('err xa',str(e))
+                #             if block.CreatorNode_obj.id in creator_nodes and dp.headers['Seedid'] not in creator_nodes:
+                #                 new_index = 1
+                #                 current_index = 0
+                #             elif dp.headers['Seedid'] in creator_nodes and block.CreatorNode_obj.id not in creator_nodes:
+                #                 new_index = 0
+                #                 current_index = 1
+                #             elif dp.headers['Seedid'] not in creator_nodes and block.CreatorNode_obj.id not in creator_nodes:
+                #                 node = Node.objects.filter(id=dp.headers['Seedid'], expelled_dt=None).first()
+                #                 if node and node.activated_dt < block.CreatorNode_obj.activated_dt:
+                #                     new_index = 0
+                #                     current_index = 1
+                #                 else:
+                #                     new_index = 1
+                #                     current_index = 0
+                #             prnt('current_index',current_index)
+                #             prnt('new_index',new_index)
+                #         if new_index < current_index:
+                #             prnt('replace current block')
+                #             # keep new block, delete current
+                #             block.delete()
+                #             if not new_block:
+                #                 if 'block_list' in received_json:
+                #                     block_list = decompress_data(received_json['block_list'])
+                #                     try:
+                #                         block_list = json.loads(block_list)
+                #                     except:
+                #                         pass
+                #                     for b in block_list:
+                #                         try:
+                #                             block_dict = json.loads(b['block_dict'])
+                #                         except:
+                #                             block_dict = b['block_dict']
+                #                         if block_dict['id'] in dp.headers['Blockid']:
+                #                             blockchain = Blockchain.objects.filter(genesisId=dp.headers['Genesisid']).first()
+                #                             new_block = blockchain.create_block(block_dict=block_dict)
+                            
+                #             broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], plugin_id=dp.headers.get('Pluginid', None), seed_nodes=[dp.headers['Seedid']], include_relays=True, peer_count=10, loop=False, all_nodes=True)
+                #             received_data = received_json.copy()
+                #             headers = dp.headers
+                #             # del received_data['headers']
+                #         elif current_index < new_index:
+                #             prnt('keep current block')
+                #             # keep current block
+                #             competing_dp = DataPacket.objects.filter(Node_obj__id=block.CreatorNode_obj.id, func__contains=f"received_blocks:{block.id}").first()
+                #             result = process_received_dp(competing_dp, 'process_blocks', override_completed=True, skip_log_check=True)
+                #             if result and 'dp' in result:
+                #                 prnt('rebroadcast')
+                #                 log = result['dp']
+                #                 received_data = log.data.copy()
+                #                 headers = dp.headers
+                #                 broadcast_list = get_broadcast_list(dp.headers['Packet-Id'], dt=string_to_dt(dp.headers['Dt']), region_id=dp.headers['Blockchainid'], plugin_id=dp.headers.get('Pluginid', None), seed_nodes=[dp.headers['Seedid']], include_relays=True, peer_count=10, loop=False, all_nodes=True)
+                #                 # del received_data['headers']
+                #             else:
+                #                 prnt('no dp')
+                #                 if dp:
+                #                     dp.completed('received_blocks_non_winner2')
+                #                 return False
+                #             received_json = {}
+                        
+                #     if not block or now_utc() < (string_to_dt(block_dt) - datetime.timedelta(minutes=10)):
+                #         prnt('wait to process block')
+                #         received_json = {} # do not begin validations until 10 minutes from block.DateTime
+                #     else:
+                #         process_blocks(dp)
+                #     if dp.headers['Seedid'] != get_operator_obj('self_nodeId'):
+                #         downstream_broadcast(broadcast_list, 'network/receive_blocks', received_data, headers=headers, skip_self=True)
+                #     dp.rebroadcast_dt = now_utc()
+                #     dp.save()
                 elif 'Seedid' in dp.headers:
-                    prnt('pz2')
+                    prnt('pz4')
+                    # should only happen after block dt has passed
                     received_data = received_json.copy()
                     headers = dp.headers
                     include_relays = False
@@ -1168,13 +1276,13 @@ def rebroadcast_block(dp_id):
                     
                     prnt('now_utc() < (block.DateTime + datetime.timedelta(minutes=1))')
                     prnt(now_utc())
-                    if current_blocks:
-                        prnt((current_blocks[0].DateTime + datetime.timedelta(minutes=1)))
-                    if current_blocks and now_utc() < (current_blocks[0].DateTime - datetime.timedelta(minutes=10)):
-                        prnt('pz3')
-                        received_json = {} # do not begin validations until 10 minutes from block.DateTime
-                    else:
-                        process_blocks(dp)
+                    # if current_blocks:
+                    #     prnt((current_blocks[0].DateTime + datetime.timedelta(minutes=1)))
+                    # if current_blocks and now_utc() < (current_blocks[0].DateTime - datetime.timedelta(minutes=10)):
+                    #     prnt('pz3')
+                    #     received_json = {} # do not begin validations until 10 minutes from block.DateTime
+                    # else:
+                    process_blocks(dp)
                     downstream_broadcast(broadcast_list, 'network/receive_blocks', received_data, headers=headers)
                     dp.rebroadcast_dt = now_utc()
                     dp.save()
@@ -1672,7 +1780,7 @@ def process_received_blocks(received_json, get_missing_blocks=True, resend_missi
 
 
 def resolve_block_differences(starting_block, competing_blocks=None, validated_blocks=True, allow_divergence_discovery=True):
-    prnt('\n--resolve_block_differences', starting_block)
+    prnt('\n--resolve_block_differences', starting_block, now_utc())
     from network.models import Node, DataPacket, Block, Blockchain, _OperationsChain_genesisId, _block_creation_times, mandatoryChains, block_time_delay
     from utils.locked import get_broadcast_list, check_validation_consensus, get_relevant_nodes, get_node_assignment
 
@@ -1681,7 +1789,7 @@ def resolve_block_differences(starting_block, competing_blocks=None, validated_b
     common_hashes_map = {}
     discover_divergence = False
     if not competing_blocks:
-        qs = Block.objects.filter(networkChain=starting_block.networkChain, index=starting_block.index).exclude(id=starting_block.id)
+        qs = Block.objects.filter(networkChain=starting_block.networkChain, index=starting_block.index).exclude(id=starting_block.id).order_by('CreatorNode_obj__pos')
         if validated_blocks:
             qs = qs.filter(validated=True)
         else:
@@ -1725,11 +1833,16 @@ def resolve_block_differences(starting_block, competing_blocks=None, validated_b
     competing_blocks = [starting_block] + [b for b in competing_blocks]
 
     for block in competing_blocks:
-        prnt('resolve block',block)
         if 'won_competition' in block.notes:
-            if string_to_dt(block.notes['won_competition']) > now_utc() - datetime.timedelta(minutes=7):
-                prnt('resolve_bd1')
-                return block, get_validation_state(block)
+            try:
+                if string_to_dt(block.notes['won_competition'].get('dt', block.created)) > now_utc() - datetime.timedelta(minutes=6) and block.notes['won_competition'].get('count',0) >= len(competing_blocks):
+                    prnt('1 resolve_bd winner',block)
+                    return block, get_validation_state(block)[block.id]['validations']
+            except:
+                pass
+
+    for block in competing_blocks:
+        prnt('resolve block',block)
 
         if candidate and block.hash == candidate.hash:
             prnt('resolve_bd2',block.id)
@@ -1804,6 +1917,10 @@ def resolve_block_differences(starting_block, competing_blocks=None, validated_b
                 prnt('resolve_bd9b',block.id)
                 continue
 
+            if state['node_trust']:
+                prnt("state['node_trust'",state['node_trust'])
+                prnt("candidate_state['node_trust']",candidate_state['node_trust'])
+
     if allow_divergence_discovery and discover_divergence:
         prnt('resolve_bd12',block.id)
         hash_map = discover_chain_divergence(starting_block.networkChain)
@@ -1847,6 +1964,8 @@ def resolve_block_differences(starting_block, competing_blocks=None, validated_b
             if candidate:
                 invalidate_losers(candidate, competing_blocks)
                 prnt('resolve_bd152 Final',candidate.id)
+                candidate.notes['won_competition'] = {'dt':dt_to_string(now_utc()), 'count':len(competing_blocks)}
+                candidate.save()
                 return candidate, candidate_state['validations']
         prnt('resolve_bd15',block.id)
         return None, {}
@@ -1857,7 +1976,7 @@ def resolve_block_differences(starting_block, competing_blocks=None, validated_b
         return None, {}
 
     winning_state = get_validation_state(winning_block)
-    for block in [starting_block] + competing_blocks:
+    for block in competing_blocks:
         if block.id == winning_block.id:
             prnt('resolve_bd17',block.id)
             continue
@@ -1869,11 +1988,12 @@ def resolve_block_differences(starting_block, competing_blocks=None, validated_b
             block.validated = None
             block.save(update_fields=['validated', 'notes'])
 
-    winning_block.notes['won_competition'] = dt_to_string(now_utc())
-    winning_block.save()
+    if major_candidate and major_candidate == winning_block:
+        winning_block.notes['won_competition'] = {'dt':dt_to_string(now_utc()), 'count':len(competing_blocks)}
+        winning_block.save()
 
     invalidate_losers(winning_block, competing_blocks)
-    prnt('resolve_bd Final', winning_block)
+    prnt('2 resolve_bd winner', winning_block)
     prnt()
     return winning_block, winning_state['validations']
 

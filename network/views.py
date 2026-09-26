@@ -170,7 +170,7 @@ def declare_node_state_view(request):
                                 prnt('node_is_valid',node_is_valid, 'updatedDB',updatedDB)
                                 if node_is_valid:
                                     node.save(bypass_lock=True, bypass_upk_block=True)
-                                    share_with_network(node)
+                                    share_with_network(node, share_node=True)
                                     save_sigs(sigs)
                                     nodeChain = Blockchain.objects.filter(genesisId=_OperationsChain_genesisId).first()
                                     if nodeChain:
@@ -1460,8 +1460,11 @@ def receive_blocks_view(request):
             dp, is_last = receive_data(request, dp_name='process_received_blocks')
             prnt('last:',is_last,'dp',dp,'dpfunc:',dp.func)
             if is_last and dp:
+                prnt('p1')
                 if all(c not in dp.func for c in ('completed', 'failed', 'chunked')) or dp.updated_on_node < now_utc() - datetime.timedelta(minutes=20):
+                    prnt('p2')
                     if not dp.rebroadcast_dt or dp.rebroadcast_dt < now_utc() - datetime.timedelta(hours=1):
+                        prnt('p3')
                         chat_queue = django_rq.get_queue("chat")
                         if not exists_in_worker('rebroadcast_block', queue=chat_queue, id=dp.id):
                             from network.utils import rebroadcast_block

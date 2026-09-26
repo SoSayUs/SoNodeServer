@@ -32,9 +32,9 @@ import django_rq
 
 _number_of_peers = 2 # used for downstream_broadcast
 failure_range = 1.1 # minimum number of hours since last access for node to receive suspended_dt
-recent_failure_count = 14 # minimum number of fails for node to receive suspended_dt
+recent_failure_count = 140 # minimum number of fails for node to receive suspended_dt
 fails_to_strike = 10 # x failures == 1 strike
-recent_failure_range = 1 # how many days between strikes for node if x failures
+recent_failure_range = 2 # how many days between strikes for node if x failures
 too_many_strike_count = 10 # deactivate node after x strikes
 striking_days = 30 # too_many_strike count within this number of days before being deactivated
 max_commit_window = 11 # number of days for an obj to be committed to a block
@@ -832,15 +832,33 @@ class DataPacket(models.Model):
                         data, not_found, not_valid = get_data(dict(islice(data.items(), 500)), include_related=False)
                         if data:
                             total_mbs = 0
+                            to_send_ids = []
                             for d in data:
-                                mbs = to_megabytes(d)
-                                if (total_mbs + mbs) < 4:
-                                    total_mbs += mbs
+                                if 'Validator_obj' in d and d['Validator_obj'] not in to_send_ids:
+                                    v = Validator.objects.filter(id=d['Validator_obj']).first()
+                                    if v:
+                                        to_send_items.append(convert_to_dict(v))
+                                        to_send_ids.append(v.id)
+                                        if dp:
+                                            dp.data[v.id] = dt_to_string(get_timeData(v))
+                                if any(field for field in d if ('_obj' in field or field == 'pointerId') and d[field] in data):
+                                    for field in d:
+                                        if ('_obj' in field or field == 'pointerId') and d[field] in data and d[field] not in to_send_ids:
+                                            obj = get_dynamic_model(d[field], id=d[field])
+                                            if obj:
+                                                to_send_items.append(convert_to_dict(obj))
+                                                to_send_ids.append(obj.id)
+                                                if dp:
+                                                    dp.data[obj.id] = dt_to_string(get_timeData(obj))
+
+                                if d['id'] not in to_send_items:
                                     to_send_items.append(d)
+                                    to_send_ids.append(d['id'])
                                     if dp:
                                         dp.data[d['id']] = dt_to_string(get_timeData(d))
-                                else:
-                                    break
+                                    if to_megabytes(str(to_send_items)) > 5:
+                                        prnt('total_mbs',to_megabytes(str(to_send_items)))
+                                        break
                             prnt('total_mbs',total_mbs)
                             # prnt('to_send_items:',[i['id'] for i in to_send_items])
                             if not_found or not_valid:
@@ -1500,7 +1518,7 @@ class Node(models.Model):
                 review = NodeReview(TargetNode_obj=self, CreatorNode_obj_id=self_node_id)
             if not review.failures:
                 review.failures = {}
-            if len(review.failures) >= 250:
+            if len(review.failures) >= 150:
                 sorted_keys = sorted(review.failures.keys(), key=lambda k: string_to_dt(k))
                 review.failures.pop(sorted_keys[0])
             now = now_utc()
@@ -1522,7 +1540,7 @@ class Node(models.Model):
                 review = NodeReview(TargetNode_obj=self, CreatorNode_obj_id=self_node_id)
             review.accessed = now_utc()
             if response_time:
-                if len(review.response_times) >= 20:
+                if len(review.response_times) >= 150:
                     sorted_keys = sorted(review.response_times.keys(), key=lambda k: k)
                     review.response_times.pop(sorted_keys[0])
                 review.response_times[dt_to_string(now_utc())] = {'addr':address_type, 'time':float(response_time)}
@@ -1538,12 +1556,9 @@ class Node(models.Model):
             review.save(update_fields=['lastUpdate','avg_response_time','response_times','accessed','interactions'])
                 
         prnt('self.suspended_dt',self.suspended_dt)
-        if self.suspended_dt:
-            self.suspended_dt = None
-            self.save(update_fields=['suspended_dt'])
-            # if self.activeNode:
-            #     from utils.utils import self_is_active
-            #     self_is_active(True)
+        # if self.suspended_dt:
+        #     self.suspended_dt = None
+        #     self.save(update_fields=['suspended_dt'])
             
     def deactivate(self):
         self.suspended_dt = now_utc()
@@ -1627,7 +1642,7 @@ class Node(models.Model):
                 if bypass_upk_block:
                     # upks = UserPubKey.objects.filter(User_obj=self.User_obj, created__lte=self.lastUpdate).exclude(Q(keyType='account')|Q(keyType='signing')|Q(keyType='security')) # includes nodekeys and superkeys
                     super(Node, self).save(*args, **kwargs)
-                    prnt('Node saved!')
+                    prnt('Node saved1!')
                     if not self.Block_obj:
                         sonetChain = Blockchain.objects.filter(genesisType='Sonet').first()
                         if sonetChain:
@@ -1644,7 +1659,7 @@ class Node(models.Model):
                         if not upk.end_life_dt or string_to_dt(self.lastUpdate) < upk.end_life_dt:
                             if verify_data(get_signing_data(self), upk.publicKey, signature=sig):
                                 super(Node, self).save(*args, **kwargs)
-                                prnt('Node saved!')
+                                prnt('Node saved2!',self.Block_obj)
                                 if not self.Block_obj:
                                     sonetChain = Blockchain.objects.filter(genesisType='Sonet').first()
                                     if sonetChain:
@@ -2572,7 +2587,7 @@ class Block(models.Model):
         update_list.clear()
 
 
-    def broadcast(self, broadcast_list=None, validations=None, validator_list=None, validators_only=False, target_node_id=None, skip_self=True, packet_id=None):
+    def broadcast_block(self, broadcast_list=None, validations=None, validator_list=None, validators_only=False, target_node_id=None, skip_self=True, packet_id=None, block_id=None):
         prntn('--broadcast_block', self.id, 'now',now_utc(), 'packet_id', packet_id)
         prnt('broadcast_list',broadcast_list,'validator_list',validator_list,'validators_only',validators_only,'validations',validations)
         if e_brake(2) or not self.signed:
@@ -3135,6 +3150,9 @@ class Block(models.Model):
                 if not exists_in_worker('send_for_block_creation', id=self.Tx_obj.id):
                     django_rq.get_queue('main').enqueue(self.Tx_obj.send_for_block_creation, id=self.Tx_obj.id, downstream_worker=False, job_timeout=60, result_ttl=7200)
 
+            if self.Blockchain_obj.genesisId == _OperationsChain_genesisId:
+                for b in Block.objects.filter(networkChain=self.networkChain, index=self.index-1, validated=False):
+                    b.delete()
                             
             prnt('done mark validating',self)
             return True
@@ -3190,7 +3208,7 @@ class Block(models.Model):
                                         log.data[self.id] = {'dt':dt_to_string(now_utc()),'to':'ReceiverBlock_obj.validators'}
                                         log.save()
                                         broadcast_list = get_broadcast_list(self.Tx_obj)
-                                        self.broadcast(broadcast_list=broadcast_list, validators_only=True, validations=[convert_to_dict(v) for v in Validator.objects.filter(id__in=list(self.validations.keys()))])
+                                        self.broadcast_block(broadcast_list=broadcast_list, validators_only=True, validations=[convert_to_dict(v) for v in Validator.objects.filter(id__in=list(self.validations.keys()))])
                                 prnt('retreived receiverBlock10',receiverBlock)
                             else:
                                 prnt('e')
@@ -3251,7 +3269,7 @@ class Block(models.Model):
                                     from utils.locked import get_node_assignment, get_broadcast_list
                                     creator_nodes, validator_nodes = get_node_assignment(self.Tx_obj)
                                     broadcast_list = get_broadcast_list(self.Tx_obj)
-                                    self.broadcast(broadcast_list=broadcast_list, validator_list=validator_nodes, validators_only=True, validations=[convert_to_dict(v) for v in Validator.objects.filter(id__in=list(self.validations.keys()))])
+                                    self.broadcast_block(broadcast_list=broadcast_list, validator_list=validator_nodes, validators_only=True, validations=[convert_to_dict(v) for v in Validator.objects.filter(id__in=list(self.validations.keys()))])
                             return None
                         else:
                             prntDebug('asses p5')
@@ -3721,7 +3739,7 @@ class Blockchain(models.Model):
             matched = len(matches) >= 0.8 * total # requires 80% match for approval
             prnt('matched',matched, 'matches',matches, 'total',total)
             if matched:
-                return True
+                return matches
         # if sort_for_sign(block.data) == sort_for_sign(data):
         #     return True
         prnt('total',total)
@@ -3857,7 +3875,7 @@ class Blockchain(models.Model):
                             block.delete()
                     
                 
-                new_block.broadcast(validators_only=False, target_node_id=None, skip_self=True)
+                new_block.broadcast_block(validators_only=False, target_node_id=None, skip_self=True)
 
             # run_at = now_utc() + datetime.timedelta(minutes=2)
             # prnt('add dp_broadcast to scheduler',run_at)
@@ -4015,18 +4033,26 @@ class Blockchain(models.Model):
                                                             cq = cq + 'c'
                                                             i.Block_obj = block
                                                             if verify_obj_to_data(i, i, user=None, return_user=False, requireSuper=False, record_error=False):
-                                                                i.save()
+                                                                # i.save()
+                                                                super(get_model(i['objType']), i).save()
                                                                 del self.queuedData[i.id]
+                                                                cq = cq + 'd'
+                                                                prnt('convert_to_dict(i)1',convert_to_dict(i))
                                                             else:
+                                                                cq = cq + 'e'
                                                                 i.Block_obj = None
                                                         elif i.id in block.extraData and i_dt < string_to_dt(block.DateTime) and check_commit_data(i, block.extraData[i.id]):
-                                                            cq = cq + 'd'
+                                                            cq = cq + 'g'
                                                             i.Block_obj = block
                                                             if verify_obj_to_data(i, i, user=None, return_user=False, requireSuper=False, record_error=False):
-                                                                i.save()
+                                                                # i.save()
+                                                                super(get_model(i['objType']), i).save()
                                                                 del self.queuedData[i.id]
+                                                                cq = cq + 'h'
+                                                                prnt('convert_to_dict(i)2',convert_to_dict(i))
                                                             else:
                                                                 i.Block_obj = None
+                                                                cq = cq + 'i'
                                     elif has_field(i, 'Block_obj') and i.Block_obj and has_field(i, 'is_modifiable') and i.is_modifiable:
                                         cq = cq + 'e'
                                         from utils.locked import check_commit_data
@@ -4164,7 +4190,7 @@ class Blockchain(models.Model):
                     new_block.notes['validator_nodes'] = validator_nodes
                     new_block.save()
                     # prnt('broadcast_list',broadcast_list,'validator_nodes',validator_nodes)
-                    new_block.broadcast(validator_list=validator_nodes, validators_only=True, target_node_id=None, skip_self=False)
+                    new_block.broadcast_block(validator_list=validator_nodes, validators_only=True, target_node_id=None, skip_self=False)
                 return new_block
         
         return 'did_not_pass'
@@ -4780,7 +4806,7 @@ class Tidy:
                 model = get_model(model_name)
                 if has_field(model, 'Validator_obj'):
                     time_field = get_timeData(model, sort='created', first_string=True)
-                    objs = list(model.objects.filter(Validator_obj=None).filter(**{f'{time_field}__lte': dt - datetime.timedelta(hours=4)}).iterator(chunk_size=200))
+                    objs = list(model.objects.filter(Validator_obj=None).filter(**{f'{time_field}__lte': dt - datetime.timedelta(hours=2)}).iterator(chunk_size=200))
                     exclude_idens = set()
                     delled = 0
                     item_tracker = []
@@ -4817,22 +4843,22 @@ class Tidy:
                                     # if val.data[obj.id] == sigData_to_hash(obj):
                                         validated += 1
                                         val_found = True
-                                        # obj.Validator_obj = val
-                                        # super(get_model(obj._meta.object_name), obj).save()
-                                        # blockchain, obj, secondChain = find_or_create_chain_from_object(obj)
-                                        # if blockchain:
-                                        #     blockchain.add_item_to_queue(obj)
+                                        # if has_method(obj, 'boot'):
+                                        #     if not has_field(obj, 'proposed_modification') or not obj.proposed_modification:
+                                        #         prntDebug('booting obj', obj.id)
+                                        #         obj.boot()
+
                                     if not val_found and getattr(obj, time_field) < dt - datetime.timedelta(days=2) or not obj.signed and has_field(obj, 'created') and obj.created < dt - datetime.timedelta(hours=8):
                                         if obj._meta.object_name == obj.networkChain:
                                             del_chains.append(obj.id)
-                                        if obj.id not in exclude_idens:
-                                            exclude_idens.add(obj.id)
+                                        # if obj.id not in exclude_idens:
+                                        #     exclude_idens.add(obj.id)
                                         obj.delete()
                                         delled += 1
-                                    else:
+                                    elif not val_found:
                                         skipped += 1
-                                        if obj.id not in exclude_idens:
-                                            exclude_idens.add(obj.id)
+                                    if obj.id not in exclude_idens:
+                                        exclude_idens.add(obj.id)
                         else:
                             for obj in objs:
                                 if getattr(obj, time_field) < dt - datetime.timedelta(days=2) or not obj.signed and has_field(obj, 'created') and obj.created < dt - datetime.timedelta(hours=8):

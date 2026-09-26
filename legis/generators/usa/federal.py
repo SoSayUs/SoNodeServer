@@ -21,7 +21,7 @@ from utils.utils import (
     save_and_return, declare_var,
     save_mutable_fields,
     now_utc, timezonify, testing,
-    logEvent, logError, script_test_error, save_image
+    logEvent, logError, save_image
     )
 from utils.locked import dt_to_string
 
@@ -118,8 +118,9 @@ functions = { # in gov_region timezone
     # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [12,13,14], 'cmds' : ['get_house_debates_us','get_senate_debates_us']},
     # ],
     "2026-01-24" : [
+    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5,6], 'hour' : [15], 'cmds' : ['get_bills_us'] },
     # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 8, 10, 12, 14, 16, 18, 22], 'cmds' : ['get_bills_us'] },
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [1, 5, 11, 17, 21], 'cmds' : ['get_house_debates_us', 'get_house_rollcalls_us']},
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [1, 5, 11, 17, 21], 'cmds' : ['get_house_debates_us', 'get_house_rollcalls_us']},
     # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [3, 7, 19, 23], 'cmds' : ['get_senate_debates_us', 'get_senate_rollcalls_us']},
     # {'date' : ['x'], 'dayOfWeek' : [1], 'hour' : [14], 'cmds' : ['get_persons_us']},
     ],
@@ -230,7 +231,7 @@ def get_persons_us(special=None, dt=None, iden=None, func='get_persons_us', as_r
         WebDriverWait(driver, 10).until(element_present)
         time.sleep(1)
         soup = BeautifulSoup(driver.page_source, 'html.parser')
-        close_browser(driver)
+        # close_browser(driver)
     
     
         div = soup.find('div', {'id':'house-in-session'}).text
@@ -258,6 +259,7 @@ def get_persons_us(special=None, dt=None, iden=None, func='get_persons_us', as_r
         content = soup.find('div', {'class':'view-content'})
         tables = content.find_all('table', {'class':'table'})
         for table in tables:
+            prnt('table')
             state_name = table.find('caption').text.strip()
             for key, value in state_list.items():
                 if value == state_name:
@@ -273,6 +275,7 @@ def get_persons_us(special=None, dt=None, iden=None, func='get_persons_us', as_r
             tbody = table.find('tbody')
             trs = tbody.find_all('tr')
             for tr in trs:
+                prnt('tr')
                 tds = tr.find_all('td')
                 district_name = tds[0].text.replace('st','').replace('nd','').replace('rd','').replace('th','').strip()
                 # try:
@@ -343,6 +346,7 @@ def get_persons_us(special=None, dt=None, iden=None, func='get_persons_us', as_r
                     assignments = None
 
                 personUpdate = Update.valid_objects.filter(pointerKey=ContentType.objects.get_for_model(Person), Region_obj=country, data__Websites__contains=[website]).first()
+                prnt('personUpdate',personUpdate)
                 if personUpdate:
                     person, personU, person_is_new = get_model_and_update('Person', id=personUpdate.pointerId, Country_obj=country, Region_obj=country)
                     if person_is_new:
@@ -384,9 +388,20 @@ def get_persons_us(special=None, dt=None, iden=None, func='get_persons_us', as_r
                     m = {'first':first_name, 'last':last_name, 'website':website, 'party':party, 'state':state, 'district':district, 'officeRoom':officeRoom, 'phone':phone, 'assignments':assignments, 'role':'Congressional Representative', 'chamber':'House'}
                     new_members.append(m)
 
+        prnt('get senators')
+
+
         url = 'https://www.senate.gov/general/contact_information/senators_cfm.xml'
-        r = requests.get(url)
-        root = ET.fromstring(r.content)
+        # r = requests.get(url)
+
+        driver.get(url)
+        prnt('loaded')
+        time.sleep(1)
+        xml_container = driver.find_element(By.ID, 'webkit-xml-viewer-source-xml')
+        xml_text = xml_container.get_attribute('innerHTML')
+        close_browser(driver)
+        root = ET.fromstring(xml_text)
+        prnt('root found')
         last_update = root.find('last_updated')
         prnt('last_update.text',last_update.text)
         # driver = None
@@ -2077,7 +2092,7 @@ def add_bill(url=None, log=None, update_dt=None, driver=None, driver_service=Non
                             prnt('getting text', url.text)
 
                             if not driver:
-                                script_test_error(special, "opening browser")
+                                # script_test_error(special, "opening browser")
                                 driver = open_browser()
                             driver.get(url.text)
                             prnt('url loaded')
@@ -2130,13 +2145,13 @@ def add_bill(url=None, log=None, update_dt=None, driver=None, driver_service=Non
         err = 16
         bill, billU, bill_is_new, log = save_and_return(bill, billU, log)
         if new_bill and bill.Person_obj:
-            script_test_error(special, 'send alerts')
+            # script_test_error(special, 'send alerts')
             notification, notificationU, notification_is_new = get_model_and_update('Notification', Title=f'{bill.Person_obj.get_field("FullName")} has sponsored bill {bill.NumberCode}', Link=str(bill.get_absolute_url()), targetUsers={'follow_person' : bill.Person_obj.id}, pointerId=bill.id, Country_obj=country, Region_obj=country, Chamber=bill.Chamber, networkChain=gov.id)
             notification, notificationU, notification_is_new, log = save_and_return(notification, notificationU, log)
         err = 17
         try:
             if updated_bill or new_bill:
-                script_test_error(special, 'send alerts 2')
+                # script_test_error(special, 'send alerts 2')
                 if len(bill.Title) > 65:
                     title = bill.Title[:65] + '...'
                 else:

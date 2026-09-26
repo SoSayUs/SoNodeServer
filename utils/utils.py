@@ -676,6 +676,7 @@ _r = redis.Redis()
 def self_is_active(var=None):
     if var is None:
         return _r.get("self_is_active") == b"1"
+    prnt('-set self_is_active',var)
     _r.set("self_is_active", b"1" if var else b"0")
 
 # avoid this
@@ -1901,12 +1902,12 @@ def superDelete(obj, force_delete=False):
         try:
             updates = Update.objects.filter(pointerId=obj.id)
             for u in updates:
-                u.delete()
+                u.delete(force_delete=force_delete)
         except:
             pass
         try:
             p = Post.all_objects.filter(pointerId=obj.id).first()
-            p.delete()
+            p.delete(force_delete=True)
         except:
             pass
         try:

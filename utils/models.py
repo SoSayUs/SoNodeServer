@@ -894,7 +894,7 @@ def data_sort_priority(entry, version=None):
     # prnt('-data_sort_priority',entry)
     # sort received data in order for adding to database
     # needs to be reworked to handle by plugin, not hardcoded like this
-    type_order = {'UserPubKey': 0, 'User': 1, 'Validator': 2, 'Node':3, 'NodeReview': 4, 'Sonet':4, 'Wallet':5, 'Tx':6, 'Block':7, 'Region':8,
+    type_order = {'UserPubKey': 0, 'User': 1, 'Validator': 2, 'Node':3, 'NodeReview': 4, 'Sonet':4, 'Wallet':5, 'Tx':6, 'Block':7, 'Region':8, 'ImageFile':9,
                 'District':9, 'Government':10, 'Person':11, 'Party':12, 
                 'Bill':13, 'Committee':14, 'Meeting':15, 'Statement':16, 'Motion':17, 'RepVote':18, 'Agenda':19, 'BillText':20, 'Update':21,'Spren':22,'Notification':23,'UserVote':24}
     
@@ -3125,14 +3125,13 @@ def tasker(dt, test=False):
                     result['new_block_candidate'].append(block_assigned.id)
         elif dt.minute >= 40:
         # elif dt.minute >= 40 or dt.minute >= 10 and dt.minute <= 20:
-            for block in Block.objects.filter(networkChain=_OperationsChain_genesisId, validated__isnull=True).exclude(id__in=result['new_block_candidate']).values('id'):
-                result['unvalidated_blocks'].append(block['id'])
-                result['new_block_candidate'].append(block['id'])
+            for block in Block.objects.filter(networkChain=_OperationsChain_genesisId, validated__isnull=True).exclude(id__in=result['new_block_candidate']).only('id'):
+                result['unvalidated_blocks'].append(block.id)
+                result['new_block_candidate'].append(block.id)
                 if dt.minute >= 50:
-                # if dt.minute >= 50 or dt.minute == 20:
-                    check_validation_consensus(block['id'], block_id=block['id'], downstream_worker=False)
-                elif not exists_in_worker('check_validation_consensus', queue_name='high', block_id=block['id']):
-                    django_rq.get_queue('high').enqueue(check_validation_consensus, block=block['id'], block_id=block['id'], only_if_unkown=True, job_timeout=420, result_ttl=7200)
+                    check_validation_consensus(block.id, block_id=block.id, downstream_worker=False)
+                elif not exists_in_worker('broadcast_block', queue_name='high', block_id=block.id):
+                    django_rq.get_queue('high').enqueue(block.broadcast_block, block_id=block.id, job_timeout=420, result_ttl=7200)
         else:
             for block in Block.objects.filter(networkChain=_OperationsChain_genesisId, validated__isnull=True).defer('data','extraData',"notes").order_by('index'):
                 django_rq.get_queue('high').enqueue(block.is_not_valid, mark_strike=False, note='tasker1', job_timeout=300, result_ttl=7200)
@@ -3180,7 +3179,8 @@ def tasker(dt, test=False):
             if not exists_in_worker('broadcast_dp', queue_name=['chat'], iden=dp.id):
                 django_rq.get_queue('chat').enqueue(dp.broadcast_dp, iden=dp.id, job_timeout=300, result_ttl=7200)
 
-        processes = DataPacket.objects.filter(func__icontains='process', updated_on_node__lte=now_utc() - datetime.timedelta(minutes=9.5), created__gt=now_utc() - datetime.timedelta(minutes=50)).exclude(func__icontains='completed').defer('data').order_by('created')
+        processes = DataPacket.objects.filter(func__icontains='process', updated_on_node__lte=now_utc() - datetime.timedelta(minutes=9.5), created__gt=now_utc() - datetime.timedelta(minutes=60)).exclude(func__icontains='completed').defer('data').order_by('created')
+        prnt('processes,',processes)
         if processes:
             for log in processes:
                 prnt('processes log',log)
@@ -3194,7 +3194,7 @@ def tasker(dt, test=False):
                         func = func[:func.find(':')]
                     if not exists_in_worker(func, id=log.id):
                         prnt('Continuing RunA:', func)
-                        if 'block' in func:
+                        if 'block' in func or 'data_packet' in func:
                             queue = django_rq.get_queue('main')
                         else:
                             queue = django_rq.get_queue('low')
@@ -3210,6 +3210,12 @@ def tasker(dt, test=False):
                                 queue.enqueue(f, log.id, job_timeout=300, result_ttl=7200)
                             except Exception as e:
                                 prnt('err 58351', str(e))
+                                try:
+                                    import utils.locked as share_funcs
+                                    f = getattr(share_funcs, func)  
+                                    queue.enqueue(f, log.id, job_timeout=300, result_ttl=7200)
+                                except Exception as e:
+                                    prnt('err 8739', str(e))
 
         # return
         # every 60 mins create block if data
@@ -3219,7 +3225,7 @@ def tasker(dt, test=False):
         sonet = Sonet.objects.values('id').first()
         if dt.minute in [t-20 for t in _block_creation_times]:
             node_count = Node.objects.filter(activeNode=True).count()
-            if node_count and (node_count <= 3 and random.randrange(node_count) == 0 or random.randrange(node_count/3) == 0):
+            if node_count and (node_count <= 3 and random.randrange(node_count) == 0 or random.randrange(int(node_count/3)) == 0):
                 from network.models import CommitData 
                 commit = CommitData()
                 commit, reveal = commit.create_pair()
@@ -3815,7 +3821,7 @@ def compute_node_trust():
     # should also track when a node goes dark, lower trust score if happens often
 
     from django.db import transaction
-    from network.models import Node, NodeReview, striking_days, recent_failure_count
+    from network.models import Node, NodeReview, recent_failure_range, recent_failure_count
     import time
     import math
     from collections import defaultdict
@@ -3856,7 +3862,8 @@ def compute_node_trust():
                     dt = string_to_dt(dt_str)
                 except:
                     dt = string_to_dt(value)
-                if dt > now - datetime.timedelta(days=striking_days):
+                if dt > now - datetime.timedelta(days=recent_failure_range):
+                    prnt('fail dt:',dt)
                     recent_failures += 1
         prnt('recent_failures',recent_failures)
         peer_reviews[r.TargetNode_obj.id].append({
@@ -3905,6 +3912,8 @@ def compute_node_trust():
 
     for node_id, node in nodes.items():
         prnt('node_id',node_id)
+        if not Node.objects.filter(id=node_id).exists():
+            request_items([node_id])
         reviews_for_node = peer_reviews.get(node_id, [])
         total_weighted_score = 0
         total_weight = 0
@@ -3933,6 +3942,7 @@ def compute_node_trust():
             if node.id == self_node_id:
                 from utils.utils import self_is_active
                 self_is_active(False)
+                prnt("self_is_active1",self_is_active())
         else:
             if node.suspended_dt:
                 node.suspended_dt = None
@@ -3940,6 +3950,7 @@ def compute_node_trust():
             if node.id == self_node_id and node.activeNode:
                 from utils.utils import self_is_active
                 self_is_active(True)
+                prnt("self_is_active2",self_is_active())
 
         observed_trust = total_weighted_score / total_weight if total_weight > 0 else 0.5
 
@@ -4080,15 +4091,6 @@ def sign_post_header(data=None, headers=None, operatorData=None, self_node=None,
         sign_data = f"{headers['senderid']}-{headers['targetid']}-{now}"
         prnt('sign_data',sign_data)
         sig = simpleSign(keyPair['privKey'], sign_data) # content gets hashed in sign_for_sending and verified in process_received_dp
-        # if post == 'stream':
-        #     content_length = len(data.encode('utf-8'))
-        #     headers = {'Content-Type': 'application/json','Transfer-Encoding': 'chunked'}
-        #     headers['Content-Length'] = str(content_length)
-        #     headers['senderId'] = self_node.id
-        #     headers['dt'] = now
-        #     headers['dtsig'] = sig
-        #     # prnt('header to send',headers)
-        # else:
         if 'Content-Type' not in headers:
             headers['Content-Type'] = 'application/json'
         headers['dt-sig'] = sig
@@ -4117,6 +4119,8 @@ def send_post(url, data_str, headers=None, timeout=(10, 60)):
 
     if headers is None:
         headers = {}
+    headers.pop('Host', None)
+    headers.pop('host', None)
     headers["User-Agent"] = "Mozilla/5.0 (NodeClient)"
     session.headers.update(headers)
 

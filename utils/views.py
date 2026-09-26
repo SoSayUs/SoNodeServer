@@ -1345,21 +1345,39 @@ def tester_queue(obj=None):
     import django_rq
     import requests
     # queue = django_rq.get_queue('low')
+    import xml.etree.ElementTree as ET
 
     from network.models import Blockchain, Block, DataPacket, Tidy, _EarthChain_genesisId
-    from utils.locked import get_signing_data,verify_data, sign_obj, convert_to_dict, validate_obj
-    from utils.utils import request_items, get_latest_dataPacket
+    from utils.locked import verify_data, sign_obj, convert_to_dict, validate_obj
+    from utils.models import close_browser
     from transactions.models import Tx
     from accounts.models import UserPubKey, User
     from posts.models import Post, Update, Spren, ImageFile
-    from legis.models import  BillText, Government, Party, Motion, Bill
+    from legis.models import  Person, District, Party, Motion, Bill
     from posts.models import Region
-    # from utils.models import get_dynamic_model, get_model_prefix, get_self_node, round_time, sigData_to_hash
+    from utils.utils import superDelete, get_model_prefix, get_self_node, round_time, sigData_to_hash
     # # operatorData = get_operatorData()
     self_node = get_self_node()
     self_node_id = self_node.id
 
+    for p in Bill.objects.all():
+        superDelete(p, force_delete=True)
 
+    # for d in District.objects.all():
+    #     # d.delete()
+    #     superDelete(d, force_delete=True)
+    
+    # for u in Update.objects.all():
+    #     u.delete(force_delete=True)
+
+    # for u in ImageFile.objects.all():
+    #     u.delete(force_delete=True)
+
+    # for d in Party.objects.all():
+    #     superDelete(d, force_delete=True)
+
+    # for p in Post.objects.exclude(pointerType='Government'):
+    #     super(Post, p).delete()
 
 
 
@@ -1532,9 +1550,9 @@ def tester_queue(obj=None):
     #     prnt('B')
     
 
+    # Tidy().unvalidator_run()
 
-    Tidy().random_block_check(iden='blcSo25bFKSnL2tEPMzCgEVS')
-
+        
     
     prnt('done tester_queue')
     return result
@@ -1551,7 +1569,7 @@ def tester_queue_view(request):
             prnt('HELLLOO!!')
             import django_rq
             queue = django_rq.get_queue('low')
-            # queue.enqueue(tester_queue, job_timeout=1200)
+            queue.enqueue(tester_queue, job_timeout=1200)
             # queue.enqueue(tester_queue, job_timeout=3600)
             from network.models import Tidy, Validator, _OperationsChain_genesisId
             # from posts.models import Region
