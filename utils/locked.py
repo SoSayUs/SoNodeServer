@@ -161,10 +161,12 @@ def process_gathered_data(received_data, override_completed=False):
                             prnt('waitng for local job')
                             for received_obj in content:
                                 obj = get_dynamic_model(received_obj['objType'], id=received_obj['id'])
-                                if obj.Validator_obj.is_valid:
+                                if obj and obj.Validator_obj.is_valid:
                                     if not return_dp:
-                                        return_dp = DataPacket(chainId=received_obj['CreatorNode_obj'], chainName=received_obj['CreatorNode_obj'], func='share', Node_obj=self_node)
-                                        return_dp.save()
+                                        return_dp = DataPacket.objects.filter(networkChain=received_obj['CreatorNode_obj'], chainName=received_obj['CreatorNode_obj'], func='share', Node_obj=self_node).first()
+                                        if not return_dp:
+                                            return_dp = DataPacket(networkChain=received_obj['CreatorNode_obj'], chainName=received_obj['CreatorNode_obj'], func='share', Node_obj=self_node)
+                                            return_dp.save()
                                     return_dp.add_item_to_share(obj)
                                                     
                             return
@@ -570,7 +572,7 @@ def process_posts_for_validating(received_json, override_completed=False):
                                                 if obj:
                                                     prnt('dict:',convert_to_dict(obj))
                                                 
-                                                if obj.Validator_obj and obj.Validator_obj.is_valid:
+                                                if obj and obj.Validator_obj and obj.Validator_obj.is_valid:
                                                     if not return_dp:
                                                         return_dp = DataPacket(chainId=z['CreatorNode_obj'], chainName=z['CreatorNode_obj'], func='share', Node_obj=self_node)
                                                         return_dp.save()
@@ -662,8 +664,10 @@ def process_posts_for_validating(received_json, override_completed=False):
                                                                         # latest_ver = get_model(obj._meta.object_name).objects.exclude(Validator_obj=None).values('id').order_by('-created').first()
                                                                         # if latest_ver and latest_ver['id'] != z_field:
                                                                         if not return_dp:
-                                                                            return_dp = DataPacket(chainId=z['CreatorNode_obj'], chainName=z['CreatorNode_obj'], func='share', Node_obj=self_node)
-                                                                            return_dp.save()
+                                                                            return_dp = DataPacket.objects.filter(network=z['CreatorNode_obj'], chainName=z['CreatorNode_obj'], func='share', Node_obj=self_node)
+                                                                            if not return_dp:
+                                                                                return_dp = DataPacket(network=z['CreatorNode_obj'], chainName=z['CreatorNode_obj'], func='share', Node_obj=self_node)
+                                                                                return_dp.save()
                                                                         return_dp.add_item_to_share(attr)
                                                                 if f.name not in bypass_fields and attr and z_field and sort_for_sign(attr) != sort_for_sign(z_field):
                                                                     prnt('mismatch break!','field:',f.name,'\n-database_attr:',sort_for_sign(attr, print_data=False),'\n-received_attr:',sort_for_sign(z_field, print_data=False))
@@ -1067,8 +1071,8 @@ def process_posts_for_validating(received_json, override_completed=False):
                                 import django_rq
                                 django_rq.get_queue('low').enqueue(dataPacket.broadcast_dp, iden=dataPacket.id, job_timeout=300, result_ttl=7200)
             except Exception as e:
-                prnt('fail3920567',str(e),'q',q,'w',w)
-                logError(f'ValidatePosts fail {str(e)}', code='83745', func='processes_posts_for_validating', extra={'q':q,"log":log.id if log else'none'})
+                prnt('process posts fail 873',str(e),'q',q,'w',w)
+                logError(f'ValidatePosts fail {str(e)}', code='873', func='processes_posts_for_validating', extra={'q':q,"log":log.id if log else'none'})
                 if log:
                     log.completed(f'err:{q}:{str(e)}')
                 result = f'ValidatePosts result: err:{q}:{str(e)}'
@@ -2809,6 +2813,16 @@ def get_relevant_nodes(dt=None, genesisId=None, chains=None, blockchain=None, pl
             prnt('genesisId',genesisId,'sublist',sublist, exclude_list)
             # if genID not either region or plugin, fetch genObj, cross references plugin and region
             record = Leger.objects.filter(pointerId=genesisId, DateTime__lte=dt, is_valid=True).first()
+            if not record:
+                from utils.utils import get_model
+                try:
+                    obj = get_model(genesisId).objects.filter(id=genesisId).values('commitChain').first()
+                    prnt('obj',obj)
+                    if obj:
+                        genesisId = obj['commitChain']
+                        record = Leger.objects.filter(pointerId=genesisId, DateTime__lte=dt, is_valid=True).first()
+                except Exception as e:
+                    prnt('err 1',str(e))
             prnt('record',record)
             if record:
                 prnt('record.data',record.data)
@@ -5662,7 +5676,7 @@ def generate_id(data=None, length=ID_LENGTH):
         truncated =  uuid.uuid4().bytes[:length]
     from utils.models import to_base62
     s = to_base62(truncated)
-    return s
+    return s.replace('So','so')
 
 def hash_obj_id(obj, verify=False, specific_data=None, random_iden=False, return_data=False, model=None, version=None, length=ID_LENGTH, print_data=False):
     from utils.utils import has_method, has_field, get_model_prefix, get_model, prnt, value_is_none, rgetattr

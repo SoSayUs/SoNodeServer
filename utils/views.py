@@ -1347,27 +1347,33 @@ def tester_queue(obj=None):
     # queue = django_rq.get_queue('low')
     import xml.etree.ElementTree as ET
 
-    from network.models import Blockchain, Block, DataPacket, Tidy, _EarthChain_genesisId
-    from utils.locked import verify_data, sign_obj, convert_to_dict, validate_obj
-    from utils.models import close_browser
+    from network.models import Blockchain, Block, DataPacket, Plugin, _EarthChain_genesisId
+    from utils.locked import verify_data, sign_obj, get_relevant_nodes, validate_obj
+    from utils.models import run_prompt
     from transactions.models import Tx
     from accounts.models import UserPubKey, User
     from posts.models import Post, Update, Spren, ImageFile
-    from legis.models import  Person, District, Party, Motion, Bill
+    from legis.models import  BillText, District, Party, Motion, Bill
     from posts.models import Region
     from utils.utils import superDelete, get_model_prefix, get_self_node, round_time, sigData_to_hash
     # # operatorData = get_operatorData()
     self_node = get_self_node()
     self_node_id = self_node.id
 
-    for p in Bill.objects.all():
-        superDelete(p, force_delete=True)
+    # for p in Bill.objects.all():
+    #     # p.delete(force_delete=True)
+    #     superDelete(p, force_delete=True)
+    #     u = Update.objects.filter(pointerId=p.id)
+    #     if u:
+    #         u.delete(force_delete=True)
+    # for p in BillText.objects.all():
+    #     p.delete(force_delete=True)
 
     # for d in District.objects.all():
     #     # d.delete()
     #     superDelete(d, force_delete=True)
     
-    # for u in Update.objects.all():
+    # for u in Update.objects.filter():
     #     u.delete(force_delete=True)
 
     # for u in ImageFile.objects.all():
@@ -1378,7 +1384,23 @@ def tester_queue(obj=None):
 
     # for p in Post.objects.exclude(pointerType='Government'):
     #     super(Post, p).delete()
+    # for u in Update.objects.filter(validated=False):
+    #     validate_obj(obj=u, pointer=None, save_obj=True, verify_validator=False, update_pointer=True)
 
+    # iden = 'updSo1IDBHpent6BbX7O4Eya'
+    # u = Update.objects.filter(id=iden).first()
+    # # v = validate_obj(obj=u, pointer=None, save_obj=False, verify_validator=False, update_pointer=False)
+    # # prnt('v',v)
+
+    # plugin_id = Plugin.objects.filter(app_name='legis').values('id').first()['id']
+
+    # masterData = get_relevant_nodes(dt=u.created, blockchain=u.networkChain, plugin_id=plugin_id, sublist='maintainer')
+    # prnt('masterData',masterData)
+
+
+    prompt = f'hello'
+    r = run_prompt(prompt)
+    prnt('r',r)
 
 
     def block_run(input_block):
@@ -1575,11 +1597,15 @@ def tester_queue_view(request):
             # from posts.models import Region
             from transactions.models import Wallet,Tx
             from utils.locked import create_keys, sign_obj
-            from utils.utils import get_model
+            from utils.models import run_prompt
             from utils.utils import get_plugin
             self_node = get_self_node()
 
 
+
+            prompt = f'hello'
+            r = run_prompt(prompt)
+            prnt('r',r)
 
 
                 

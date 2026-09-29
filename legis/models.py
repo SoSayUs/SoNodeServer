@@ -430,6 +430,7 @@ class BillText(BaseModel):
         return self.text
 
     def store_text(self, text=None):
+        self.text = text
         return self.text
     
     def save(self, share=False, region=None, *args, **kwargs):
@@ -447,8 +448,8 @@ class BillText(BaseModel):
         elif not is_locked(self):
             compensate_save(self, BillText, *args, **kwargs)
 
-    def delete(self):
-        if not is_locked(self):
+    def delete(self, force_delete=False):
+        if force_delete or not is_locked(self):
             superDelete(self)
 
 class Bill(LegisModel):
@@ -604,10 +605,10 @@ class Bill(LegisModel):
         elif not is_locked(self):
             compensate_save(self, Bill, *args, **kwargs)
 
-    def delete(self):
-        if not is_locked(self):
+    def delete(self, force_delete=False):
+        if force_delete or not is_locked(self):
             for text in BillText.objects.filter(pointerId=self.id):
-                text.delete()
+                text.delete(force_delete=force_delete)
             superDelete(self)
 
     def boot(self):

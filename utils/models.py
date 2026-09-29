@@ -2764,11 +2764,10 @@ def run_prompt(
     different quant, or upgrading llama-cpp-python) can shift output,
     since they affect the underlying numerics.
     """
-    import time
- 
-    from llama_cpp import Llama
     prnt('-run_prompt')
-    prnt(str(prompt)[:500])
+    prnt('prompt',str(prompt)[:500])
+    import time
+    # from llama_cpp import Llama
     prnt('len:',len(prompt))
     tkns = get_token_count(prompt)
     n_ctx = n_ctx + tkns_plus
@@ -2780,32 +2779,52 @@ def run_prompt(
     if not model_path:
         model_dir = "~/Sonet/.data/models"
         model_path_dir = Path(model_dir).expanduser()
-        model_url = "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-1M-GGUF/resolve/main/qwen2.5-7b-instruct-1m-q5_k_m.gguf"
+        # model_url = "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-1M-GGUF/resolve/main/qwen2.5-7b-instruct-1m-q5_k_m.gguf"
+        model_url = "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-1M-GGUF/resolve/main/Qwen2.5-7B-Instruct-1M-Q5_K_M.gguf?download=true"
         model_filename = model_url.split("/")[-1]
+        model_filename = model_url.split("?")[-1]
         model_path = model_path_dir / model_filename
 
-    llama_kwargs = dict(
-        model_path=model_path,
-        n_ctx=n_ctx,
-        n_gpu_layers=n_gpu_layers,
-        seed=seed,
-        verbose=False,
-    )
-    if strict_determinism:
-        llama_kwargs.update(n_threads=1, n_threads_batch=1)
- 
-    llm = Llama(**llama_kwargs)
- 
+    # llama_kwargs = dict(
+    #     model_path=str(model_path),
+    #     n_ctx=n_ctx,
+    #     n_gpu_layers=n_gpu_layers,
+    #     seed=seed,
+    #     verbose=False,
+    # )
+    # if strict_determinism:
+    #     llama_kwargs.update(n_threads=1, n_threads_batch=1)
+    prnt('call llama')
+
+    import urllib.request
+    def call_llama(prompt, max_tokens=512):
+        body = json.dumps({
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": max_tokens,
+            "seed": seed,
+        }).encode()
+        req = urllib.request.Request(
+            "http://127.0.0.1:8081/v1/chat/completions",
+            data=body, headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=300) as r:
+            return json.load(r)
+            # return json.load(r)["choices"][0]["message"]["content"]
+
     start = time.perf_counter()
-    output = llm.create_chat_completion(
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=max_tokens,
-        seed=seed,
-        temperature=temperature,
-        top_p=top_p,
-        top_k=top_k,
-        repeat_penalty=repeat_penalty,
-    )
+    output = call_llama(prompt, n_ctx)
+    # llm = Llama(**llama_kwargs)
+ 
+    # prnt('start chat')
+    # output = llm.create_chat_completion(
+    #     messages=[{"role": "user", "content": prompt}],
+    #     max_tokens=max_tokens,
+    #     seed=seed,
+    #     temperature=temperature,
+    #     top_p=top_p,
+    #     top_k=top_k,
+    #     repeat_penalty=repeat_penalty,
+    # )
     elapsed = time.perf_counter() - start
  
     text = output["choices"][0]["message"]["content"]

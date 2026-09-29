@@ -1421,9 +1421,9 @@ def get_app_info(rerun=False, all_apps=False):
                     if key not in app_dict['apps'][plug.app_name]:
                         app_dict['apps'][plug.app_name].append(key)
                     if plug.plugin_prefix and plug.plugin_prefix != '0':
-                        text = f'{plug.plugin_prefix}{value}'
+                        text = f'{plug.plugin_prefix}{value.replace("So","so")}'
                     else:
-                        text = f'{value}'
+                        text = f'{value.replace("So","so")}'
                     app_dict[key] = text
             _appInfo = app_dict
         else:
@@ -1442,9 +1442,9 @@ def get_app_info(rerun=False, all_apps=False):
                                     if key not in app_dict['apps'][app]:
                                         app_dict['apps'][app].append(key)
                                     if app in plugin_prefixes and plugin_prefixes[app]:
-                                        text = f'{plugin_prefixes[app]}{value}'
+                                        text = f'{plugin_prefixes[app]}{value.replace("So","so")}'
                                     else:
-                                        text = f'{value}'
+                                        text = f'{value.replace("So","so")}'
                                     app_dict[key] = text
 
                 except ModuleNotFoundError:
@@ -2171,29 +2171,37 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                 from utils.utils import get_plugin
                 if obj_is_model and is_id(obj.commitChain):
                     commit_chain = Blockchain.objects.filter(Q(id=obj.commitChain)|Q(genesisId=obj.commitChain)).only('id','genesisName','genesisId').first()
+                    from network.models import reward_models
                     if not commit_chain:
                         if get_pointer_type(networkChain) == 'Blockchain':
                             commit_chain = Blockchain(id=obj.commitChain)
                         else:
                             rewardsData = {}
-                            from network.models import reward_models
+                            # from network.models import reward_models
                             if any(i for i in reward_models if obj.commitChain.startswith(i)):
                                 
                                 rewardsData = {'regionId':obj.Region_obj, 'pluginId':get_plugin(obj.id, id=True)}
                             commit_chain = Blockchain(genesisId=obj.commitChain, rewardsData=rewardsData)
                         commit_chain.save()
+                    elif not commit_chain.rewardsData and any(i for i in reward_models if obj.commitChain.startswith(i)):
+                        commit_chain.rewardsData = {'regionId':obj.Region_obj, 'pluginId':get_plugin(obj.id, id=True)}
+                        commit_chain.save()
                 elif not obj_is_model and is_id(obj['commitChain']):
                     commit_chain = Blockchain.objects.filter(Q(id=obj['commitChain'])|Q(genesisId=obj['commitChain'])).only('id','genesisName','genesisId').first()
+                    from network.models import reward_models
                     if not commit_chain:
                         if get_pointer_type(obj['commitChain']) == 'Blockchain':
                             commit_chain = Blockchain(id=obj['commitChain'])
                         else:
                             rewardsData = {}
-                            from network.models import reward_models
+                            # from network.models import reward_models
                             if any(i for i in reward_models if obj['commitChain'].startswith(i)):
                                 
                                 rewardsData = {'regionId':obj['Region_obj'], 'pluginId':get_plugin(obj['id'], id=True)}
                             commit_chain = Blockchain(genesisId=obj['commitChain'], rewardsData=rewardsData)
+                        commit_chain.save()
+                    elif not commit_chain.rewardsData and any(i for i in reward_models if obj['commitChain'].startswith(i)):
+                        commit_chain.rewardsData = {'regionId':obj['Region_obj'], 'pluginId':get_plugin(obj['id'], id=True)}
                         commit_chain.save()
                 elif obj_is_model and obj.commitChain == 'Plugin':
                     if obj_is_model:
@@ -2350,29 +2358,36 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
             if obj_is_model and has_field(obj, 'commitChain') and obj.commitChain or not obj_is_model and 'commitChain' in obj and obj['commitChain']:
                 if obj_is_model and is_id(obj.commitChain):
                     commit_chain = Blockchain.objects.filter(Q(id=obj.commitChain)|Q(genesisId=obj.commitChain)).only('id','genesisName','genesisId').first()
+                    from network.models import reward_models
                     if not commit_chain:
                         if get_pointer_type(networkChain) == 'Blockchain':
                             commit_chain = Blockchain(id=obj.commitChain)
                         else:
                             rewardsData = {}
-                            from network.models import reward_models
                             if any(i for i in reward_models if obj.commitChain.startswith(i)):
                                 # from utils.utils import get_plugin
                                 rewardsData = {'regionId':obj.Region_obj, 'pluginId':get_plugin(obj.id, id=True)}
                             commit_chain = Blockchain(genesisId=obj.commitChain, rewardsData=rewardsData)
                         commit_chain.save()
+                    elif not commit_chain.rewardsData and any(i for i in reward_models if obj.commitChain.startswith(i)):
+                        commit_chain.rewardsData = {'regionId':obj.Region_obj, 'pluginId':get_plugin(obj.id, id=True)}
+                        commit_chain.save()
                 elif not obj_is_model and is_id(obj['commitChain']):
                     commit_chain = Blockchain.objects.filter(Q(id=obj['commitChain'])|Q(genesisId=obj['commitChain'])).only('id','genesisName','genesisId').first()
+                    from network.models import reward_models
                     if not commit_chain:
                         if get_pointer_type(obj['commitChain']) == 'Blockchain':
                             commit_chain = Blockchain(id=obj['commitChain'])
                         else:
                             rewardsData = {}
-                            from network.models import reward_models
+                            # from network.models import reward_models
                             if any(i for i in reward_models if obj['commitChain'].startswith(i)):
                                 # from utils.utils import get_plugin
                                 rewardsData = {'regionId':obj['Region_obj'], 'pluginId':get_plugin(obj['id'], id=True)}
                             commit_chain = Blockchain(genesisId=obj['commitChain'], rewardsData=rewardsData)
+                        commit_chain.save()
+                    elif not commit_chain.rewardsData and any(i for i in reward_models if obj['commitChain'].startswith(i)):
+                        commit_chain.rewardsData = {'regionId':obj['Region_obj'], 'pluginId':get_plugin(obj['id'], id=True)}
                         commit_chain.save()
                 else:
                     if obj_is_model and obj.commitChain in universalChains:

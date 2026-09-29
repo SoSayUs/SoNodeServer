@@ -118,8 +118,8 @@ functions = { # in gov_region timezone
     # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [12,13,14], 'cmds' : ['get_house_debates_us','get_senate_debates_us']},
     # ],
     "2026-01-24" : [
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5,6], 'hour' : [15], 'cmds' : ['get_bills_us'] },
-    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 8, 10, 12, 14, 16, 18, 22], 'cmds' : ['get_bills_us'] },
+    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5,6], 'hour' : [19], 'cmds' : ['get_bills_us'] },
+    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 8, 10, 12, 14, 16, 18, 22], 'cmds' : ['get_bills_us'] },
     # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [1, 5, 11, 17, 21], 'cmds' : ['get_house_debates_us', 'get_house_rollcalls_us']},
     # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [3, 7, 19, 23], 'cmds' : ['get_senate_debates_us', 'get_senate_rollcalls_us']},
     # {'date' : ['x'], 'dayOfWeek' : [1], 'hour' : [14], 'cmds' : ['get_persons_us']},
@@ -1621,7 +1621,8 @@ def add_bill(url=None, log=None, update_dt=None, driver=None, driver_service=Non
                             billU.data['sponsor_parties'][bill.Party_obj.ShortName]['count'] += 1
                     if person:
                         try:
-                            personU = person.Update_obj
+                            # personU = person.Update_obj
+                            personU = Update.objects.filter(pointerId=person.id, Validator_obj__is_valid=True).order_by('-DateTime').first()
                             bill.Person_obj = person
                             if not bill.Party_obj:
                                 bill.Party_obj = Party.objects.filter(id=personU.data['Party_id'], gov_level='Federal', Region_obj=country, Validator_obj__is_valid=True).first()
@@ -1639,7 +1640,8 @@ def add_bill(url=None, log=None, update_dt=None, driver=None, driver_service=Non
                     prnt('person2',person)
                     if person:
                         if person != bill.Person_obj:
-                            personU = person.Update_obj
+                            # personU = person.Update_obj
+                            personU = Update.objects.filter(pointerId=person.id, Validator_obj__is_valid=True).order_by('-DateTime').first()
                             if not any(p['obj_id'] == person.id for p in billU.data['cosponsors']):
                                 sponsor_dic = {'obj_id':person.id, 'fullName':personU.data['FullName']}
                                 if 'Party_id' in personU.data and personU.data['Party_id']:
@@ -1697,7 +1699,8 @@ def add_bill(url=None, log=None, update_dt=None, driver=None, driver_service=Non
                     prnt('p',person)
                     if person:
                         if person != bill.Person_obj:
-                            personU = person.Update_obj
+                            # personU = person.Update_obj
+                            personU = Update.objects.filter(pointerId=person.id, Validator_obj__is_valid=True).order_by('-DateTime').first()
                             prnt('personU',personU)
                             if not any(p['obj_id'] == person.id for p in billU.data['cosponsors']):
                                 sponsor_dic = {'obj_id':person.id, 'fullName':personU.data['FullName']}
@@ -1726,7 +1729,7 @@ def add_bill(url=None, log=None, update_dt=None, driver=None, driver_service=Non
                     # prnt(f'sponsorshipDate: {sponsorshipDate.text}')
                     # prnt(f'isOriginalCosponsor: {isOriginalCosponsor.text}')
                 except Exception as e:
-                    prnt('bill err 6745',str(e))
+                    prnt('bill cosponsor err 6745',str(e))
         err = 8
         prnt('cboCostEstimates::')
         cboCostEstimates = billXML.find('cboCostEstimates')

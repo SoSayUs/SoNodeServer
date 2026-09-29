@@ -578,7 +578,8 @@ def summarize_bill(billText, self_nodeId=None):
     prev = 0
     section_title = 'init'
     section_code = '0'
-    html = billText.data['TextHtml']
+    # html = billText.data['TextHtml']
+    html = billText.text
     for i in billText.data['TextNav']:
         for a, b in i.items():
             prnt('now:',now_utc(),'start:',start)
@@ -871,6 +872,7 @@ def run_assigned_duties(receivedDt=None, result=None):
         prnt('seed_input',seed_input)
         regions = shuffle_list(seed_input, list(Region.objects.filter(is_supported=True).values('id','networkChain')))
         supported_regions = {i['id']:i['networkChain'] for i in regions}
+        prnt('supported_regions',supported_regions)
 
         for job in intelligence_funcs:
             prnt('job',job)
@@ -906,12 +908,18 @@ def run_assigned_duties(receivedDt=None, result=None):
                     from legis.models import BillText
 
                     for region_id, chain_id in supported_regions.items():
-                        if chain_id in self_node.chain_array:
+                        prnt('region_id',region_id,'chain_id',chain_id)
+                        if chain_id in self_node.region_array:
+                            prnt('1')
                             if region_id.startswith('regSo') and not job_assigned:
+                                prnt('2')
                                 spren = Spren.objects.filter(Region_obj__id=region_id, type='Billtext').exclude(Validator_obj=None).values('pointerId').order_by('-created')[:1000]
                                 if BillText.objects.filter(Region_obj__id=region_id, Validator_obj__is_valid=True, created__gt=receivedDt-datetime.timedelta(days=7)).exclude(id__in=[s['pointerId'] for s in spren]).distinct('pointerId').order_by('pointerId','-created').exists():
+                                    prnt('3')
                                     scrapers, validators = get_node_assignment(chainId=region_id, func=job, dt=receivedDt, plugin_id=get_plugin('legis'), nodeType='intelligence')
+                                    prnt('scrapers',scrapers,'validators',validators)
                                     if self_node.id in scrapers:
+                                        prnt('4')
                                         if result:
                                             result['scrape assignment'].append(f'{region_id} {job}')
                                         create_job(summarize_bills, job_timeout=3000, worker='low', clear_chrome_job=False, region_id=region_id, dt=receivedDt, max_mins=max_mins)

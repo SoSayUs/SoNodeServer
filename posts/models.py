@@ -1016,6 +1016,7 @@ class ValidUpdateManager(UpdateManager):
 class Update(BaseModel):
     latestVer = 1
     modlVer = models.IntegerField(default=latestVer)
+    # commitChain = models.CharField(max_length=50, default="", blank=True)
     networkChain = models.CharField(max_length=50, default="", blank=True)
     validated = models.BooleanField(default=False, null=True, blank=True)
     Region_obj = models.ForeignKey('posts.Region', related_name='%(class)s_region_obj', blank=True, null=True, on_delete=models.CASCADE)
@@ -1070,6 +1071,11 @@ class Update(BaseModel):
         self.sync_with_post(do_save=True)
         if not self.validated:
             self.validate(validator=None, save_self=False, verify_validator=True, opBlock_data={})
+            pointer = self.get_pointer()
+            if has_method(pointer, 'upon_validation'):
+                pointer.upon_validation()
+            if has_method(pointer, 'on_confirmation'):
+                i = pointer.on_confirmation()
         return self
 
     skipFields = ['id', 'func', 'created', 'added_to_node', 'lastUpdate', 'modlVer', 'signed', 'updated_on_node', 'CreatorNode_obj', 'validatorNodeId', 'Validator_obj', 'Block_obj', 'Pointer_obj', 'validated']
@@ -1263,11 +1269,18 @@ class Update(BaseModel):
                 self.Region_obj = pointer.Region_obj
             except:
                 pass
-            network_chain, item, commit_chain = find_or_create_chain_from_object(pointer)
-            if commit_chain:
-                self.networkChain = commit_chain.genesisId
-            elif network_chain:
-                self.networkChain = network_chain.genesisId
+            if has_field(pointer, 'commitChain'):
+                self.networkChain = pointer.commitChain
+            elif has_field(pointer, 'networkChain'):
+                self.networkChain = pointer.networkChain
+                # if not self.commitChain:
+                #     self.commitChain = self.networkChain
+                
+            # network_chain, item, commit_chain = find_or_create_chain_from_object(pointer)
+            # if commit_chain:
+            #     self.networkChain = commit_chain.genesisId
+            # elif network_chain:
+            #     self.networkChain = network_chain.genesisId
             self = initial_save(self)
         elif not is_locked(self) and save_mutable_fields(self, sig=sig, *args, **kwargs):
             prnt('done save u')
