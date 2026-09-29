@@ -2782,7 +2782,7 @@ def run_prompt(
         # model_url = "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-1M-GGUF/resolve/main/qwen2.5-7b-instruct-1m-q5_k_m.gguf"
         model_url = "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-1M-GGUF/resolve/main/Qwen2.5-7B-Instruct-1M-Q5_K_M.gguf?download=true"
         model_filename = model_url.split("/")[-1]
-        model_filename = model_url.split("?")[-1]
+        model_filename = model_url.split("?")[0]
         model_path = model_path_dir / model_filename
 
     # llama_kwargs = dict(
