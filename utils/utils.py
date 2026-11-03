@@ -1114,6 +1114,26 @@ def get_chainName(obj):
             return chain.genesisName
     return None
 
+def value_match(d1, d2):
+    try:
+        from difflib import SequenceMatcher
+
+        # def char_match(d1, d2):
+        a = json.dumps(d1, sort_keys=True, ensure_ascii=False)
+        b = json.dumps(d2, sort_keys=True, ensure_ascii=False)
+        return SequenceMatcher(None, a, b, autojunk=False).ratio()
+
+        # keys = d1.keys() | d2.keys()
+        # if not keys:
+        #     return 1.0
+        # total = 0.0
+        # for k in keys:
+        #     if k in d1 and k in d2:
+        #         total += SequenceMatcher(None, str(d1[k]), str(d2[k]), autojunk=False).ratio()
+        # return total / len(keys)
+    except:
+        return 0
+    
 def seperate_by_type(obj_list, include_only=None, exclude=None):
     include_only = declare_var(include_only, {})
     exclude = declare_var(exclude, {})
@@ -2017,27 +2037,40 @@ def fetch_obj_data(iden):
                 prnt('fetch err 7',str(e))
 
 def request_is_valid(iden, chain=None, vals=3):
-    prnt('-request_is_valid',iden, chain)
+    prnt('-request_is_valid',iden, chain, vals)
     if not iden:
         return None
-    from utils.locked import convert_to_dict, sign_for_sending
+    from utils.locked import sign_for_sending
     from utils.models import connect_to_node
     # obj = get_dynamic_model(iden, id=iden)
     # if obj:
     #     return convert_to_dict(obj)
     # else:
-
     self_node_id = get_operator_obj("self_nodeId")
     keys = get_operator_obj('keyPair')
     signedRequest = json.dumps(sign_for_sending({'itemId' : iden, 'dt':dt_to_string(now_utc())}, keys=keys))
     data = {'senderId':self_node_id, 'request':signedRequest}
     nodes = []
     from network.models import Node
-    if chain:
+    pointer_type = get_pointer_type(chain)
+    if chain and pointer_type == 'Plugin':
+        nodes = Node.objects.filter(activeNode=True, plugin_array__contains=[chain]).exclude(id=self_node_id)
+    elif chain and pointer_type == 'Blockchain':
         nodes = Node.objects.filter(activeNode=True, chain_array__contains=[chain]).exclude(id=self_node_id)
+    elif chain:
+        nodes = Node.objects.filter(activeNode=True, chain_array__contains=[get_chain_id(chain)]).exclude(id=self_node_id)
+        if not nodes:
+            nodes = Node.objects.filter(activeNode=True, plugin_array__contains=[get_plugin(chain, id=True)]).exclude(id=self_node_id)
+            # nodes = Node.objects.filter(activeNode=True).exclude(chain_array=[]).exclude(id=self_node_id)
+    # else:
+    #     chain_id = chain
+    # if chain:
+    #     nodes = Node.objects.filter(activeNode=True, chain_array__contains=[chain]).exclude(id=self_node_id)
     if not nodes:
         nodes = Node.objects.filter(activeNode=True).exclude(chain_array=[]).exclude(id=self_node_id)
     found_vals = 0
+    is_valid = 0
+    not_valid = 0
     for node in nodes:
         prnt('request_is_valid from node',node)
         try:
@@ -2045,12 +2078,17 @@ def request_is_valid(iden, chain=None, vals=3):
             if success and response.status_code == 200:
                 received_json = response.json()
                 if received_json['message'].lower() == 'success':
+                    found_vals += 1
                     if received_json['is_valid']:
-                        found_vals += 1
-                        if found_vals >= vals or found_vals == nodes.count():
+                        is_valid += 1
+                        if is_valid >= vals or is_valid == nodes.count():
+                            prnt('request_is_valid result True')
                             return True
+                    else:
+                        not_valid += 1
         except Exception as e:
             prnt('request_is_valid err 7',str(e))
+    prnt('request_is_valid result False')
     return False
 
 
@@ -2180,11 +2218,11 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                             # from network.models import reward_models
                             if any(i for i in reward_models if obj.commitChain.startswith(i)):
                                 
-                                rewardsData = {'regionId':obj.Region_obj, 'pluginId':get_plugin(obj.id, id=True)}
+                                rewardsData = {'regionId':obj.Region_obj.id, 'pluginId':get_plugin(obj.id, id=True)}
                             commit_chain = Blockchain(genesisId=obj.commitChain, rewardsData=rewardsData)
                         commit_chain.save()
                     elif not commit_chain.rewardsData and any(i for i in reward_models if obj.commitChain.startswith(i)):
-                        commit_chain.rewardsData = {'regionId':obj.Region_obj, 'pluginId':get_plugin(obj.id, id=True)}
+                        commit_chain.rewardsData = {'regionId':obj.Region_obj.id, 'pluginId':get_plugin(obj.id, id=True)}
                         commit_chain.save()
                 elif not obj_is_model and is_id(obj['commitChain']):
                     commit_chain = Blockchain.objects.filter(Q(id=obj['commitChain'])|Q(genesisId=obj['commitChain'])).only('id','genesisName','genesisId').first()
@@ -2238,6 +2276,7 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
         elif has_field(obj, 'networkChain') and is_id(obj.networkChain):
             network_chain = Blockchain.objects.filter(id=obj.networkChain).defer('queuedData').first()
             if network_chain:
+                prnt('p1')
                 network_chain, commit_chain = get_commitChain(obj, network_chain, commit_chain, obj_is_model)
                 return network_chain, obj, commit_chain
     if obj_is_model and has_field(obj, 'proposed_modification') and obj.proposed_modification or not obj_is_model and 'proposed_modification' in obj and obj['proposed_modification']:
@@ -2356,7 +2395,9 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                     prnt('find chain err 1',str(e))
 
             if obj_is_model and has_field(obj, 'commitChain') and obj.commitChain or not obj_is_model and 'commitChain' in obj and obj['commitChain']:
+                prnt('p11')
                 if obj_is_model and is_id(obj.commitChain):
+                    prnt('p11a')
                     commit_chain = Blockchain.objects.filter(Q(id=obj.commitChain)|Q(genesisId=obj.commitChain)).only('id','genesisName','genesisId').first()
                     from network.models import reward_models
                     if not commit_chain:
@@ -2366,13 +2407,18 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                             rewardsData = {}
                             if any(i for i in reward_models if obj.commitChain.startswith(i)):
                                 # from utils.utils import get_plugin
-                                rewardsData = {'regionId':obj.Region_obj, 'pluginId':get_plugin(obj.id, id=True)}
+                                rewardsData = {'regionId':obj.Region_obj.id, 'pluginId':get_plugin(obj.id, id=True)}
                             commit_chain = Blockchain(genesisId=obj.commitChain, rewardsData=rewardsData)
                         commit_chain.save()
                     elif not commit_chain.rewardsData and any(i for i in reward_models if obj.commitChain.startswith(i)):
-                        commit_chain.rewardsData = {'regionId':obj.Region_obj, 'pluginId':get_plugin(obj.id, id=True)}
+                        prnt('xp3')
+                        commit_chain.rewardsData = {'regionId':obj.Region_obj.id, 'pluginId':get_plugin(obj.id, id=True)}
                         commit_chain.save()
+                    elif not commit_chain.rewardsData:
+                        prnt('xp2',obj.commitChain,any(i for i in reward_models if obj.commitChain.startswith(i)))
+
                 elif not obj_is_model and is_id(obj['commitChain']):
+                    prnt('p11b')
                     commit_chain = Blockchain.objects.filter(Q(id=obj['commitChain'])|Q(genesisId=obj['commitChain'])).only('id','genesisName','genesisId').first()
                     from network.models import reward_models
                     if not commit_chain:
@@ -2387,10 +2433,16 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                             commit_chain = Blockchain(genesisId=obj['commitChain'], rewardsData=rewardsData)
                         commit_chain.save()
                     elif not commit_chain.rewardsData and any(i for i in reward_models if obj['commitChain'].startswith(i)):
+                        prnt('xp4')
                         commit_chain.rewardsData = {'regionId':obj['Region_obj'], 'pluginId':get_plugin(obj['id'], id=True)}
                         commit_chain.save()
+                    elif not commit_chain.rewardsData:
+                        prnt('xp1',any(i for i in reward_models if obj['commitChain'].startswith(i)))
+
                 else:
+                    prnt('p11c')
                     if obj_is_model and obj.commitChain in universalChains:
+                        prnt('xp5')
                         commit_chain = Blockchain.objects.filter(genesisName=obj.commitChain).only('id','genesisName','genesisId').first()
                     if not commit_chain:
                         if obj_is_model and obj.commitChain == 'Plugin':
@@ -2402,6 +2454,7 @@ def find_or_create_chain_from_object(obj, recheck_chain=False):
                             if plugin:
                                 commit_chain = Blockchain.objects.filter(genesisId=plugin.id).only('id','genesisName','genesisId').first()
                         if not commit_chain:
+                            prnt('p11d')
                             try:
                                 if obj_is_model:
                                     chainGenObj = getattr(obj, f"{obj.commitChain}_obj")
@@ -2756,7 +2809,15 @@ def initial_save(item, share=False, length=None):
             pointer = get_dynamic_model(item.pointerId, id=item.pointerId)
         if pointer:
             network_chain, pointer, commit_chain = find_or_create_chain_from_object(pointer)
-            if network_chain:
+            
+            if has_field(item, 'commitChain'):
+                if commit_chain:
+                    item.commitChain = commit_chain.genesisId
+                if network_chain:
+                    item.networkChain = network_chain.genesisId
+            elif commit_chain:
+                item.networkChain = commit_chain.genesisId
+            else:
                 item.networkChain = network_chain.genesisId
         else:
             network_chain, item, commit_chain = find_or_create_chain_from_object(item)

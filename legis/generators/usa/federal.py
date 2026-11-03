@@ -118,11 +118,11 @@ functions = { # in gov_region timezone
     # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [12,13,14], 'cmds' : ['get_house_debates_us','get_senate_debates_us']},
     # ],
     "2026-01-24" : [
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5,6], 'hour' : [19], 'cmds' : ['get_bills_us'] },
+    # # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5,6], 'hour' : ['x'], 'cmds' : ['get_senate_debates_us'] },
     {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 8, 10, 12, 14, 16, 18, 22], 'cmds' : ['get_bills_us'] },
-    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [1, 5, 11, 17, 21], 'cmds' : ['get_house_debates_us', 'get_house_rollcalls_us']},
-    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [3, 7, 19, 23], 'cmds' : ['get_senate_debates_us', 'get_senate_rollcalls_us']},
-    # {'date' : ['x'], 'dayOfWeek' : [1], 'hour' : [14], 'cmds' : ['get_persons_us']},
+    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [1, 5, 11, 17, 21], 'cmds' : ['get_house_debates_us', 'get_house_rollcalls_us']},
+    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [3, 7, 19, 23], 'cmds' : ['get_senate_debates_us', 'get_senate_rollcalls_us']},
+    {'date' : ['x'], 'dayOfWeek' : [1], 'hour' : [14], 'cmds' : ['get_persons_us']},
     ],
 }
 
@@ -1700,7 +1700,7 @@ def add_bill(url=None, log=None, update_dt=None, driver=None, driver_service=Non
                     if person:
                         if person != bill.Person_obj:
                             # personU = person.Update_obj
-                            personU = Update.objects.filter(pointerId=person.id, Validator_obj__is_valid=True).order_by('-DateTime').first()
+                            personU = Update.objects.filter(pointerId=person.id, Validator_obj__is_valid=True).order_by('-DateTime','-created').first()
                             prnt('personU',personU)
                             if not any(p['obj_id'] == person.id for p in billU.data['cosponsors']):
                                 sponsor_dic = {'obj_id':person.id, 'fullName':personU.data['FullName']}
@@ -3645,8 +3645,24 @@ def add_senate_rollcall(country, gov, log, url):
     if not xml.startswith('https://www.senate.gov'):
         xml = f'https://www.senate.gov{xml}'
     prnt(xml)
-    r = requests.get(xml)
-    root = ET.fromstring(r.content)
+    try:
+        r = requests.get(xml)
+        root = ET.fromstring(r.content)
+    except:
+        time.sleep(1.5)
+        driver = open_browser(xml)
+        prnt('loaded')
+        time.sleep(3)
+        xml_container = driver.find_element(By.ID, 'webkit-xml-viewer-source-xml')
+        xml_text = xml_container.get_attribute('innerHTML')
+        close_browser(driver)
+        root = ET.fromstring(xml_text)
+        
+        # element_present = EC.presence_of_element_located((By.XPATH, '/html/body/div[3]'))
+        # WebDriverWait(driver, 10).until(element_present)
+        # soup = BeautifulSoup(driver.page_source, 'html.parser')
+        # close_browser(driver)
+        # root = ET.fromstring(soup)
 
     congress = root.find('congress').text
     session = root.find('session').text

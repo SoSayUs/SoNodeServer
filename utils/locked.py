@@ -69,7 +69,7 @@ def process_gathered_data(received_data, override_completed=False):
     self_node = get_self_node()
     if not DataPacket.objects.filter(jobId=dp.jobId, task=dp.task, func__contains=f"job:{func}", Node_obj=self_node).exists():
         prnt('waiting for self')
-        if dp.added_to_node <= now_utc() - datetime.timedelta(minutes=30):
+        if dp.added_to_node <= now_utc() - datetime.timedelta(minutes=25):
             prnt('bypass for time')
         else: 
             return
@@ -83,6 +83,7 @@ def process_gathered_data(received_data, override_completed=False):
     region_name = 'unknown'
     scrape_job = {}
     return_dp = None
+    is_intelli_func = False
     q = '00'
     w = '00'
     if received_data and received_data['type'] == 'for_validation':
@@ -91,7 +92,7 @@ def process_gathered_data(received_data, override_completed=False):
         from legis.utils import get_scrape_duty
         from network.models import Validator, Blockchain, script_created_modifiable_models,max_validation_window, _OperationsChain_genesisId, intelligence_funcs
         from utils.models import request_items, super_sync
-        from utils.utils import logError, logEvent, value_is_none, testing, check_missing_data, prntDebugn, prntDebug, is_locked, has_field, has_method, convert_to_datetime, sigData_to_hash,get_or_create_model,get_model,exists_in_worker,create_dynamic_model,dynamic_bulk_update,seperate_by_type,get_model_prefix,debugging, get_dynamic_model, rgetattr
+        from utils.utils import logError, logEvent, value_is_none, testing, value_match, prntDebugn, prntDebug, is_locked, has_field, has_method, convert_to_datetime, sigData_to_hash,get_or_create_model,get_model,exists_in_worker,create_dynamic_model,dynamic_bulk_update,seperate_by_type,get_model_prefix,debugging, get_dynamic_model, rgetattr
         
         gov = None
         gov_level = received_data['gov_level']
@@ -101,10 +102,11 @@ def process_gathered_data(received_data, override_completed=False):
         region = Region.objects.filter(id=region_id).first()
 
         blockchain = Blockchain.objects.filter(genesisId=region_id).only('id','genesisType','genesisId').first()
+        networkChain = received_data.get('networkChain', blockchain.genesisId)
         v_id = hash_obj_id('Validator', specific_data=f"{dt_to_string(job_dt)}-{func}-{region.id}-{dp.task}-{self_node.id}-{sender_node.id}")
         validator = Validator.objects.filter(id=v_id, is_valid=True).order_by('-created').first()
         if not validator:
-            validator = Validator(id=v_id, networkChain=blockchain.genesisId, jobId=job_id, CreatorNode_obj=self_node, created=job_dt, validatorType='scraper_comparison', func=func, is_valid=True)
+            validator = Validator(id=v_id, networkChain=networkChain, jobId=job_id, CreatorNode_obj=self_node, created=job_dt, validatorType='scraper_comparison', func=func, is_valid=True)
             validator.save(skip_check=True)
             validator.boot()
         prnt('scrape val created',validator.id, dt_to_string(now_utc()))
@@ -123,7 +125,8 @@ def process_gathered_data(received_data, override_completed=False):
 
         # check that Update.pointerType is included in approved_models
         # perhaps created time should match job_dt?
-
+        if func in intelligence_funcs:
+            is_intelli_func = True
         for z in content:
             if z['objType'] not in exceptions and z['objType'] not in model_types:
                 model_types.append(z['objType'])
@@ -131,12 +134,12 @@ def process_gathered_data(received_data, override_completed=False):
         if bypass and testing():
             scraper_list = [{'function_name':func, 'region_id':region_id, 'scraping_order':[sender_node.id], 'validators':[self_node.id]}]
             approved_funcs = [func]
-        elif func in intelligence_funcs:
+        elif is_intelli_func:
             scrapers, validators = get_node_assignment(chainId=region_id, func=func, dt=job_dt, plugin_id=plugin_id, nodeType='intelligence')
             approved_funcs = []
             if self_node.id in scrapers or self_node.id in validators:
                 approved_funcs = [func]
-            scraper_list = [{'function_name':func, 'region_id':region_id, 'scraping_order':[sender_node.id], 'validators':[validators[0]]}]
+            scraper_list = [{'function_name':func, 'region_id':region_id, 'scraping_order':scrapers, 'validators':validators}]
         else:
             scraper_list, approved_models = get_scrape_duty(gov=gov, receivedDt=job_dt, region=region, gov_level=gov_level, func=func)
             approved_funcs = []
@@ -161,7 +164,7 @@ def process_gathered_data(received_data, override_completed=False):
                             prnt('waitng for local job')
                             for received_obj in content:
                                 obj = get_dynamic_model(received_obj['objType'], id=received_obj['id'])
-                                if obj and obj.Validator_obj.is_valid:
+                                if obj and obj.Validator_obj and obj.Validator_obj.is_valid:
                                     if not return_dp:
                                         return_dp = DataPacket.objects.filter(networkChain=received_obj['CreatorNode_obj'], chainName=received_obj['CreatorNode_obj'], func='share', Node_obj=self_node).first()
                                         if not return_dp:
@@ -199,7 +202,7 @@ def process_gathered_data(received_data, override_completed=False):
                                     w += 'c'
                                     if any(n == received_obj['CreatorNode_obj'] for n in scrape_job['scraping_order']) and received_obj['id'] not in ['None', None, 'Val:N']:
                                         w += 'd'
-                                        w += 'e'
+                                        # w += 'e'
                                         proceed = True
                                         if received_obj['func'] != func:
                                             w += 'f1'
@@ -213,93 +216,114 @@ def process_gathered_data(received_data, override_completed=False):
                                         if proceed and verify_obj_to_data(None, received_obj, user=sender_node.User_obj):
                                             w += 'g'
 
+                                            local_obj = {}
                                             if any(i['id'] == received_obj['id'] for i in local_data):
-                                                local_obj = {}
                                                 for i in local_data:
                                                     if i['id'] == received_obj['id']:
                                                         local_obj = i
-                                                if local_obj['Validator_obj']:
-                                                    obj = get_dynamic_model(local_obj['objType'], id=local_obj['id'])
-                                                    if obj.Validator_obj.is_valid:
-                                                        if not return_dp:
-                                                            return_dp = DataPacket(chainId=received_obj['CreatorNode_obj'], chainName=received_obj['CreatorNode_obj'], func='share', Node_obj=self_node)
-                                                            return_dp.save()
-                                                        return_dp.add_item_to_share(obj)
-                                                if proceed and convert_to_datetime(received_obj['created']) < now_utc() - datetime.timedelta(days=max_validation_window):
+                                            if not local_obj:
+                                                w += 'h'
+                                                proceed = False
+                                                obj = get_dynamic_model(received_obj['objType'], id=received_obj['id'])
+                                                if obj:
+                                                    local_obj = convert_to_dict(obj)
+                                                    proceed = True
+                                            if local_obj and local_obj['Validator_obj']:
+                                                obj = get_dynamic_model(local_obj['objType'], id=local_obj['id'])
+                                                if obj and obj.Validator_obj and obj.Validator_obj.is_valid:
                                                     proceed = False
-                                                    w += 'c'
-                                                prntDebug('proceed',proceed)
-                                                if proceed:
-                                                    w += '6'
-                                                    mismatch = False
-                                                    bypass_fields = ['lastUpdate','CreatorNode_obj','created','signed','func'] + skip_sign_fields
-                                                    for field in received_obj:
-                                                        local_attr = None
-                                                        received_attr = None
-                                                        try:
-                                                            local_attr = local_obj[field]
-                                                            local_attr = dt_to_string(local_attr)
-                                                        except Exception as e:
-                                                            pass
-                                                        try:
-                                                            received_attr = received_obj[field]
-                                                            received_attr = dt_to_string(received_attr)
-                                                        except Exception as e:
-                                                            pass
-                                                        if field == 'prevVersion':
-                                                            if received_attr:
-                                                                prev_ver = get_dynamic_model(received_attr, id=received_attr)
-                                                                if not prev_ver:
-                                                                    request_items(requested_items=[received_attr], nodes=[received_obj['CreatorNode_obj']], downstream_worker=False)
-                                                            elif local_attr:
-                                                                # check if latest valid version, if not send
-                                                                if not return_dp:
-                                                                    return_dp = DataPacket(chainId=received_obj['CreatorNode_obj'], chainName=received_obj['CreatorNode_obj'], func='share', Node_obj=self_node)
-                                                                    return_dp.save()
-                                                                return_dp.add_item_to_share(local_attr)
-                                                        if field not in bypass_fields and local_attr and received_attr and sort_for_sign(local_attr) != sort_for_sign(received_attr):
-                                                            prnt('mismatch break!','field:',field,'\n-database_attr:',sort_for_sign(local_attr, print_data=False),'\n-received_attr:',sort_for_sign(received_attr, print_data=False))
-                                                            mismatch = True
-                                                            break
-                                                        elif value_is_none(local_attr) and not value_is_none(received_attr) or value_is_none(received_attr) and not value_is_none(local_attr):
-                                                            prnt('mismatch break2!','field:',field,'local_attr:',local_attr,'received_attr:',received_attr)
-                                                            mismatch = True
-                                                            break
-                                                    if mismatch:
-                                                        w += '7'
-                                                        def compare_texts(text1, text2, context=10):
-                                                            min_length = min(len(text1), len(text2))
-                                                            result = ''
-                                                            count = 0
-                                                            for y in range(min_length):
-                                                                if text1[i] != text2[i]:
-                                                                    if count < 20:
-                                                                        start = max(0, y - context)
-                                                                        end = min(len(text1), len(text2), y + context + 1)
-                                                                        snippet1 = text1[start:end]
-                                                                        snippet2 = text2[start:end]
-                                                                        
-                                                                        result += f"pos:{y}:Text1:...{snippet1}...Text2: ...{snippet2}..."
-                                                                    count += 1
-                                                            result = f'count:{count}: {result}'
-                                                            if len(text1) != len(text2):
-                                                                longer_text, shorter_text = (text1, text2) if len(text1) > len(text2) else (text2, text1)
-                                                                result += f"Extra characters in longer text: {longer_text[len(shorter_text):]}"
-                                                            return result
-                                                        prnt('---items do not match', received_obj)
-                                                        mismatches.append(received_obj['id'])
-                                                        err_data = {'id':received_obj['id'],'now':dt_to_string(now_utc()),'mismatch_field':field, 'z-valid':verify_obj_to_data(None, received_obj, user=sender_node.User_obj), 'obj-valid':verify_obj_to_data(None, local_obj, user=sender_node.User_obj),'field_comparison': compare_texts(str(sort_for_sign(local_attr)),str(sort_for_sign(received_attr)))}
+                                                    w += 'i'
+                                                    if not return_dp:
+                                                        return_dp = DataPacket(chainId=received_obj['CreatorNode_obj'], chainName=received_obj['CreatorNode_obj'], func='share', Node_obj=self_node)
+                                                        return_dp.save()
+                                                    return_dp.add_item_to_share(obj)
+                                                # elif func in intelligence_funcs:
+                                                #     self_dp = DataPacket.objects.filter(data__contains=obj.id, func__contains=f"{func}", Node_obj=self_node).first()
+                                                #     if self_dp:
+                                                #         queue = django_rq.get_queue('low')
+                                                #         if not exists_in_worker('process_gathered_data', queue=queue, id=dp.id):
+                                                #             prnt('add to low worker')
+                                                #             queue.enqueue(process_gathered_data, dp.id, job_timeout=600, result_ttl=3600)
+                                            if proceed and convert_to_datetime(received_obj['created']) < now_utc() - datetime.timedelta(days=max_validation_window):
+                                                proceed = False
+                                                w += 'j'
+                                            if not local_obj:
+                                                proceed = False
+                                                w += 'k'
+                                            prntDebug('proceed',proceed)
+                                            if proceed:
+                                                w += '6'
+                                                mismatch = False
+                                                bypass_fields = ['lastUpdate','CreatorNode_obj','created','signed','func','validatorNodeId'] + skip_sign_fields
+                                                for field in received_obj:
+                                                    local_attr = None
+                                                    received_attr = None
+                                                    try:
+                                                        local_attr = local_obj[field]
+                                                        local_attr = dt_to_string(local_attr)
+                                                    except Exception as e:
+                                                        pass
+                                                    try:
+                                                        received_attr = received_obj[field]
+                                                        received_attr = dt_to_string(received_attr)
+                                                    except Exception as e:
+                                                        pass
+                                                    if field == 'prevVersion':
+                                                        if received_attr:
+                                                            prev_ver = get_dynamic_model(received_attr, id=received_attr)
+                                                            if not prev_ver:
+                                                                request_items(requested_items=[received_attr], nodes=[received_obj['CreatorNode_obj']], downstream_worker=False)
+                                                        elif local_attr:
+                                                            # check if latest valid version, if not send
+                                                            if not return_dp:
+                                                                return_dp = DataPacket(chainId=received_obj['CreatorNode_obj'], chainName=received_obj['CreatorNode_obj'], func='share', Node_obj=self_node)
+                                                                return_dp.save()
+                                                            return_dp.add_item_to_share(local_attr)
+                                                    if field not in bypass_fields and local_attr and received_attr and sort_for_sign(local_attr) != sort_for_sign(received_attr) and (not is_intelli_func or value_match(local_attr, received_attr) < 0.92):
+                                                        prnt('mismatch break!','field:',field,'\n-database_attr:',sort_for_sign(local_attr, print_data=False),'\n-received_attr:',sort_for_sign(received_attr, print_data=False))
+                                                        mismatch = True
+                                                        break
+                                                    elif field not in bypass_fields and (value_is_none(local_attr) and not value_is_none(received_attr) or value_is_none(received_attr) and not value_is_none(local_attr)):
+                                                        prnt('mismatch break2!','field:',field,'local_attr:',local_attr,'received_attr:',received_attr)
+                                                        mismatch = True
+                                                        break
+                                                if mismatch:
+                                                    w += '7'
+                                                    def compare_texts(text1, text2, context=10):
+                                                        min_length = min(len(text1), len(text2))
+                                                        result = ''
+                                                        count = 0
+                                                        for y in range(min_length):
+                                                            if text1[i] != text2[i]:
+                                                                if count < 20:
+                                                                    start = max(0, y - context)
+                                                                    end = min(len(text1), len(text2), y + context + 1)
+                                                                    snippet1 = text1[start:end]
+                                                                    snippet2 = text2[start:end]
+                                                                    
+                                                                    result += f"pos:{y}:Text1:...{snippet1}...Text2: ...{snippet2}..."
+                                                                count += 1
+                                                        result = f'count:{count}: {result}'
+                                                        if len(text1) != len(text2):
+                                                            longer_text, shorter_text = (text1, text2) if len(text1) > len(text2) else (text2, text1)
+                                                            result += f"Extra characters in longer text: {longer_text[len(shorter_text):]}"
+                                                        return result
+                                                    prnt('---items do not match', received_obj)
+                                                    mismatches.append(received_obj['id'])
+                                                    err_data = {'id':received_obj['id'],'now':dt_to_string(now_utc()),'mismatch_field':field, 'z-valid':verify_obj_to_data(None, received_obj, user=sender_node.User_obj), 'obj-valid':verify_obj_to_data(None, local_obj, user=sender_node.User_obj),'field_comparison': compare_texts(str(sort_for_sign(local_attr)),str(sort_for_sign(received_attr)))}
 
-                                                    else:
-                                                        w += '8'
-                                                        prnt('---items match', received_obj)
-                                                        matches += 1
-                                                        w += 'a'
-                                                        prnt('get_signing_data:',get_signing_data(received_obj, print_data=True))
-                                                        obj_hash = sigData_to_hash(received_obj, exclude_fields=['CreatorNode_obj', 'Validator_obj', 'signed'])
-                                                        validator.data[received_obj['id']] = obj_hash
-                                                        matched_idens.append(received_obj['id'])
-                                                        w += 'b'
+                                                else:
+                                                    w += '8'
+                                                    prnt('---items match', received_obj)
+                                                    matches += 1
+                                                    w += 'a'
+                                                    prnt('get_signing_data:',get_signing_data(received_obj, print_data=True))
+                                                    obj_hash = sigData_to_hash(received_obj, exclude_fields=['CreatorNode_obj', 'Validator_obj', 'signed'])
+                                                    if is_intelli_func and value_match(local_attr, received_attr) < 1:
+                                                        obj_hash = 'intelliMatch'
+                                                    validator.data[received_obj['id']] = obj_hash
+                                                    matched_idens.append(received_obj['id'])
+                                                    w += 'b'
                                             else:
                                                 w += 'f12'
                                                 invalid_idens.append(received_obj['id'])
@@ -422,7 +446,7 @@ def process_posts_for_validating(received_json, override_completed=False):
         from legis.utils import get_scrape_duty
         from network.models import Validator, Blockchain, DataPacket, Plugin, script_created_modifiable_models,max_validation_window, _OperationsChain_genesisId, intelligence_funcs
         # from utils.models import logError, logEvent,request_items, get_model_prefix, get_self_node, get_node, find_or_create_chain_from_object, get_latest_dataPacket, data_sort_priority, testing, check_missing_data, prntDebugn, prntDebug, is_locked, has_field, has_method, convert_to_datetime, sigData_to_hash,get_or_create_model,super_sync,get_model,exists_in_worker,create_dynamic_model,dynamic_bulk_update,seperate_by_type,get_model_prefix,debugging,string_to_dt, get_dynamic_model, rgetattr, value_is_none, get_objType
-        from utils.utils import logError, logEvent, get_model_prefix, get_self_node, get_node, find_or_create_chain_from_object, get_latest_dataPacket, testing, check_missing_data, prntDebugn, prntDebug, is_locked, has_field, has_method, convert_to_datetime, sigData_to_hash,get_or_create_model,get_model,exists_in_worker,create_dynamic_model,dynamic_bulk_update,seperate_by_type,get_model_prefix,debugging,string_to_dt, get_dynamic_model, rgetattr, value_is_none, get_objType
+        from utils.utils import logError, logEvent, get_model_prefix, get_self_node, get_node, find_or_create_chain_from_object, get_latest_dataPacket, testing, check_missing_data, prntDebugn, prntDebug, is_locked, has_field, has_method, convert_to_datetime, sigData_to_hash,get_or_create_model,get_model,exists_in_worker,create_dynamic_model,dynamic_bulk_update,seperate_by_type,get_model_prefix,debugging,string_to_dt, get_dynamic_model, rgetattr, value_is_none, get_objType, value_match
         from utils.models import  super_sync, data_sort_priority, request_items
         validator = None
         invalid_validator = None
@@ -440,6 +464,7 @@ def process_posts_for_validating(received_json, override_completed=False):
         dataPacket = None
         plugin_id = None
         gov = None
+        is_intelli_func = False
 
         gov_level = received_json['gov_level']
         region_name = received_json['region_name']
@@ -463,12 +488,14 @@ def process_posts_for_validating(received_json, override_completed=False):
         previously_validated = []
         validated_idens = []
         matched_idens = []
+        matched_vals = []
         model_types = []
         exceptions = ['Update'] # these do not need to be stated in scraper approved_models
 
         # check that Update.pointerType is included in approved_models
         # perhaps created time should match job_dt?
-
+        if func in intelligence_funcs:
+            is_intelli_func = True
         for i in sorted_content:
             if i['objType'] not in exceptions and i['objType'] not in model_types:
                 # prntDebug('--accepted',i)
@@ -479,7 +506,7 @@ def process_posts_for_validating(received_json, override_completed=False):
             prnt('p1')
             scraper_list = [{'function_name':func, 'region_id':region_id, 'scraping_order':[sender_node.id], 'validators':[self_node.id]}]
             approved_funcs = [func]
-        elif func in intelligence_funcs:
+        elif is_intelli_func:
             prnt('p2')
             scrapers, validators = get_node_assignment(chainId=region_id, func=func, dt=job_dt, plugin_id=plugin_id, nodeType='intelligence')
             prnt('scrapers',scrapers)
@@ -489,7 +516,7 @@ def process_posts_for_validating(received_json, override_completed=False):
             if self_node.id in scrapers or self_node.id in validators:
                 prnt('p2a')
                 approved_funcs = [func]
-            scraper_list = [{'function_name':func, 'region_id':region_id, 'scraping_order':[sender_node.id], 'validators':[validators[0]]}]
+            scraper_list = [{'function_name':func, 'region_id':region_id, 'scraping_order':scrapers, 'validators':validators}]
         else:
             prnt('p3')
             scraper_list, approved_models = get_scrape_duty(gov=gov, receivedDt=job_dt, region=region, gov_level=gov_level, func=func)
@@ -534,7 +561,7 @@ def process_posts_for_validating(received_json, override_completed=False):
                                                     val_obj = get_or_create_model(received_validator['objType'], id=received_validator['id'])
                                                     prnt('created val_obj',val_obj)
                                                     val_obj, sigs = super_sync(val_obj, received_validator, do_save=True)
-                                                val_objs = Validator.objects.filter(jobId=job_id, CreatorNode_obj__in=i['scraping_order'])
+                                                val_objs = Validator.objects.filter(jobId=job_id, CreatorNode_obj__in=i['scraping_order']).exclude(signed={})
                                                 prnt('len val_objs',len(val_objs))
                                                 q += 'j'
                             q += '3'
@@ -567,166 +594,231 @@ def process_posts_for_validating(received_json, override_completed=False):
                                             if proceed and verify_obj_to_data(None, z, user=sender_node.User_obj):
                                                 w += 'g'
                                                 exclude = {}
-                                                obj = get_dynamic_model(z['objType'], exclude=exclude, id=z['id'])
-                                                prnt('obj',obj)
-                                                if obj:
-                                                    prnt('dict:',convert_to_dict(obj))
+                                                # obj = get_dynamic_model(z['objType'], exclude=exclude, id=z['id'])
+                                                # prnt('obj',obj)
+                                                # if obj:
+                                                #     prnt('dict:',convert_to_dict(obj))
                                                 
-                                                if obj and obj.Validator_obj and obj.Validator_obj.is_valid:
-                                                    if not return_dp:
-                                                        return_dp = DataPacket(chainId=z['CreatorNode_obj'], chainName=z['CreatorNode_obj'], func='share', Node_obj=self_node)
-                                                        return_dp.save()
-                                                    return_dp.add_item_to_share(obj)
-                                                if obj and obj.signed:
-                                                    w += '4'
-                                                    if not network_chain:
-                                                        network_chain, obj, commit_chain = find_or_create_chain_from_object(obj)
-                                                        dataPacket = get_latest_dataPacket(obj)
-                                                        plugin_id = Plugin.objects.filter(app_name=obj._meta.app_label).values('id').first()['id']
-                                                    if obj and has_field(obj, 'Validator_obj') and (not obj.Validator_obj or not obj.Validator_obj.signed or not obj.Validator_obj.is_valid):
-                                                        w += 'a'
-                                                        if obj.CreatorNode_obj.id not in i['scraping_order'] or (self_is_validator and obj.validatorNodeId != self_node.id) or obj.created != string_to_dt(z['created']):
-                                                            from utils.utils import superDelete
-                                                            superDelete(obj) # obj is from different failed scrape_job
-                                                            obj = None
-                                                            w += 'b'
-                                                        else:
-                                                            w += 'c'
-                                                            if not validator and len(val_objs) >= required_matches:
-                                                                w += 'd'
-                                                                validator = Validator(networkChain=network_chain.genesisId, jobId=job_id, CreatorNode_obj=self_node, created=job_dt, validatorType='scraper', func=func, is_valid=True)
-                                                                validator.save(skip_check=True)
-                                                                prnt('process posts val created 1',validator.id, dt_to_string(now_utc()))
-                                                                if validator and is_locked(validator):
-                                                                    w += 'e'
-                                                                    for e in sorted_content:
-                                                                        try:
-                                                                            if e['id'] in validator.data and e['id'] not in matched_idens:
-                                                                                matched_idens.append(e['id'])
-                                                                        except:
-                                                                            pass
-                                                                    break
-                                                    elif obj and has_field(obj, 'Validator_obj') and obj.Validator_obj and obj.Validator_obj.signed and obj.Validator_obj.is_valid:
-                                                        w += 'g'
-                                                        previously_validated.append(z['id'])
+                                                # if obj and obj.Validator_obj and obj.Validator_obj.is_valid:
+                                                #     if not return_dp:
+                                                #         return_dp = DataPacket(chainId=z['CreatorNode_obj'], chainName=z['CreatorNode_obj'], func='share', Node_obj=self_node)
+                                                #         return_dp.save()
+                                                #     return_dp.add_item_to_share(obj)
+                                                # if obj and obj.signed:
+                                                    # w += '4'
+                                                    # # if not network_chain:
+                                                    # #     network_chain, obj, commit_chain = find_or_create_chain_from_object(obj)
+                                                    # #     dataPacket = get_latest_dataPacket(obj)
+                                                    # #     plugin_id = Plugin.objects.filter(app_name=obj._meta.app_label).values('id').first()['id']
+                                                    # if obj and has_field(obj, 'Validator_obj') and (not obj.Validator_obj or not obj.Validator_obj.signed or not obj.Validator_obj.is_valid):
+                                                    #     w += 'a'
+                                                    #     if obj.CreatorNode_obj.id not in i['scraping_order'] or (self_is_validator and obj.validatorNodeId != self_node.id) or obj.created != string_to_dt(z['created']):
+                                                    #         from utils.utils import superDelete
+                                                    #         superDelete(obj) # obj is from different failed scrape_job
+                                                    #         obj = None
+                                                    #         w += 'b'
+                                                    #     else:
+                                                    #         w += 'c'
+                                                    #         # if not validator and len(val_objs) >= required_matches:
+                                                    #         #     w += 'd'
+                                                    #         #     validator = Validator(networkChain=network_chain.genesisId, jobId=job_id, CreatorNode_obj=self_node, created=job_dt, validatorType='scraper', func=func, is_valid=True)
+                                                    #         #     validator.save(skip_check=True)
+                                                    #         #     prnt('process posts val created 1',validator.id, dt_to_string(now_utc()))
+                                                    #         #     if validator and is_locked(validator):
+                                                    #         #         w += 'e'
+                                                    #         #         for e in sorted_content:
+                                                    #         #             try:
+                                                    #         #                 if e['id'] in validator.data and e['id'] not in matched_idens:
+                                                    #         #                     matched_idens.append(e['id'])
+                                                    #         #             except:
+                                                    #         #                 pass
+                                                    #         #         break
+                                                    # elif obj and has_field(obj, 'Validator_obj') and obj.Validator_obj and obj.Validator_obj.signed and obj.Validator_obj.is_valid:
+                                                    #     w += 'g'
+                                                    #     previously_validated.append(z['id'])
                                                         
-                                                if obj and obj.signed and has_field(obj, 'Validator_obj') and (not obj.Validator_obj or not obj.Validator_obj.signed or not obj.Validator_obj.is_valid):
-                                                    w += '5'
-                                                    if has_field(obj, 'Validator_obj') and obj.Validator_obj and obj.id in obj.Validator_obj.data and obj.Validator_obj.data[obj.id] == sigData_to_hash(obj) and obj.Validator_obj.dt_appropriate(obj):
-                                                        skipped_items.append(obj.id)
+                                                # if obj and obj.signed and has_field(obj, 'Validator_obj') and (not obj.Validator_obj or not obj.Validator_obj.signed or not obj.Validator_obj.is_valid):
+                                                #     w += '5'
+                                                #     if has_field(obj, 'Validator_obj') and obj.Validator_obj and obj.id in obj.Validator_obj.data and obj.Validator_obj.data[obj.id] == sigData_to_hash(obj) and obj.Validator_obj.dt_appropriate(obj):
+                                                #         skipped_items.append(obj.id)
+                                                    # else:
+                                                proceed = True
+                                                # if has_method(obj, 'required_for_validation'):
+                                                #     for c in obj.required_for_validation():
+                                                #         if '.' in c:
+                                                #             attr = rgetattr(obj, c)
+                                                #             prnt('attr',attr)
+                                                #             if not attr:
+                                                #                 proceed = False
+                                                #                 w += 'a'
+                                                #                 prnt('failed require for validation:',c,z)
+                                                #                 break
+                                                #         elif c not in z or not z[c]:
+                                                #             proceed = False
+                                                #             w += 'b'
+                                                #             prnt('failed require for validation:',c,z)
+                                                #             break
+                                                if proceed and convert_to_datetime(z['created']) < now_utc() - datetime.timedelta(days=max_validation_window):
+                                                    proceed = False
+                                                    w += 'c'
+                                                prntDebug('proceed',proceed)
+                                                if proceed:
+                                                    w += '6'
+                                                    # mismatch = False
+                                                    # fields = obj._meta.fields
+                                                    # bypass_fields = ['lastUpdate','CreatorNode_obj','created','signed','func'] + skip_sign_fields
+                                                    # db_obj = convert_to_dict(obj)
+                                                    # for f in fields:
+                                                    #     attr = None
+                                                    #     z_field = None
+                                                    #     try:
+                                                    #         attr = db_obj[f.name]
+                                                    #         attr = dt_to_string(attr)
+                                                    #     except Exception as e:
+                                                    #         pass
+                                                    #     try:
+                                                    #         z_field = z[f.name]
+                                                    #         z_field = dt_to_string(z_field)
+                                                    #     except Exception as e:
+                                                    #         pass
+                                                    #     if f.name == 'prevVersion':
+                                                    #         if z_field:
+                                                    #             prev_ver = get_dynamic_model(z_field, id=z_field)
+                                                    #             if not prev_ver:
+                                                    #                 request_items(requested_items=[z_field], nodes=[z['CreatorNode_obj']], downstream_worker=False)
+                                                    #         elif attr:
+                                                    #             # check if latest valid version, if not send
+                                                    #             # latest_ver = get_model(obj._meta.object_name).objects.exclude(Validator_obj=None).values('id').order_by('-created').first()
+                                                    #             # if latest_ver and latest_ver['id'] != z_field:
+                                                    #             if not return_dp:
+                                                    #                 return_dp = DataPacket.objects.filter(network=z['CreatorNode_obj'], chainName=z['CreatorNode_obj'], func='share', Node_obj=self_node)
+                                                    #                 if not return_dp:
+                                                    #                     return_dp = DataPacket(network=z['CreatorNode_obj'], chainName=z['CreatorNode_obj'], func='share', Node_obj=self_node)
+                                                    #                     return_dp.save()
+                                                    #             return_dp.add_item_to_share(attr)
+                                                    #     if f.name not in bypass_fields and attr and z_field and sort_for_sign(attr) != sort_for_sign(z_field) and (not is_intelli_func or value_match(attr, z_field) < 0.92):
+                                                    #         prnt('mismatch break!','field:',f.name,'\n-database_attr:',sort_for_sign(attr, print_data=False),'\n-received_attr:',sort_for_sign(z_field, print_data=False))
+                                                    #         mismatch = True
+                                                    #         break
+                                                    #     elif value_is_none(attr) and not value_is_none(z_field) or value_is_none(z_field) and not value_is_none(attr):
+                                                    #         prnt('mismatch break2!','field:',f,'attr:',attr,'z_field:',z_field)
+                                                    #         mismatch = True
+                                                    #         break
+                                                    # if mismatch:
+                                                    #     w += '7'
+                                                    #     def compare_texts(text1, text2, context=10):
+                                                    #         # print('compare_texts')
+                                                    #         min_length = min(len(text1), len(text2))
+                                                    #         result = ''
+                                                    #         count = 0
+                                                    #         for i in range(min_length):
+                                                    #             if text1[i] != text2[i]:
+                                                    #                 if count < 20:
+                                                    #                     start = max(0, i - context)
+                                                    #                     end = min(len(text1), len(text2), i + context + 1)
+                                                    #                     snippet1 = text1[start:end]
+                                                    #                     snippet2 = text2[start:end]
+                                                                        
+                                                    #                     result += f"pos:{i}:Text1:...{snippet1}...Text2: ...{snippet2}..."
+                                                    #                 count += 1
+                                                    #         result = f'count:{count}: {result}'
+                                                    #         if len(text1) != len(text2):
+                                                    #             # prnt("Texts have different lengths.")
+                                                    #             longer_text, shorter_text = (text1, text2) if len(text1) > len(text2) else (text2, text1)
+                                                    #             result += f"Extra characters in longer text: {longer_text[len(shorter_text):]}"
+                                                    #         return result
+                                                    #     prnt('----items do not match', obj)
+                                                    #     mismatches.append(z['id'])
+                                                    #     err_data = {'id':z['id'],'now':dt_to_string(now_utc()),'mismatch_field':f.name, 'z-valid':verify_obj_to_data(None, z, user=sender_node.User_obj), 'obj-valid':verify_obj_to_data(None, obj, user=sender_node.User_obj),'field_comparison': compare_texts(str(sort_for_sign(attr)),str(sort_for_sign(z_field)))}
+
+                                                    # else:
+                                                    # w += '8'
+                                                    # prnt('----items match', obj)
+                                                    matches += 1
+                                                    if not self_is_validator:
+                                                        w += 'A'
                                                     else:
-                                                        proceed = True
-                                                        if has_method(obj, 'required_for_validation'):
-                                                            for c in obj.required_for_validation():
-                                                                if '.' in c:
-                                                                    attr = rgetattr(obj, c)
-                                                                    prnt('attr',attr)
-                                                                    if not attr:
+                                                        w += 'B'
+                                                        if val_objs:
+                                                            w += 'b'
+                                                            z_hash = sigData_to_hash(z, exclude_fields=['CreatorNode_obj', 'Validator_obj', 'signed'])
+                                                            prnt('z_hash', z_hash)
+                                                            matched_hashes = []
+                                                            for val in val_objs:
+                                                                if z['id'] in val.data:
+                                                                    prnt('val',val.CreatorNode_obj.id,val.data[z['id']])
+                                                                    if val.data[z['id']] == z_hash or val.data[z['id']] == 'intelliMatch' and is_intelli_func:
+                                                                        matched_hashes.append(val)
+                                                                        if val not in matched_vals:
+                                                                            matched_vals.append(val)
+                                                            prnt('matched_hashes', len(matched_hashes))
+                                                            prnt('required_matches', required_matches)
+                                                            if len(matched_hashes) >= required_matches:
+                                                                w += 'C'
+                                                                # fetch db obj
+                                                                # check if obj already validated
+                                                                # if db, chech hash
+                                                                # check matching hash - db obj and received obj
+                                                                # if multiple matches, check index, save appropriate version
+                                                                # check required_for_validation before assigning to val
+
+
+
+                                                                proceed = True
+                                                                do_sync = False
+                                                                obj = get_dynamic_model(z['objType'], exclude=exclude, id=z['id'])
+                                                                prnt('obj',obj)
+                                                                if obj:
+                                                                    w += 'c'
+                                                                    obj_hash = sigData_to_hash(obj, exclude_fields=['CreatorNode_obj', 'Validator_obj', 'signed'])
+                                                                    if z_hash != obj_hash and not is_locked(obj):
+                                                                        do_sync = True
                                                                         proceed = False
-                                                                        w += 'a'
-                                                                        prnt('failed require for validation:',c,z)
-                                                                        break
-                                                                elif c not in z or not z[c]:
-                                                                    proceed = False
-                                                                    w += 'b'
-                                                                    prnt('failed require for validation:',c,z)
-                                                                    break
-                                                        if proceed and convert_to_datetime(z['created']) < now_utc() - datetime.timedelta(days=max_validation_window):
-                                                            proceed = False
-                                                            w += 'c'
-                                                        prntDebug('proceed',proceed)
-                                                        if proceed:
-                                                            w += '6'
-                                                            mismatch = False
-                                                            fields = obj._meta.fields
-                                                            bypass_fields = ['lastUpdate','CreatorNode_obj','created','signed','func'] + skip_sign_fields
-                                                            db_obj = convert_to_dict(obj)
-                                                            for f in fields:
-                                                                attr = None
-                                                                z_field = None
-                                                                try:
-                                                                    attr = db_obj[f.name]
-                                                                    attr = dt_to_string(attr)
-                                                                except Exception as e:
-                                                                    pass
-                                                                try:
-                                                                    z_field = z[f.name]
-                                                                    z_field = dt_to_string(z_field)
-                                                                except Exception as e:
-                                                                    pass
-                                                                if f.name == 'prevVersion':
-                                                                    if z_field:
-                                                                        prev_ver = get_dynamic_model(z_field, id=z_field)
-                                                                        if not prev_ver:
-                                                                            request_items(requested_items=[z_field], nodes=[z['CreatorNode_obj']], downstream_worker=False)
-                                                                    elif attr:
-                                                                        # check if latest valid version, if not send
-                                                                        # latest_ver = get_model(obj._meta.object_name).objects.exclude(Validator_obj=None).values('id').order_by('-created').first()
-                                                                        # if latest_ver and latest_ver['id'] != z_field:
-                                                                        if not return_dp:
-                                                                            return_dp = DataPacket.objects.filter(network=z['CreatorNode_obj'], chainName=z['CreatorNode_obj'], func='share', Node_obj=self_node)
-                                                                            if not return_dp:
-                                                                                return_dp = DataPacket(network=z['CreatorNode_obj'], chainName=z['CreatorNode_obj'], func='share', Node_obj=self_node)
-                                                                                return_dp.save()
-                                                                        return_dp.add_item_to_share(attr)
-                                                                if f.name not in bypass_fields and attr and z_field and sort_for_sign(attr) != sort_for_sign(z_field):
-                                                                    prnt('mismatch break!','field:',f.name,'\n-database_attr:',sort_for_sign(attr, print_data=False),'\n-received_attr:',sort_for_sign(z_field, print_data=False))
-                                                                    mismatch = True
-                                                                    break
-                                                                elif value_is_none(attr) and not value_is_none(z_field) or value_is_none(z_field) and not value_is_none(attr):
-                                                                    prnt('mismatch break2!','field:',f,'attr:',attr,'z_field:',z_field)
-                                                                    mismatch = True
-                                                                    break
-                                                            if mismatch:
-                                                                w += '7'
-                                                                def compare_texts(text1, text2, context=10):
-                                                                    # print('compare_texts')
-                                                                    min_length = min(len(text1), len(text2))
-                                                                    result = ''
-                                                                    count = 0
-                                                                    for i in range(min_length):
-                                                                        if text1[i] != text2[i]:
-                                                                            if count < 20:
-                                                                                start = max(0, i - context)
-                                                                                end = min(len(text1), len(text2), i + context + 1)
-                                                                                snippet1 = text1[start:end]
-                                                                                snippet2 = text2[start:end]
-                                                                                
-                                                                                result += f"pos:{i}:Text1:...{snippet1}...Text2: ...{snippet2}..."
-                                                                            count += 1
-                                                                    result = f'count:{count}: {result}'
-                                                                    if len(text1) != len(text2):
-                                                                        # prnt("Texts have different lengths.")
-                                                                        longer_text, shorter_text = (text1, text2) if len(text1) > len(text2) else (text2, text1)
-                                                                        result += f"Extra characters in longer text: {longer_text[len(shorter_text):]}"
-                                                                    return result
-                                                                prnt('----items do not match', obj)
-                                                                mismatches.append(z['id'])
-                                                                err_data = {'id':z['id'],'now':dt_to_string(now_utc()),'mismatch_field':f.name, 'z-valid':verify_obj_to_data(None, z, user=sender_node.User_obj), 'obj-valid':verify_obj_to_data(None, obj, user=sender_node.User_obj),'field_comparison': compare_texts(str(sort_for_sign(attr)),str(sort_for_sign(z_field)))}
-
-                                                            else:
-                                                                w += '8'
-                                                                prnt('----items match', obj)
-                                                                matches += 1
-                                                                if not self_is_validator:
-                                                                    w += 'A'
+                                                                        w += 'd'
                                                                 else:
-                                                                    w += 'B'
-                                                                    if val_objs:
-                                                                        w += 'b'
-                                                                        obj_hash = sigData_to_hash(z, exclude_fields=['CreatorNode_obj', 'Validator_obj', 'signed'])
-                                                                        prnt('obj_hash', obj_hash)
-                                                                        matched_hashes = []
-                                                                        for val in val_objs:
-                                                                            if z['id'] in val.data:
-                                                                                prnt('val',val.CreatorNode_obj.id,val.data[z['id']])
-                                                                                if val.data[z['id']] == obj_hash:
-                                                                                    matched_hashes.append(val)
-                                                                        prnt('matched_hashes', len(matched_hashes))
-                                                                        prnt('required_matches', required_matches)
-                                                                        if len(matched_hashes) >= required_matches:
+                                                                    do_sync = True
+                                                                    if z['id'] not in matched_idens:
+                                                                        matched_idens.append(z['id'])
+                                                                        w += 'e'
+                                                                    
 
+                                                                
+                                                                if proceed and obj:
+                                                                    w += 'D'
+                                                                        
+
+
+
+
+
+                                                                    if obj and obj.signed and has_field(obj, 'Validator_obj') and (not obj.Validator_obj or not obj.Validator_obj.signed or not obj.Validator_obj.is_valid):
+                                                                        w += 'a'
+                                                                        if has_field(obj, 'Validator_obj') and obj.Validator_obj and obj.id in obj.Validator_obj.data and obj.Validator_obj.data[obj.id] == sigData_to_hash(obj) and obj.Validator_obj.dt_appropriate(obj):
+                                                                            skipped_items.append(obj.id)
+                                                                            w += 'b'
+                                                                    
+                                                                    # if obj and has_field(obj, 'Validator_obj') and (not obj.Validator_obj or not obj.Validator_obj.signed or not obj.Validator_obj.is_valid):
+                                                                    #     w += 'a'
+                                                                    if obj.id not in skipped_items:
+                                                                        if obj and has_field(obj, 'Validator_obj') and obj.Validator_obj and obj.Validator_obj.signed and obj.Validator_obj.is_valid:
                                                                             w += 'c'
+                                                                            previously_validated.append(z['id'])
+                                                                        else:
+                                                                            # if obj.CreatorNode_obj.id not in i['scraping_order'] or (self_is_validator and obj.validatorNodeId != self_node.id) or obj.created != string_to_dt(z['created']):
+                                                                            #     from utils.utils import superDelete
+                                                                            #     superDelete(obj) # obj is from different failed scrape_job
+                                                                            #     obj = None
+                                                                            #     w += 'b'
+                                                                            # else:
+                                                                            w += 'd'
+
+
+
+
+
+
+
+                                                                            # w += 'c'
                                                                             
                                                                             try:
                                                                                 new_index = i['scraping_order'].index(z['CreatorNode_obj'])
@@ -737,7 +829,7 @@ def process_posts_for_validating(received_json, override_completed=False):
                                                                                 new_index = 1
                                                                                 current_index = 0
                                                                             if new_index < current_index:
-                                                                                w += 'C'
+                                                                                w += 'e'
                                                                                 do_sync = True
                                                                                 if has_field(obj, 'proposed_modification') and obj.proposed_modification:
                                                                                     w += 'a'
@@ -773,70 +865,132 @@ def process_posts_for_validating(received_json, override_completed=False):
                                                                                             w += 'd'
                                                                                             do_sync = False
                                                                                 
-                                                                                if do_sync and not is_locked(obj):
-                                                                                    w += 'e'
-                                                                                    if validator and validator.dt_appropriate(obj):
-                                                                                        w += 'g'
-                                                                                        obj, sigs = super_sync(obj, z, do_save=True)
-                                                                            w += 'h'
-                                                                            if validator and obj.id not in validator.data:
-                                                                                prnt('get_signing_data:',get_signing_data(obj, print_data=True))
-                                                                                obj_hash = sigData_to_hash(obj)
-                                                                                validator.data[obj.id] = obj_hash
-                                                                                if obj.id not in matched_idens:
-                                                                                    matched_idens.append(obj.id)
-                                                                                w += 'i'
-
-                                                elif obj and has_field(obj, 'Validator_obj') and obj.Validator_obj and obj.Validator_obj.is_valid and obj.Validator_obj.dt_appropriate(obj):
-                                                    w += '9'
-                                                    matches += 1
-                                                    if obj.id not in matched_idens:
-                                                        previously_validated.append(obj.id)
-                                                elif not obj or not obj.signed:
-                                                    w += '11'
-                                                    create_obj = False
-                                                    if self_is_validator and val_obj and z['CreatorNode_obj'] != val_obj.CreatorNode_obj:
-                                                        w += 'a'
-                                                        create_obj = True
-                                                    if create_obj:
-                                                        w += 'c'
-                                                        if not obj:
-                                                            obj = get_or_create_model(z['objType'], id=z['id'])
-                                                        prnt('created item',obj)
-                                                        obj, sigs = super_sync(obj, z, do_save=True)
-                                                        if has_method(obj, 'boot'):
-                                                            obj.boot()
-                                                        created += 1
-                                                        w += 'd'
-                                                        if required_matches == 1:
-                                                            w += 'e'
-                                                            if not is_locked(obj):
-                                                                w += 'g'
-                                                                if not network_chain:
-                                                                    network_chain, obj, commit_chain = find_or_create_chain_from_object(obj)
-                                                                    dataPacket = get_latest_dataPacket(obj)
-                                                                if not validator and len(val_objs) >= required_matches:
-                                                                    w += 'h'
-                                                                    if job_id:
-                                                                        validator = Validator.objects.filter(jobId=job_id, CreatorNode_obj=self_node, func=func, is_valid=True, validatorType='scraper').order_by('-created').first()
-                                                                    else:
-                                                                        validator = Validator.objects.filter(CreatorNode_obj=self_node, func=func, is_valid=True, validatorType='scraper').order_by('-created').first()
-                                                                    if not validator:
+                                                                                # if do_sync and not is_locked(obj):
+                                                                                #     w += 'e'
+                                                                                #     if validator and validator.dt_appropriate(obj):
+                                                                                #         w += 'g'
+                                                                                #         obj, sigs = super_sync(obj, z, do_save=True)
+                                                                            w += 'g'
+                                                                            # if validator and obj.id not in validator.data:
+                                                                            #     prnt('get_signing_data:',get_signing_data(obj, print_data=True))
+                                                                            #     obj_hash = sigData_to_hash(obj)
+                                                                            #     validator.data[obj.id] = obj_hash
+                                                                            if obj.id not in matched_idens:
+                                                                                matched_idens.append(obj.id)
+                                                                                w += 'h'
+                                                            
+                                                                if do_sync:
+                                                                    w += 'E'
+                                                                    if not obj:
+                                                                        obj = get_or_create_model(z['objType'], id=z['id'])
+                                                                    if obj and not is_locked(obj):
+                                                                        w += 'a'
+                                                                        # if validator and validator.dt_appropriate(obj):
+                                                                            # w += 'b'
+                                                                        obj, sigs = super_sync(obj, z, do_save=True)
+                                                                        if has_method(obj, 'boot'):
+                                                                            obj.boot()
+                                                                        # proceed = False
+                                                                if obj.id in matched_idens:
+                                                                    w += 'G'
+                                                                    if not network_chain:
+                                                                        network_chain, obj, commit_chain = find_or_create_chain_from_object(obj)
+                                                                        dataPacket = get_latest_dataPacket(obj)
+                                                                        plugin_id = Plugin.objects.filter(app_name=obj._meta.app_label).values('id').first()['id']
+                                                                    
+                                                                    if not validator and len(val_objs) >= required_matches:
+                                                                        w += 'a'
                                                                         validator = Validator(networkChain=network_chain.genesisId, jobId=job_id, CreatorNode_obj=self_node, created=job_dt, validatorType='scraper', func=func, is_valid=True)
                                                                         validator.save(skip_check=True)
-                                                                    prnt('process posts val created 2',validator.id, dt_to_string(now_utc()))
-                                                                    if validator and is_locked(validator):
-                                                                        w += 'i'
-                                                                        break
+                                                                        prnt('process posts val created 1',validator.id, dt_to_string(now_utc()))
+                                                                        if validator and is_locked(validator):
+                                                                            w += 'b'
+                                                                            for e in sorted_content:
+                                                                                try:
+                                                                                    if e['id'] in validator.data and e['id'] not in matched_idens:
+                                                                                        matched_idens.append(e['id'])
+                                                                                except:
+                                                                                    pass
+                                                                            break
+                                                                
+                                                                    proceed = True
+
+                                                                    if has_method(obj, 'required_for_validation'):
+                                                                        w += 'c'
+                                                                        for c in obj.required_for_validation():
+                                                                            if '.' in c:
+                                                                                attr = rgetattr(obj, c)
+                                                                                prnt('attr',attr)
+                                                                                if not attr:
+                                                                                    proceed = False
+                                                                                    w += 'd'
+                                                                                    prnt('failed require for validation:',c,z)
+                                                                                    break
+                                                                            elif c not in z or not z[c]:
+                                                                                proceed = False
+                                                                                w += 'e'
+                                                                                prnt('failed require for validation:',c,z)
+                                                                                break
+                                                                    # else:
+
+                                                                    if proceed and validator and obj.id not in validator.data and validator.dt_appropriate(obj):
+                                                                        prnt('get_signing_data:',get_signing_data(obj, print_data=True))
+                                                                        obj_hash = sigData_to_hash(obj)
+                                                                        validator.data[obj.id] = obj_hash
+                                                                        w += 'g'
+
+
+
+                                                # elif obj and has_field(obj, 'Validator_obj') and obj.Validator_obj and obj.Validator_obj.is_valid and obj.Validator_obj.dt_appropriate(obj):
+                                                #     w += '9'
+                                                #     matches += 1
+                                                #     if obj.id not in matched_idens:
+                                                #         previously_validated.append(obj.id)
+                                                # elif not obj or not obj.signed:
+                                                #     w += '11'
+                                                #     create_obj = False
+                                                #     if self_is_validator and val_obj and z['CreatorNode_obj'] != val_obj.CreatorNode_obj:
+                                                #         w += 'a'
+                                                #         create_obj = True
+                                                #     if create_obj:
+                                                #         w += 'c'
+                                                #         if not obj:
+                                                #             obj = get_or_create_model(z['objType'], id=z['id'])
+                                                #         prnt('created item',obj)
+                                                #         obj, sigs = super_sync(obj, z, do_save=True)
+                                                #         if has_method(obj, 'boot'):
+                                                #             obj.boot()
+                                                #         created += 1
+                                                #         w += 'd'
+                                                #         if required_matches == 1:
+                                                #             w += 'e'
+                                                #             if not is_locked(obj):
+                                                #                 w += 'g'
+                                                #                 if not network_chain:
+                                                #                     network_chain, obj, commit_chain = find_or_create_chain_from_object(obj)
+                                                #                     dataPacket = get_latest_dataPacket(obj)
+                                                #                 if not validator and len(val_objs) >= required_matches:
+                                                #                     w += 'h'
+                                                #                     if job_id:
+                                                #                         validator = Validator.objects.filter(jobId=job_id, CreatorNode_obj=self_node, func=func, is_valid=True, validatorType='scraper').order_by('-created').first()
+                                                #                     else:
+                                                #                         validator = Validator.objects.filter(CreatorNode_obj=self_node, func=func, is_valid=True, validatorType='scraper').order_by('-created').first()
+                                                #                     if not validator:
+                                                #                         validator = Validator(networkChain=network_chain.genesisId, jobId=job_id, CreatorNode_obj=self_node, created=job_dt, validatorType='scraper', func=func, is_valid=True)
+                                                #                         validator.save(skip_check=True)
+                                                #                     prnt('process posts val created 2',validator.id, dt_to_string(now_utc()))
+                                                #                     if validator and is_locked(validator):
+                                                #                         w += 'i'
+                                                #                         break
                                                             
-                                                                w += 'j'
-                                                                if validator and validator.dt_appropriate(obj):
-                                                                    w += 'k'
-                                                                    obj, sigs = super_sync(obj, z, do_save=True)
-                                                                    obj_hash = sigData_to_hash(obj)
-                                                                    validator.data[obj.id] = obj_hash
-                                                                    matched_idens.append(obj.id)
-                                                                    w += 'l'
+                                                #                 w += 'j'
+                                                #                 if validator and validator.dt_appropriate(obj):
+                                                #                     w += 'k'
+                                                #                     obj, sigs = super_sync(obj, z, do_save=True)
+                                                #                     obj_hash = sigData_to_hash(obj)
+                                                #                     validator.data[obj.id] = obj_hash
+                                                #                     matched_idens.append(obj.id)
+                                                #                     w += 'l'
                                                 else:
                                                     w += '12'
                                                     try:
@@ -882,9 +1036,10 @@ def process_posts_for_validating(received_json, override_completed=False):
                         q += 'a'
                         if not validator.Validator_array:
                             validator.Validator_array = []
-                        for val_obj in val_objs:
-                            validator.data[val_obj.id] = sigData_to_hash(val_obj)
-                            validator.Validator_array.append(val_obj.id)
+                        for val_obj in matched_vals:
+                            if val_obj.signed:
+                                validator.data[val_obj.id] = sigData_to_hash(val_obj)
+                                validator.Validator_array.append(val_obj.id)
                         for val_id in extra_vals:
                             validator.Validator_array.append(val_id)
                         validator = sign_obj(validator)
@@ -1174,6 +1329,7 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
         block_creation_times = _block_creation_times
         block_delay = block_time_delay(block)
         opBlock_dt_delay = block_time_delay('operations')
+        region_block_delay = 30
 
     if block.networkChain == _OperationsChain_genesisId:
         if block and now_utc() < (string_to_dt(block.DateTime) - datetime.timedelta(minutes=10)):
@@ -1259,6 +1415,8 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
         prev_required_validators = prev_block.get_required_validator_count()
         prev_required_consensus = prev_block.get_required_consensus()
         prev_creator_nodes, prev_validator_list, prev_broadcast_list = prev_block.get_assigned_nodes(fetch_broadcast_list=False)
+        if prev_required_validators > len(prev_validator_list):
+            prev_required_validators = len(prev_validator_list)
         prnt('prev_validator_list',prev_validator_list)
         prnt('prev_creator_nodes',prev_creator_nodes)
         prnt('prev_block.id',prev_block.id)
@@ -1373,6 +1531,7 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
             next_block = inputted_data['next_block']
             prnt('block -- ',inputted_data )
         else:
+            # val_obj is tx
             obj_is_block = False
             if val_obj.SenderBlock_obj and val_obj.SenderBlock_obj.validated == False and val_obj.SenderBlock_obj != inputted_data['block']:
                 is_valid, consensus_found, validations = check_validation_consensus(val_obj.SenderBlock_obj, do_mark_valid=True, handle_discrepancies=False, backcheck=False, get_missing_blocks=False, downstream_worker=False)
@@ -1397,7 +1556,7 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
                     elif network_chain and network_chain.genesisId == val_obj.re['GenesisId']:
                         chain = network_chain
                 
-            temp_block = Block(id=block_id, Tx_obj=val_obj, created=val_obj.created, DateTime=val_obj.created, Blockchain_obj=chain)
+            temp_block = Block(id=block_id, Tx_obj=val_obj, created=val_obj.created, DateTime=val_obj.created, Blockchain_obj=chain, salt=val_obj.re['salt'])
             
             next_block = inputted_data['next_block']
             block_delay = inputted_data['block_delay']
@@ -1405,7 +1564,8 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
             required_validators = temp_block.get_required_validator_count() # do not pass opBlock_data here, may need different block
             required_consensus = temp_block.get_required_consensus()
             creator_nodes, validator_list, broadcast_list = temp_block.get_assigned_nodes(fetch_broadcast_list=False)
-
+            if required_validators > len(validator_list):
+                required_validators = len(validator_list)
             prnt('transaction -- creator_nodes',creator_nodes,'validator_list',validator_list,'block_dt',block_dt,'block_created_dt',block_created_dt,'block_id',block_id,'blockchainId',networkChainId,'next_block',next_block)
         
         
@@ -1610,12 +1770,14 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
     required_validators = block.get_required_validator_count()
     required_consensus = block.get_required_consensus()
     self_node_id = get_operator_obj('self_nodeId')
-    prntDebug('required_validators',required_validators)
-    prntDebug('required_consensus',required_consensus)
-    prntDebug('block_delay',block_delay)
 
     creator_nodes, validator_list, broadcast_list = block.get_assigned_nodes(fetch_broadcast_list=True)
         
+    if required_validators > len(validator_list):
+        required_validators = len(validator_list)
+    prntDebug('required_validators',required_validators)
+    prntDebug('required_consensus',required_consensus)
+    prntDebug('block_delay',block_delay)
     prntDebug(f"-creator_nodes:{creator_nodes}, -broadcast_list:{broadcast_list}, -validator_list:{validator_list}")
     prntDebug('validator_list[:required_validators]',validator_list[:required_validators],'self_node.id',self_node_id)
     prnt(f'now_utc:{now_utc()} ---(b_ct + datetime.timedelta(minutes=(block_delay*(3/4))+1)): {(b_ct + datetime.timedelta(minutes=(block_delay*(3/4))+1))}')
@@ -1649,7 +1811,7 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
 
                     if not block.Tx_obj.SenderBlock_obj:
                         from utils.utils import request_is_valid, get_chain_id
-                        if request_is_valid(block.Tx_obj.senderBlockId, vals=10, chain=get_chain_id(block.Tx_obj.networkChain)):
+                        if request_is_valid(block.Tx_obj.senderBlockId, vals=10, chain=block.Tx_obj.networkChain):
                             # should get SenderBlock_obj validators?
                             prnt('request_is_valid result True')
                             # return True, True, []
@@ -1715,40 +1877,59 @@ def validate_block(block, creator_nodes=None, opBlock_data=None, create_validato
             elif block.salt != quick_hash({s['id']:s['value'] for s in RevealData.objects.filter(dataType='salt', added_to_node__lt=block.created, added_to_node__gte=block.created-datetime.timedelta(minutes=10)).distinct('Node_obj__id').order_by('Node_obj__id', '-created').values('id', 'value')}):
                 hard_pass = True
                 fail_reason = 754
+            elif block.created < (block.DateTime - datetime.timedelta(minutes=30)) or block.created > (block.DateTime + datetime.timedelta(minutes=20)):
+                hard_pass = True
+                fail_reason = 755
+            elif (now_utc() + datetime.timedelta(minutes=20)) < block.DateTime < (now_utc() + datetime.timedelta(minutes=60)):
+                hard_pass = True
+                fail_reason = 756
+            elif prev_block and prev_block.index != block.index + 1:
+                hard_pass = True
+                fail_reason = 757
+
         
-            
+            check_block_is_valid = False
             if not hard_pass and block.Tx_obj:
                 fail_reason = 70
                 if block.Tx_obj.senderBlockId != block.id:
-                    sender_block = Block.objects.filter(id=block.Tx_obj.senderBlockId).first()
-                    if sender_block and not sender_block.validated:
+                    sender_block = Block.objects.filter(id=block.Tx_obj.senderBlockId).values('validated').first()
+                    prnt('sender_block',sender_block)
+                    if sender_block and not sender_block['validated']:
                         hard_pass = True
                         fail_reason = 77
                     elif not sender_block:
-                        from utils.utils import request_is_valid, get_chain_id
-                        # should not hardcode vals=10 here, should check num of vals with consensus percent like in check_validation_consensus
-                        if not request_is_valid(block.Tx_obj.senderBlockId, vals=10, chain=get_chain_id(block.Tx_obj.networkChain)):
-                            hard_pass = True
-                            fail_reason = 78
+                        check_block_is_valid = True
+                    elif sender_block and sender_block['validated']:
+                        fail_reason = 78
                         
                 if 'BlockReward' in block.Tx_obj.re:
                     if block.Tx_obj.re['BlockReward'] == block.id and 'Rewards' in block.Tx_obj.ReceiverWallet_obj.Name:
                         transaction_type = 'sender'
+                        prnt('LOOK HERE')
+                        prnt("block.Tx_obj.re['GenesisId']",block.Tx_obj.re['GenesisId'])
+                        prnt("block.Blockchain_obj.genesisId",block.Blockchain_obj.genesisId)
+                        if block.Tx_obj.re['GenesisId'] != block.Blockchain_obj.genesisId:
+                            hard_pass = True
+                            fail_reason = 72
+                        elif block.Tx_obj.re['salt'] != block.salt:
+                            hard_pass = True
+                            fail_reason = 73
                     elif block.Tx_obj.ReceiverWallet_obj and block.Tx_obj.ReceiverWallet_obj.id == block.Blockchain_obj.genesisId and 'Rewards' in block.Tx_obj.ReceiverWallet_obj.Name:
                         # hard_pass = False
                         transaction_type = 'receiver'
                     else:
                         hard_pass = True
-                        fail_reason = 72
+                        fail_reason = 74
+                    
                 elif not block.Tx_obj.SenderWallet_obj:
-                    fail_reason = 73
+                    fail_reason = 75
                     hard_pass = True
                 elif block.Tx_obj.ReceiverWallet_obj == block.Blockchain_obj:
                     transaction_type = 'receiver'
                 elif block.Tx_obj.SenderWallet_obj == block.Blockchain_obj:
                     transaction_type = 'sender'
                 else:
-                    fail_reason = 74
+                    fail_reason = 76
                     hard_pass = True
 
             
@@ -1771,7 +1952,13 @@ def validate_block(block, creator_nodes=None, opBlock_data=None, create_validato
                         else:
                             creator_nodes, validator_nodes = get_node_assignment(block, opBlock_data=opBlock_data)
                     prnt('creator_nodes',creator_nodes,'block.CreatorNode_obj',block.CreatorNode_obj)
-                    if block.CreatorNode_obj.id in creator_nodes or block.networkChain ==  _OperationsChain_genesisId:
+                    proceed_to_valid = True
+                    if check_block_is_valid:
+                        from utils.utils import request_is_valid, get_chain_id
+                        if not request_is_valid(block.Tx_obj.senderBlockId, vals=len(validator_nodes), chain=block.Tx_obj.networkChain):
+                            proceed_to_valid = False
+                            fail_reason = 78
+                    if proceed_to_valid and (block.CreatorNode_obj.id in creator_nodes or block.networkChain == _OperationsChain_genesisId):
                         fail_reason = 4
                         if verify_obj_to_data(block, block):
                             fail_reason = 701
@@ -1783,7 +1970,7 @@ def validate_block(block, creator_nodes=None, opBlock_data=None, create_validato
                             else:
                                 fail_reason = 703
                     prnt('proceed to attempt validation:',proceed_to_valid)
-                    if block.CreatorNode_obj.expelled_dt:
+                    if proceed_to_valid and block.CreatorNode_obj.expelled_dt:
                         proceed_to_valid = False
                         fail_reason = 704
 
@@ -2172,7 +2359,7 @@ def validate_obj(obj=None, pointer=None, validators=None, save_obj=True, update_
     if obj and has_field(obj, 'validated') and not obj.validated and obj.id or pointer and update_pointer and not pointer.Validator_obj or obj and obj.id and has_field(obj, 'Validator_obj') and not obj.Validator_obj:
         from utils.utils import prntDebug, sigData_to_hash, string_to_dt, has_method, get_model, logEvent, declare_var, round_time, get_timeData, get_objType, get_plugin, find_or_create_chain_from_object
         from utils.models import request_items
-        from network.models import Validator, max_validation_window
+        from network.models import Validator, max_validation_window, intelligence_funcs
         validators = declare_var(validators, {})
         if obj and get_objType(obj) == 'Post':
             if not pointer:
@@ -2242,7 +2429,7 @@ def validate_obj(obj=None, pointer=None, validators=None, save_obj=True, update_
                                 # except Exception as e:
                                 #     prnt('err 2a',str(e))
                                 if val.id in validator.Validator_array:
-                                    if target.id in val.data and val.data[target.id] == obj_hash:
+                                    if target.id in val.data and (val.data[target.id] == obj_hash or val.data[target.id] == 'intelliMatch' and target.func in intelligence_funcs):
                                         prnt('good')
                                         matched_vals.append(val.id)
                             if len(matched_vals) >= required_matches:
@@ -2299,7 +2486,7 @@ def validate_obj(obj=None, pointer=None, validators=None, save_obj=True, update_
                                 # except Exception as e:
                                 #     prnt('err 2b',str(e))
                                 if val.CreatorNode_obj.id in creator_nodes:
-                                    if target.id in val.data and val.data[target.id] == obj_hash:
+                                    if target.id in val.data and (val.data[target.id] == obj_hash or val.data[target.id] == 'intelliMatch' and target.func in intelligence_funcs):
                                         prnt('good')
                                         matched_vals.append(val.id)
                             if len(matched_vals) >= required_matches:
@@ -2427,7 +2614,7 @@ def validate_obj(obj=None, pointer=None, validators=None, save_obj=True, update_
                                 if save_obj and get_objType(target) != 'Post':
                                     err += 'p'
                                     p = Post.all_objects.filter(pointerId=target.id).first()
-                                    if not p.validated:
+                                    if p and not p.validated:
                                         p, updated_fields = update_post(obj=target, p=p, save_p=False)
                                         p.validated = True
                                         p.save()
@@ -2693,7 +2880,7 @@ def get_broadcast_list(seed, dt=None, region_id=None, plugin_id=None, relevant_n
             if region_id == _OperationsChain_genesisId:
                 missing_nodes = Node.objects.exclude(id__in=[i for i in relevant_nodes]).exclude(activated_dt=None)
             else:
-                missing_nodes = Node.objects.filter(chain_array__contains=[region_id]).exclude(id__in=[i for i in relevant_nodes]).exclude(activated_dt=None)
+                missing_nodes = Node.objects.filter(chain_array__contains=[region_id]).exclude(id__in=[i for i in relevant_nodes]).exclude(activated_dt=None).order_by('pos')
             extra_nodes = {i.id:i.return_address() for i in missing_nodes}
         seed_text = seed
     else:
@@ -2814,13 +3001,15 @@ def get_relevant_nodes(dt=None, genesisId=None, chains=None, blockchain=None, pl
             # if genID not either region or plugin, fetch genObj, cross references plugin and region
             record = Leger.objects.filter(pointerId=genesisId, DateTime__lte=dt, is_valid=True).first()
             if not record:
-                from utils.utils import get_model
+                from utils.utils import get_model, get_plugin
                 try:
                     obj = get_model(genesisId).objects.filter(id=genesisId).values('commitChain').first()
                     prnt('obj',obj)
                     if obj:
-                        genesisId = obj['commitChain']
-                        record = Leger.objects.filter(pointerId=genesisId, DateTime__lte=dt, is_valid=True).first()
+                        commit_chain_id = obj['commitChain']
+                        if not is_id(commit_chain_id):
+                            commit_chain_id = get_plugin(genesisId, id=True)
+                        record = Leger.objects.filter(pointerId=commit_chain_id, DateTime__lte=dt, is_valid=True).first()
                 except Exception as e:
                     prnt('err 1',str(e))
             prnt('record',record)
@@ -2979,8 +3168,8 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
                     eligible = for_commitment(i, genesis_obj, block)
                 except:
                     eligible = True
-            if eligible and uncommitted_required and has_field(x, 'Block_obj') and x.Block_obj and x.id in x.Block_obj.data and check_commit_data(x, x.Block_obj.data[x.id]):
-                eligible = False
+            # if eligible and uncommitted_required and has_field(x, 'Block_obj') and x.Block_obj and x.id in x.Block_obj.data and check_commit_data(x, x.Block_obj.data[x.id]):
+            #     eligible = False
             if not eligible:
                 prnt('x ineligible (has Block_obj):', x.Block_obj)
                 prnt('x.id',x.id)
@@ -3992,7 +4181,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=No
             except Exception as e:
                 prnt('node_assignment_error',str(e))
 
-    if obj and obj._meta.object_name == 'Block' or obj and obj._meta.object_name == 'Transaction':
+    if obj and obj._meta.object_name == 'Block' or obj and obj._meta.object_name == 'Tx':
         prnt('p1')
         if obj._meta.object_name == 'Block' and not obj.Tx_obj or obj._meta.object_name == 'Block' and 'BlockReward' in obj.Tx_obj.re and obj.Tx_obj.re['BlockReward'] == obj.id:
             # is block, includes tx maybe reward sender block
@@ -4004,6 +4193,19 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=No
             else:
                 if not dt:
                     dt = string_to_dt(obj.DateTime)
+
+
+                # change obj.id to obj.Blockchain_obj.id and obj.DateTime
+                # this will allow multiple nodes to create candidate block
+                # change create_dummy_block specific_data to use node.id
+                # opchain shuffle_seed above becomes redundant
+
+                # careful! check_consensus creates a temp_block from tx data
+                # make sure correct data is available
+
+                # also change sigData_to_hash to use quick_hash
+
+
                 shuffle_seed = f"{obj.id}_{obj.salt}"
             if not plugin_id:
                 plugin_id = get_plugin(obj.networkChain, id=True)
@@ -4041,7 +4243,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=No
             if obj._meta.object_name == 'Block' and obj.Tx_obj:
                 block = obj
                 obj = obj.Tx_obj
-            if obj._meta.object_name == 'Transaction' and 'BlockReward' in obj.re and obj.re['BlockReward']:
+            if obj._meta.object_name == 'Tx' and 'BlockReward' in obj.re and obj.re['BlockReward']:
                 
                 if chainId:
                     prnt('p4')
@@ -4158,7 +4360,7 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=No
                 return creator_nodes, validator_nodes
 
             else: # user to user transaction - to be completed later
-                
+                prnt('p9')
                 user = obj.ReceiverWallet_obj.User_obj
 
                 if return_receiverTransaction:
@@ -4269,7 +4471,9 @@ def get_node_assignment(obj=None, dt=None, func=None, chainId=None, plugin_id=No
         if func in intelligence_funcs or nodeType == 'intelligence':
             node_ids = get_relevant_nodes(dt=dt, blockchain=chainId, plugin_id=plugin_id, strings_only=strings_only, node_ids_only=True, include_relays=False, sublist='intelligence')
             shuffled_nodes = shuffle_nodes(func, dt, node_ids)
-            required_scrapers, required_validators = 1, 1
+            # required_scrapers, required_validators = 1, 1
+            required_scrapers, required_validators = get_required_validator_count(dt=dt, func=func, node_ids=node_ids, include_initializers=True)
+
             # prnt('shuffled_nodes',shuffled_nodes,'required_validators',required_validators)
             creator_nodes = shuffled_nodes[:required_scrapers]
             if len(node_ids) <= required_scrapers:

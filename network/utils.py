@@ -37,9 +37,11 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
     
     result = process_received_dp(received_data, 'process_received_data', skip_log_check=skip_log_check, override_completed=override_completed)
     prnt('reslut:',str(result)[:1000])
+    sender_node = None
     if result and 'dp' in result:
         log = result['dp']
         received_data = result['data']
+        sender_node = log.Node_obj
     elif result and 'data' in result:
         received_data = result['data']
         log = None
@@ -340,7 +342,7 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                             val_err += '1'
                             obj, sigs, valid_obj, updatedDB = sync_model(obj, i, do_save=False, force_sync=force_sync, get_missing_blocks=get_missing_blocks)
                         elif obj._meta.object_name == 'Node':
-                            val_err += 'F'
+                            val_err += 'N'
                             is_active = True
                             if obj.expelled_dt or i['expelled_dt']:
                                 # handle disavowed claims appropriately
@@ -368,16 +370,35 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                                             is_new = False
                                     else:
                                         val_err += '8'
-                                        if not obj.lastUpdate or obj.lastUpdate < string_to_dt(i['lastUpdate']):
+                                        sync_me = False
+                                        # try:
+                                        # prnt('sender_node',sender_node.id)
+                                        # prnt('obj',obj.id)
+                                        if sender_node and sender_node.id == obj.id:
                                             val_err += 'a'
+                                            from utils.utils import quick_hash
+                                            # prnt('convert_to_dict(obj)',convert_to_dict(obj))
+                                            # prnt('i',i)
+                                            # prnt('quick_hash(test)',quick_hash('test'))
+                                            # prnt('quick_hash(i)',quick_hash(i))
+                                            # prnt('quick_hash(convert_to_dict(obj))',quick_hash(convert_to_dict(obj)))
+                                            if quick_hash(convert_to_dict(obj)) != quick_hash(i):
+                                                val_err += 'b'
+                                                sync_me = True
+                                        # prnt('sync_me',sync_me)
+                                        if not obj.lastUpdate or obj.lastUpdate < string_to_dt(i['lastUpdate']) or sync_me:
+                                            val_err += 'c'
                                             node, sigs, updatedDB = set_model_attrs(obj, i, get_missing_blocks=get_missing_blocks)
                                             node_is_valid = verify_data(get_signing_data(node), i['signed'])
                                             prnt('node_is_valid',node_is_valid, 'updatedDB',updatedDB)
                                             if node_is_valid:
-                                                val_err += 'b'
+                                                val_err += 'd'
                                                 node.save(bypass_lock=True, bypass_upk_block=True)
                                                 save_sigs(sigs)
                                                 obj = node
+                                        # except Exception as e:
+                                        #     prnt('node sync err 34',val_err, str(e))
+
                         
                         elif obj._meta.object_name == 'UserPubKey':
                             val_err += 'G'

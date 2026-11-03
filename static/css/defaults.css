@@ -658,6 +658,7 @@ body a:hover{
   margin: 0px;
   transition: opacity 0.25s ease;
   border-top-left-radius: 7px;
+  background: linear-gradient(to top, #f3f3f3, rgba(249, 249, 249,1) 25px)
 }
 #navBar.fixed {
   position: fixed;
@@ -945,8 +946,8 @@ body a:hover{
 .card .Code h2{
   position: relative;
   display: inline-block;
-  margin: 0px 10px 10px 0px;
-  padding-right: 5px;
+  margin: 5px;
+  /* padding-right: 5px; */
   max-width: 70%;
   top:0px;
   vertical-align: top;
@@ -965,7 +966,7 @@ body a:hover{
 .card .Details > .title{
   display: block;
   position:relative;
-  margin-top: 15px;
+  margin-left: 5px;
   font-size: 120%;
   font-weight:bold;
 }
@@ -983,10 +984,12 @@ body a:hover{
   position:relative;
   padding-left: 20px;
   max-width: 100%;
+  margin: 10px 0px;
 }
 .card .Details > ul li{
   display: block;
   position:relative;
+  margin: 0px 0px 7px 0px;
 }
 .motion .Details ul{
   position: relative;
@@ -1025,132 +1028,7 @@ body a:hover{
 .card .Details .motionOutline a:hover{
   text-decoration: none;
 }
-.agendaItem .Details .date{
-  font-size: 120%;
-}
-.agendaItem li{
-  font-size: 90%;
-}
-.vote .Details{
-  /* position: absolute; */
-  /* border: 1px solid red; */
-  /* height: 110px; */
-  /* padding:0px; */
-  /* padding-top: 32px; */
-  /* padding-left: 0px; */
-  /* text-align: center; */
-}
-.vote-yea{
-  position:relative;
-}
-.vote-nay{
-  position:relative;
-  left: 45px;
-}
-.vote-present{
-  position:relative;
-  left: 90px;
-}
-.vote-absent{
-  position:relative;
-  left: 135px;
-}
-.card .Details .billSummary{
-  max-height: 150px;
-  width: 100%;
-  overflow: hidden;
-  transition: 0.15s;
-}
-.card .billProgress{
-  display: block;
-  overflow: hide;
-}
-.card .billProgress ul{
-  position: relative;
-  display: inline-block;
-  border:1px solid gray;
-  list-style: none;
-  padding: 0px;
-  margin: 25px 15px 10px 15px;
-  border-radius: 5px;
-  max-width: 100%;
-  overflow: hidden;
-}
-.card .billProgress li{ 
-  position: relative;
-  display: inline-block;
-  margin: 0px -2px;
-  padding: 10px; 
-}
-.card .billProgress li.complete{
-  border-left:1px solid black;
-  color: white;
-}
-.card .billProgress li.complete:first-child{
-  border-left:0px solid gray;
-}
-.card .billProgress .passed, .card .billProgress .Passed{
-  background-color: #427A26;
-}
-.card .billProgress .current, .card .billProgress .Current{
-  background-color: #5b5b5b;
-}
-.card .billProgress .failed{
-background-color: #7A041D;
-}
-.card .billProgress .other{
-  background-color: #5b5b5b;
-}
-.card .billProgress .house{
-  background-color: #427A26;
-}
-.card .billProgress .senate{
-background-color: #7A041D;
-}
-.card .billProgress .president{
-background-color: #030491;
-}
-.card .billProgress .assent{
-background-color: #030491;
-}
-.card .motionOutline{
-  margin-top: 30px;
-  padding: 5px 0px;
-  border: 1px solid gray;
-  border-radius: 5px;
-}
-.card .motionOutline > li{
-  position: relative;
-  display: block;
-  padding: 5px 0px;
-}
-.riding{
-  padding: 15px;
-  width: calc(100% - 30px);
-}
-.debate{
-  min-height: 150px;
-}
-.debate .profilePic, .committee .profilePic{
-  position: relative;
-  display: block;
-  margin: 5px;
-  border-radius: 5px;
-  max-width: 90px;
-  max-height:200px;
-}
-.debate .cardContent{
-  min-height: 175px;
-}
-.debate .debateContent, .committee .committeeContent{
-  position: relative;
-  display: block;
-  width: calc(100% - 15px);
-  padding-right: 10px;
-  padding-left: 0px;
-  padding-bottom: 7px;
-  top:0px;
-}
+
 .postContext{
   font-size: 130%;
   position: relative;
@@ -1375,7 +1253,7 @@ background-color: #030491;
 .reactionBar ul > li{
   height:16.5px;
   transition: 0.2s;
-  background: linear-gradient(to bottom, #f4f4f4, transparent 25px) !important;
+  background: linear-gradient(to bottom, #f3f3f3, transparent 25px) !important;
 }
 .reactionBar ul > li.active{
   background: transparent;

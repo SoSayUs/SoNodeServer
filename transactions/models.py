@@ -152,7 +152,7 @@ class Tx(models.Model):
     rcvrNetworkChain = BinaryBase62Field(max_byte_length=30, null=True, blank=True)
     SenderBlock_obj = models.ForeignKey('network.Block', related_name='receiver_block', blank=True, null=True, on_delete=models.PROTECT)
     ReceiverBlock_obj = models.ForeignKey('network.Block', related_name='sender_block', blank=True, null=True, on_delete=models.PROTECT)
-    ReceiverWallet_obj = models.ForeignKey('transactions.Wallet', related_name='receiver', blank=True, null=True, on_delete=models.PROTECT)
+    ReceiverWallet_obj = models.ForeignKey('transactions.Wallet', related_name='receiver', blank=True, null=True, on_delete=models.SET_NULL)
     SenderWallet_obj = models.ForeignKey('transactions.Wallet', related_name='sender', blank=True, null=True, on_delete=models.PROTECT)
     tokens = models.DecimalField(default=0, max_digits=30, decimal_places=15)
     re = models.JSONField(default=None, blank=True, null=True)
@@ -206,7 +206,7 @@ class Tx(models.Model):
                         return True
             else:
                 from utils.utils import request_is_valid, get_chain_id
-                if request_is_valid(self.senderBlockId, vals=10, chain=get_chain_id(self.networkChain)):
+                if request_is_valid(self.senderBlockId, vals=10, chain=self.networkChain):
                     prnt('true2')
                     return True
             # else:

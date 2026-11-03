@@ -217,7 +217,7 @@ unshared_models = ['Post','UserAction','UserNotification','Wallet','Blockchain',
 share_to_all = ['oh','nod','nrev','reg','usr','upk','uver','udat'] # this sends to relays as well, relay shouldnt need reg, uver and udat. can remove those under process_received_data, may cause relay to request those items in other locations
 intelligence_funcs = ['summarize_meetings', 'summarize_bills']
 node_types = ['server','maintainer','auto','relay','intelligence']
-reward_models = ['2govSo'] # only Government chain - requires Region_obj on model - hardcoded to gov
+reward_models = ['1govSo'] # only Government chain - requires Region_obj on model - hardcoded to gov
 
 model_prefixes = {'Sonet':'oh','Plugin':'plg','Signature':'sig','DataPacket':'dpk','Node':'nod','NodeReview':'nrev','Leger':'lgr','CommitData':'cdat','RevealData':'rdat','Block':'blc','Validator':'val','Blockchain':'chn','EventLog':'log',}
 
@@ -715,7 +715,7 @@ class DataPacket(models.Model):
                             violations = 0
                             for iden, data in mapping.items():
                                 salts_committed += 1
-                                if not data.get('reveal', None) or data['commit'].hash != quick_hash(data['reveal'].salt):
+                                if not data.get('reveal', None) or data['commit'].hash != quick_hash(data['reveal'].value):
                                     # check if targetNode is block creater at data['commit'].created + 20 mins for targetNode supported chains
                                     # if so:
                                     # violations += 1
@@ -816,7 +816,12 @@ class DataPacket(models.Model):
                 if 'content' in self.data:
                     to_send_items = None
                     compressed_data = self.data['content']
-                    sending_data = {'type' : 'DataPacket', 'opBlock': opBlock.id if opBlock else None, 'opBlock_hash': opBlock.hash if opBlock else None, 'sending_idens':[i['id'] for i in json.loads(self.data['content'])], 'content' : compressed_data}
+                    prnt("self.data['content']",self.data['content'])
+                    try:
+                        sending_idens = [i['id'] for i in json.loads(self.data['content'])]
+                    except:
+                        sending_idens = [i['id'] for i in self.data['content']]
+                    sending_data = {'type' : 'DataPacket', 'opBlock': opBlock.id if opBlock else None, 'opBlock_hash': opBlock.hash if opBlock else None, 'sending_idens': sending_idens, 'content' : compressed_data}
                 else:
                     try:
                         if self.Node_obj and self.Node_obj.id != self_node_id:
@@ -1246,18 +1251,17 @@ class Node(models.Model):
             if 'pos' not in check_data or str(check_data['pos']) == '0':
                 prnt('fa0')
                 return False
-            if self.Block_obj and self.Block_obj.validated:
-                if check_data['pos'] == self.Block_obj.data[self.id]['pos']:
-                    prnt('tr0')
-                    if self.pos != check_data['pos']:
-                        self.pos = check_data['pos']
-                        self.save()
-                    return True
+            if self.Block_obj and self.Block_obj.validated and check_data['pos'] == self.Block_obj.data[self.id]['pos']:
+                prnt('tr0')
+                if self.pos != check_data['pos']:
+                    self.pos = check_data['pos']
+                    self.save()
+                return True
             else:
                 if self.Block_obj:
-                    latest_node = Node.objects.filter(Block_obj__validated=True, Block_obj__DateTime__lt=self.Block_obj.DateTime).order_by('-pos').first()
+                    latest_node = Node.objects.filter(Block_obj__validated=True, Block_obj__DateTime__lt=self.Block_obj.DateTime).exclude(id=self.id).order_by('-pos').first()
                 else:
-                    latest_node = Node.objects.filter(Block_obj__validated=True).order_by('-pos').first()
+                    latest_node = Node.objects.filter(Block_obj__validated=True).exclude(id=self.id).order_by('-pos').first()
                 if latest_node and latest_node.pos + 1 == check_data['pos']:
                     prnt('tr1')
                     if self.pos != check_data['pos']:
@@ -1265,12 +1269,12 @@ class Node(models.Model):
                         self.save()
                     return True
                 elif not Node.objects.filter(pos=check_data['pos']).exclude(Block_obj=None).exists():
-                    if self.Block_obj:
-                        check_block = self.Block_obj
+                    if self.Block_obj and self.Block_obj.data[self.id]['pos'] == check_data['pos']:
+                        check_blocks = [self.Block_obj]
                     else:
-                        check_block = Block.objects.filter(Blockchain_obj__genesisType='Sonet', data__has_key=self.id).exclude(validated=False).exclude(validated=True).order_by('DateTime').first()
-                    prnt('check_block',check_block)
-                    if check_block:
+                        check_blocks = Block.objects.filter(Blockchain_obj__genesisType='Sonet', DateTime__gt=self.created, data__has_key=self.id).exclude(validated=False).order_by('-DateTime')
+                    prnt('check_blocks',check_blocks)
+                    for check_block in check_blocks:
                         same_block_nodes = {k:check_block.data[k]['pos'] for k in check_block.data if get_pointer_type(k) == 'Node'}
                         from operator import itemgetter
                         if same_block_nodes:
@@ -1289,12 +1293,9 @@ class Node(models.Model):
                                         prnt('tr2')
                                         return True
                                     n += 1
-                                elif k == self.id:
-                                    prnt('fa1')
-                                    return False
-                    # elif self.pos == check_data['pos']:
-                    #     prnt('tr3')
-                    #     return True
+                                # elif k == self.id:
+                                #     prnt('fa1')
+                                #     return False
 
             prnt('fa3')
             return False
@@ -1960,14 +1961,14 @@ class Block(models.Model):
                 prnt('self.Tx_obj',self.Tx_obj)
                 carry_on = False
                 if 'BlockReward' in self.Tx_obj.re and self.Tx_obj.re['BlockReward'] == self.id:
-                    prnt('p1')
+                    prnt('p1 sender block')
                     carry_on = True
                     if not opBlock_data:
                         opBlock_data = get_relevant_nodes(obj=self, blockchain=get_chain_id(self.Tx_obj.networkChain), plugin_id=get_plugin(self.networkChain, id=True))
                     creator_nodes, validator_nodes = get_node_assignment(self, full_validator_list=True, opBlock_data=opBlock_data)
                     
                 elif self.Tx_obj.ReceiverWallet_obj and self.Tx_obj.ReceiverWallet_obj.id == self.Blockchain_obj.genesisId:
-                    prnt('p2')
+                    prnt('p2 receiver block')
                     carry_on = True
                     if not opBlock_data:
                         plugin_id = get_plugin(self.Tx_obj, id=True)
@@ -3341,10 +3342,9 @@ class Block(models.Model):
         if not is_locked(self) or superDel:
             try:
                 prnt('-deleting block',self)
-                transaction = self.Tx_obj
                 try:
-                    if transaction:
-                        transaction.delete(superDel=superDel, skip_block=self.id)
+                    if self.Tx_obj:
+                        self.Tx_obj.delete(superDel=superDel, skip_block=self.id)
                 except Exception as e:
                     prnt('deleting block err 532',str(e))
                 # for v in Validator.objects.filter(Block_obj=self):
@@ -3569,6 +3569,9 @@ class Blockchain(models.Model):
         dummy_block = Block(id=hash_obj_id('Block', specific_data=specific_data), Blockchain_obj=self, networkChain=self.genesisId, created=now, DateTime=dt)
         from utils.utils import quick_hash
         dummy_block.salt = quick_hash({s['id']:s['value'] for s in RevealData.objects.filter(dataType='salt', added_to_node__lt=now, added_to_node__gte=now-datetime.timedelta(minutes=10)).distinct('Node_obj__id').order_by('Node_obj__id', '-created').values('id', 'value')})
+        prnt('salts:')
+        for s in RevealData.objects.filter(dataType='salt', added_to_node__lt=now, added_to_node__gte=now-datetime.timedelta(minutes=10)).distinct('Node_obj__id').order_by('Node_obj__id', '-created').values('id', 'value'):
+            prnt('s',s)
         prnt('dummy_block:',dummy_block, dt)
         return dummy_block
 
@@ -3641,12 +3644,22 @@ class Blockchain(models.Model):
             
         prnt('latest_data',latest_data)
 
+        # data should include last_updated
+        # if last_updated is newer, fetch obj
+        # data should match 100%
+
+        block_nodes = {n:block.data[n]['lastUpdate'] for n in block.data}
+
+        # match block nodes to db nodes, compare lastUpdate, fetch if needed
+        # if local is newer del lastUpdate, allow rest to match?
+
         for node in nodes:
             prnt('node_id0',node.id)
             node_data = {
                 'activated_dt': dt_to_string(node.activated_dt),
                 'suspended_dt': dt_to_string(node.suspended_dt),
                 'expelled_dt': dt_to_string(node.expelled_dt),
+                'lastUpdate': dt_to_string(node.lastUpdate),
                 'chain_array': node.chain_array,
                 'plugin_array': node.plugin_array,
                 'region_array': node.region_array,
@@ -3736,7 +3749,7 @@ class Blockchain(models.Model):
         total = len(matches) + len(mismatches)
 
         if total:
-            matched = len(matches) >= 0.8 * total # requires 80% match for approval
+            matched = len(matches) >= 1 * total # requires 100% match for approval
             prnt('matched',matched, 'matches',matches, 'total',total)
             if matched:
                 return matches
@@ -3744,7 +3757,6 @@ class Blockchain(models.Model):
         #     return True
         prnt('total',total)
         return False
-        
         
     def get_new_opBlock_data(self, dt=None):
         prnt('-get_new_opBlock_data',dt)
@@ -3792,6 +3804,7 @@ class Blockchain(models.Model):
                 'activated_dt': dt_to_string(node.activated_dt),
                 'suspended_dt': dt_to_string(node.suspended_dt),
                 'expelled_dt': dt_to_string(node.expelled_dt),
+                'lastUpdate': dt_to_string(node.lastUpdate),
                 'chain_array': node.chain_array,
                 'plugin_array': node.plugin_array,
                 'region_array': node.region_array,
@@ -4014,7 +4027,7 @@ class Blockchain(models.Model):
                                         cq = cq + 'f1'
                                         prnt(cq,now_utc())
                                         continue
-                                    if has_field(i, 'commitChain') and i.commitChain != self.genesisId:
+                                    if has_field(i, 'commitChain') and i.commitChain != self.genesisId and not (i.commitChain == 'Plugin' and self.genesisId == get_plugin(i, id=True)):
                                         del self.queuedData[i.id]
                                         cq = cq + 'f1b'
                                         prnt(cq,now_utc())
@@ -4302,6 +4315,7 @@ class Blockchain(models.Model):
             prnt('new_block2345',new_block)
             sigs = []
             if not new_block.validated:
+                    
                 for field, value in block_dict.items():
                     if not value_is_none(value):
                         if '_obj' in field:
@@ -4318,6 +4332,13 @@ class Blockchain(models.Model):
                             setattr(new_block, field, new_sig_value)
                         else:
                             setattr(new_block, field, value)
+
+                creator_nodes, validator_list, broadcast_list = new_block.get_assigned_nodes(fetch_broadcast_list=False)
+                prnt('creator_nodes',creator_nodes,'block.CreatorNode_obj',new_block.CreatorNode_obj)
+                if new_block.CreatorNode_obj.id not in creator_nodes and new_block.networkChain !=  _OperationsChain_genesisId:
+                    prnt('block creator mismatch')
+                    return None
+
                 new_block.validated = None
                 super(Block, new_block).save()
                 save_sigs(sigs)
@@ -4376,9 +4397,9 @@ class Blockchain(models.Model):
                 new_block.prv_hash = '0000000'
 
             if self.genesisId == transaction.ReceiverWallet_obj.id:
-                new_block.data['value'] = {'before':transaction.ReceiverWallet_obj.value,'value':str(transaction.tokens.normalize())}
+                new_block.data['value'] = {'before':transaction.ReceiverWallet_obj.contents,'value':str(transaction.tokens.normalize())}
             elif transaction.SenderWallet_obj and self.genesisId == transaction.SenderWallet_obj.id:
-                new_block.data['value'] = {'before':transaction.SenderWallet_obj.value,'value':f'-{str(transaction.tokens.normalize())}'}
+                new_block.data['value'] = {'before':transaction.SenderWallet_obj.contents,'value':f'-{str(transaction.tokens.normalize())}'}
             else:
                 prnt('r2','self.genesisId',self.genesisId, 'transaction.ReceiverWallet_obj.id',transaction.ReceiverWallet_obj.id)
                 return None
@@ -4398,9 +4419,9 @@ class Blockchain(models.Model):
             if 'pending' not in self.queuedData:
                 self.queuedData['pending'] = {}
             if self.genesisId == transaction.ReceiverWallet_obj.id:
-                self.queuedData['pending'][transaction.id] = {'block':new_block.id,'index':new_block.index,'created':dt_to_string(transaction.created),'before':transaction.ReceiverWallet_obj.value,'value':str(transaction.tokens.normalize())}
+                self.queuedData['pending'][transaction.id] = {'block':new_block.id,'index':new_block.index,'created':dt_to_string(transaction.created),'before':transaction.ReceiverWallet_obj.contents,'value':str(transaction.tokens.normalize())}
             elif transaction.SenderWallet_obj and self.genesisId == transaction.SenderWallet_obj.id:
-                self.queuedData['pending'][transaction.id] = {'block':new_block.id,'index':new_block.index,'created':dt_to_string(transaction.created),'before':transaction.SenderWallet_obj.value,'value':f'-{str(transaction.tokens.normalize())}'}
+                self.queuedData['pending'][transaction.id] = {'block':new_block.id,'index':new_block.index,'created':dt_to_string(transaction.created),'before':transaction.SenderWallet_obj.contents,'value':f'-{str(transaction.tokens.normalize())}'}
             self.save()
             prnt('done create block')
 
@@ -4505,7 +4526,7 @@ class Blockchain(models.Model):
                 reward.tokens = calculate_reward(new_block.DateTime, prev_block)
                 # receiverBlock_id = hash_obj_id('Block', specific_data={'objType':'Block','DateTime':dt_to_string(reward.created), 're':reward.id})
                 prnt('ReceiverBlock_id222 self.id',self.id,'dt_to_string(reward.created)',dt_to_string(reward.created),'reward.id',reward.id)
-                reward.re = {'BlockReward':new_block.id,'GenesisId':self.genesisId}
+                reward.re = {'BlockReward':new_block.id,'GenesisId':self.genesisId,'salt':new_block.salt}
                 reward.SenderBlock_obj = new_block
                 reward.senderBlockId = new_block.id
                 # reward.receiverBlockId = receiverBlock_id

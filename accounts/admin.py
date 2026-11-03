@@ -412,7 +412,7 @@ class GenericModelAdmin(AutoForeignKeyAdmin):
 
 
 class SprenAdmin(AutoForeignKeyAdmin):
-    list_display = [full_utc('created'), 'type', 're', 'pointerId', full_utc("DateTime"), full_utc('updated_on_node')]
+    list_display = ['id', full_utc('created'), 'type', 're', 'pointerId', 'CreatorNode_obj', full_utc("DateTime"), full_utc('updated_on_node')]
     # list_display = ['type']
     list_display_links = []
     list_editable = []
@@ -500,7 +500,7 @@ class DataPacketAdmin(AutoForeignKeyAdmin):
         model = DataPacket
 
 class NodeAdmin(AutoForeignKeyAdmin):
-    list_display = ['id','node_name','User_obj',full_utc('activated_dt'),full_utc('suspended_dt'),'activeNode',full_utc('lastUpdate'),full_utc('updated_on_node')]
+    list_display = ['id','node_name','User_obj',full_utc('activated_dt'),full_utc('suspended_dt'),'activeNode',full_utc('lastUpdate'),full_utc('updated_on_node'),'pos']
     list_display_links = []
     list_editable = []
     list_filter = []

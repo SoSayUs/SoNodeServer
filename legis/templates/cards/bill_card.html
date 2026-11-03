@@ -61,21 +61,23 @@
                 {% endcomment %}
                 
                 {% if billUpdate %}
-                <li class='subtitle shorten1' style='display:inline-block; margin-right: 10px; font-style: italic;'><span>{% if billUpdate|get_updated_field:'LatestBillEvent' %}{{ billUpdate|get_updated_field:'LatestBillEventDateTime'|dt_object|date:"M/j/y" }}: {{ billUpdate|get_updated_field:'LatestBillEvent' }}{% else %}{{ billUpdate|get_updated_field:'LatestCompletedMajorStageNameWithChamberSuffix' }}{% endif %}</span></li>
+                <li class='subtitle shorten1' style='display:inline-block; margin-right: -20px; font-style: italic;'><span>{% if billUpdate|get_updated_field:'LatestBillEvent' %}{{ billUpdate|get_updated_field:'LatestBillEventDateTime'|dt_object|date:"M/j/y" }}: {{ billUpdate|get_updated_field:'LatestBillEvent' }}{% else %}{{ billUpdate|get_updated_field:'LatestCompletedMajorStageNameWithChamberSuffix' }}{% endif %}</span></li>
                 {% endif %}
                 {% comment %}
                 <li class='subtitle2' style='display:inline-block;'><a href='{{ bill.get_absolute_url }}?view=Text'>Read Bill</a> &nbsp;|&nbsp;</li>
                 {% endcomment %}
                 
-                {% if billUpdate %}
-                    {% if billUpdate|get_updated_field:'has_text' == True %}
-                        <li class='subtitle2' style='display:inline-block;'>&nbsp;-&nbsp;&nbsp;<a href='{{ bill.get_absolute_url }}?view=Text' style="text-decoration: underline;">Read Bill</a></li>
-                        <li class='subtitle2' style='display:inline-block; '>&nbsp;|&nbsp;&nbsp;<a href={{ bill.LegisLink }} style="text-decoration: underline;" target="_blank">Government Page</a></li>
-                    {% else %}
-                        <li class='subtitle2' style='display:inline-block; '>&nbsp;-&nbsp;&nbsp;<a href={{ bill.LegisLink }} style="text-decoration: underline;" target="_blank">Government Page</a></li>
-                    {% endif %}
-                {% endif %}
             </ul>
+                {% if billUpdate %}
+                    <ul>
+                    {% if billUpdate|get_updated_field:'has_text' == True %}
+                        <li class='subtitle2' style='display:inline-block;'><a href='{{ bill.get_absolute_url }}?view=Text' style="text-decoration: underline;">Read Bill</a></li>
+                        <li class='subtitle2' style='display:inline-block; '>&nbsp;|&nbsp;&nbsp;<a href={{ bill.LegisLink }} style="text-decoration: underline;" target="_blank">Official</a></li>
+                    {% else %}
+                        <li class='subtitle2' style='display:inline-block; '><a href={{ bill.LegisLink }} style="text-decoration: underline;" target="_blank">Official</a></li>
+                    {% endif %}
+                    </ul>
+                {% endif %}
         </div>
         
         <div class='TextContent'>

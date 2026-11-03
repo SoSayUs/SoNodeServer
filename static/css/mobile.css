@@ -611,14 +611,16 @@ body a{
 
 .card .Code h2{
     font-size: 120%;
+    margin-top: 15px;
 }
 
 .card .Details > .title{
     font-size: 70%;
-    font-weight: normal;
+    /* font-weight: normal; */
+    margin-top: 20px;
 }
 .card .Details .subtitle{
-    width: 100%;
+    /* max-width: 100%; */
 }
 .card .Details .subtitle2{
     width:auto;
@@ -699,7 +701,7 @@ body a{
     border-top-left-radius: 15px !important;
     border-top-right-radius: 15px !important;
     margin: 0px 0px 0px 0px !important;
-    background: linear-gradient(to top, transparent, #e2e2e2) !important;
+    background: linear-gradient(to top, transparent, #e9e9e9 25px) !important;
 }
 .reactionBar ul > li {
     height:49px;
@@ -864,7 +866,7 @@ body a{
     font-size: 120%;
 }
 .reactionBar ul .material-icons{
-    font-size: 40px;
+    font-size: 40px !important;
 }
 .modalWidget ul > li span.material-icons{
     font-size: 130%;
@@ -878,3 +880,13 @@ body a{
     font-size: 60px;
     text-align: center;
 }
+.cardContent{
+    position:relative;
+    display: inline-block;
+    min-height: 50px;
+    width: 100%;
+    width: calc(100% - 200px);
+    margin: 0px;
+    top: 0%;
+    padding: 5px;
+  }

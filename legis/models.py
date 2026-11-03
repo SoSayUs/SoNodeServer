@@ -1072,11 +1072,11 @@ class Motion(LegisModel):
         except:
             return []
     
-    def delete(self):
-        if not is_locked(self):
+    def delete(self, force_delete=False):
+        if not is_locked(self) or force_delete:
             for v in RepVote.objects.filter(Motion_obj=self):
-                v.delete()
-            superDelete(self)
+                v.delete(force_delete=force_delete)
+            superDelete(self, force_delete=force_delete)
 
     def boot(self, share=False):
         p = new_post(self)
@@ -1137,9 +1137,9 @@ class RepVote(LegisModel):
         elif not is_locked(self):
             compensate_save(self, RepVote, *args, **kwargs)
 
-    def delete(self):
-        if not is_locked(self):
-            superDelete(self)
+    def delete(self, force_delete=False):
+        if not is_locked(self) or force_delete:
+            superDelete(self, force_delete=force_delete)
 
     def boot(self, share=False):
         p = new_post(self)

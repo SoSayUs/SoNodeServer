@@ -126,9 +126,11 @@ def debate_view(request, region, chamber, govNumber, session, iden, year, month,
     # else:
     # ordering = get_sort_order(sort)
     if sort == 'Earliest':
-        ordering = 'Statement_obj__order', 'Statement_obj__created', 'Statement_obj__DateTime'
+        # ordering = 'DateTime', 'created'
+        ordering = 'order', 'created', 'DateTime'
     else:
-        ordering = '-Statement_obj__order', '-Statement_obj__created', '-Statement_obj__DateTime'
+        ordering = '-DateTime', '-created'
+        # ordering = '-Statement_obj__order', '-Statement_obj__created', '-Statement_obj__DateTime'
     prnt('ordering', ordering)
     user_data, user = get_user_data(request)
     country_dict, gov_dict, subRegions, subGovernments = get_regions_and_govs(region)
@@ -249,8 +251,17 @@ def debate_view(request, region, chamber, govNumber, session, iden, year, month,
             posts = Post.objects.filter(Statement_obj__Meeting_obj=m).select_related('Statement_obj__Person_obj', 'Statement_obj').order_by(*ordering)
 
     else:
-        statements = Statement.objects.filter(Meeting_obj=m).values('id')
-        posts = Post.objects.filter(id__in=[get_post_id(i['id']) for i in statements]).select_related('Update_obj').order_by(*ordering)
+        # statements = Statement.objects.filter(Meeting_obj=m).value('id').order_by(*ordering)
+        # posts = Post.objects.filter(id__in=[get_post_id(i['id']) for i in statements]).select_related('Update_obj')
+        
+        statements = (
+            Statement.objects.filter(Meeting_obj=m).order_by(*ordering).values_list('id', flat=True)
+        )
+        post_ids = [get_post_id(i) for i in statements]
+        by_id = Post.objects.select_related('Update_obj').in_bulk(post_ids)
+        posts = [by_id[pid] for pid in post_ids if pid in by_id]
+
+
     if id:
         setlist = paginater(posts, 'id=%s' %(id))
         statement = setlist[0]
@@ -380,6 +391,7 @@ def legislature_view(request, region):
         sort_link = '?sort=trending'
         sort_type = '-DateTime'
     view = request.GET.get('view', 'Current')
+    prnt('view',view)
     page = request.GET.get('page', 1)
     getDate = request.GET.get('date', None)
     date = request.POST.get('date')
@@ -424,7 +436,7 @@ def legislature_view(request, region):
     if view == 'Upcoming':
         include_list = ['Bill','Meeting', 'Motion']
         posts = Post.objects.filter(Country_obj__id=country_dict['id'], DateTime__gte=datetime.datetime.now() - datetime.timedelta(hours=1)).filter(pointerType__in=include_list).order_by('date_time', 'id')
-    elif view == 'Current':
+    elif view in ['Current', 'Latest']:
         prnt('currret')
         include_list = ['Bill','Meeting', 'Motion']
         if getDate:
@@ -632,28 +644,28 @@ def bill_view(request, region, chamber, govNumber, session, numcode):
         title_link =  bill.get_absolute_url(),
     updatedVersion = None
     if getSpren and user and user.is_superuser:
-        billPost.Bill_obj.getSpren(False)
+        bill.getSpren(False)
     if view.lower() == 'work':
-        posts = Post.objects.filter(pointerType='Meeting', Country_obj__id=country_dict['id'], Update_obj__data__Terms__icontains=billPost.Bill_obj.NumberCode).order_by(ordering)
+        posts = Post.objects.filter(pointerType='Meeting', Country_obj__id=country_dict['id'], Update_obj__data__Terms__icontains=bill.NumberCode).order_by(ordering)
     elif view.lower() == 'debates':
-        posts = Post.objects.filter(**{f"Statement_obj__bill_dict__{billPost.Bill_obj.NumberCode}__obj_id": billPost.Bill_obj.id}).filter(Country_obj__id=country_dict['id']).order_by(ordering, order2)
+        posts = Post.objects.filter(**{f"Statement_obj__bill_dict__{bill.NumberCode}__obj_id": bill.id}).filter(Country_obj__id=country_dict['id']).order_by(ordering, order2)
 
-        topicList = [billPost.Bill_obj.NumberCode]
+        topicList = [bill.NumberCode]
     elif view.lower() == 'motions':
-        posts = Post.objects.filter(pointerType='Motion', Country_obj__id=country_dict['id'], Motion_obj__Bill_obj=billPost.Bill_obj).order_by(ordering)
+        posts = Post.objects.filter(pointerType='Motion', Country_obj__id=country_dict['id'], Motion_obj__Bill_obj=bill).order_by(ordering)
     elif view.lower() == 'text':
         if billPost.Update_obj and 'billText_obj' in billPost.Update_obj.data:
             billText = BillText.objects.filter(id=billPost.Update_obj.data['billText_obj']).first()
         prnt('billText',billText)
         posts = {}
     elif view.lower() == 'updates':
-        posts = Post.objects.filter(pointerType='GenericModel', Country_obj__id=country_dict['id'], GenericModel_obj__pointerId=billPost.Bill_obj.id).order_by(ordering, order2)
+        posts = Post.objects.filter(pointerType='GenericModel', Country_obj__id=country_dict['id'], GenericModel_obj__pointerId=bill.id).order_by(ordering, order2)
     else:
         motions = Motion.objects.filter(Bill_obj__id=bill.id).values('id')
         posts = Post.objects.filter(Q(id__in=[get_post_id(i['id']) for i in motions])|Q(pointerType='Meeting')&Q(Update_obj__data__Terms__icontains=bill.NumberCode)).filter(Country_obj__id=country_dict['id']).order_by(ordering, order2).select_related('Update_obj')
         prnt('postsoverview', posts)
-        topicList = [billPost.Bill_obj.NumberCode]
-    prnt("%s Bill" %(billPost.Bill_obj.Chamber))
+        topicList = [bill.NumberCode]
+    prnt("%s Bill" %(bill.Chamber))
     prnt('posts len:',len(posts))
     # if posts:
     #     setlist = paginate(posts, page, request)

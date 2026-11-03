@@ -879,6 +879,7 @@ async function signReturnInteraction({ response, item }) {
   } else if (message == 'sign-return') {
     
     data = JSON.parse(response['data']);
+    console.log('data1',data);
     li = item['element']
     var sendBack = false;
     const postData = {};
@@ -890,7 +891,9 @@ async function signReturnInteraction({ response, item }) {
     }
     user_id = await myVar('user_id');
     data.User_obj = user_id
+    console.log('0');
     if (data['objType'] == 'Play') {
+      console.log('1');
       sendBack = true;
       pubKey = await myVar('Sign_PubKey');
       privKey = await myVar('Sign_PrivKey');
@@ -916,7 +919,7 @@ async function signReturnInteraction({ response, item }) {
         data.pointerHash = fetchHashable('hashable');
         data.updateHash = fetchHashable('hashableUpdate');
       };
-
+      console.log('2');
       function fetchHashable(selector) {
         const hashableElements = card.querySelectorAll('.'+selector);
         if (hashableElements.length > 0) {
@@ -956,7 +959,7 @@ async function signReturnInteraction({ response, item }) {
         };
       };
 
-      
+      console.log('3');
     } else if (data['objType'] == 'SavePost') {
       if (data.saved == false) {
         data.saved = true
@@ -966,7 +969,7 @@ async function signReturnInteraction({ response, item }) {
         post_save_state = false
       }
     }
-
+    console.log('sendBack',sendBack);
     if (sendBack) {
       console.log('data',data)
       data = await sign_data(data, privKey=privKey, pubKey=pubKey, key_type='secp256k1')

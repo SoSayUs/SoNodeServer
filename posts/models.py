@@ -836,7 +836,10 @@ class Spren(BaseModel):
                 self.Region_obj = pointer.Region_obj
             except:
                 pass
-            self.networkChain = pointer.networkChain
+            if has_field(pointer, 'commitChain'):
+                self.networkChain = pointer.commitChain
+            elif has_field(pointer, 'networkChain'):
+                self.networkChain = pointer.networkChain
             self = initial_save(self)
         elif not is_locked(self) and save_mutable_fields(self, sig=sig, *args, **kwargs):
             prnt('done save spren',self.id)

@@ -471,7 +471,7 @@ def makeText(data):
     return num_tokens, text
 
 
-def summarize_bills(special=None, region_id=None, dt=None, max_mins=45, task=1):
+def summarize_bills(special=None, region_id=None, dt=None, completed=None, max_mins=45, task=1):
     prnt('--summarize_bills', region_id)
     func = 'summarize_bills'
     region = None
@@ -486,11 +486,15 @@ def summarize_bills(special=None, region_id=None, dt=None, max_mins=45, task=1):
     from posts.models import Post, Spren
     from .models import BillText, Bill, Government
     dt = declare_var(dt, start_time)
+    completed = declare_var(completed, [])
+
 
     if region_id:
-        spren_pointers = Spren.objects.filter(Region_obj__id=region_id, type='Billtext').values('pointerId').order_by('-created')[:1000]
+        # offest = task * 5
+        # prnt('offest',offest)
+        spren_pointers = Spren.objects.filter(Region_obj__id=region_id, type='Billtext', Validator_obj__is_valid=True).values('pointerId').order_by('-DateTime')[:1000]
         prnt('spren_pointers',len(spren_pointers))
-        btexts = BillText.objects.filter(Region_obj__id=region_id, Validator_obj__is_valid=True, created__gt=start_time-datetime.timedelta(days=7)).exclude(id__in=[s['pointerId'] for s in spren_pointers]).values('id').distinct('pointerId').order_by('pointerId','created')[:5]
+        btexts = BillText.objects.filter(Region_obj__id=region_id, Validator_obj__is_valid=True, created__gt=start_time-datetime.timedelta(days=10)).exclude(id__in=completed).exclude(id__in=[s['pointerId'] for s in spren_pointers]).values('id').distinct('pointerId').order_by('pointerId','-created')[:5]
         prnt('btexts',btexts.count())
 
         def run_job(btext_id):
@@ -498,6 +502,7 @@ def summarize_bills(special=None, region_id=None, dt=None, max_mins=45, task=1):
             btext = BillText.objects.filter(id=btext_id).first()
             return summarize_bill(btext, self_nodeId=self_nodeId)
         
+        # max_mins = 5
         all_jobs = [b['id'] for b in btexts]
         end_time = dt + datetime.timedelta(minutes=max_mins)
 
@@ -505,7 +510,7 @@ def summarize_bills(special=None, region_id=None, dt=None, max_mins=45, task=1):
             futures = [executor.submit(run_job, job) for job in all_jobs]
             while futures:
                 timeout = (end_time - now_utc()).total_seconds()
-                prnt('timeout',timeout)
+                prnt('timeout1',timeout)
                 if timeout <= 0:
                     prnt('breaking for time', now_utc() - dt)
                     break
@@ -517,7 +522,7 @@ def summarize_bills(special=None, region_id=None, dt=None, max_mins=45, task=1):
                         prnt('returned spren:',spren)
                         if spren:
                             if not dp:
-                                bill = Bill.objects.filter(id=spren.re).first()
+                                bill = Bill.objects.filter(id=spren.re, Validator_obj__is_valid=True).first()
                                 if bill:
                                     if not region:
                                         region = bill.Region_obj
@@ -529,6 +534,9 @@ def summarize_bills(special=None, region_id=None, dt=None, max_mins=45, task=1):
                                 bill = None
                                 if gov and region:
                                     dp = create_share_object(func, region, special=special, dt=dt, task=task)
+                                else:
+                                    prnt('gov',gov,'region',region)
+                                    prnt('no dp created')
 
                             if dp:
                                 dp.updateShare(spren)
@@ -541,35 +549,41 @@ def summarize_bills(special=None, region_id=None, dt=None, max_mins=45, task=1):
             for f in futures:
                 f.cancel()
                 
+        timeout = (end_time - now_utc()).total_seconds()
+        completed += [b['id'] for b in btexts]
+        if timeout > 0 and BillText.objects.filter(Region_obj__id=region_id, Validator_obj__is_valid=True, created__gt=start_time-datetime.timedelta(days=10)).exclude(id__in=completed).exclude(id__in=[s['pointerId'] for s in spren_pointers]).values('id').distinct('pointerId').exists():
+            prnt('next round',task+1)
+            from utils.models import create_job
+            create_job(summarize_bills, job_timeout=3000, worker='low', clear_chrome_job=False, region_id=region_id, dt=dt, max_mins=max_mins, task=task+1, completed=completed)
         if dp:
-            timeout = (end_time - now_utc()).total_seconds()
-            prnt('timeout',timeout)
-            if timeout > 0 and BillText.objects.filter(Region_obj__id=region_id, Validator_obj__is_valid=True, created__gt=start_time-datetime.timedelta(days=7)).exclude(id__in=[s['pointerId'] for s in spren_pointers] + [b['id'] for b in btexts]).values('id').distinct('pointerId').exists():
-                prnt('next round',task+1)
-                from utils.models import create_job
-                create_job(summarize_bills, job_timeout=3000, worker='low', clear_chrome_job=False, region_id=region_id, dt=dt, max_mins=max_mins, task=task+1)
-
             prnt('done summarize_bills', now_utc() - start_time)
             return finishScript(dp, gov, special)
     prnt('none run')
     return
 
-def summarize_bill(billText, self_nodeId=None):
+def summarize_bill(billText, self_nodeId=None, test_run=False):
     start = now_utc()
-    prnt('-summarize_bill',start)
+    prnt('-summarize_bill',start, billText.id, billText.pointerId)
     from posts.models import Spren
     if not self_nodeId:
         self_nodeId = get_operator_obj('self_nodeId')
-    spren = Spren.objects.filter(pointerId=billText.id, re=billText.pointerId, type='Billtext').first()
-    if not spren:
+    if not test_run:
+        spren = Spren.objects.filter(pointerId=billText.id, re=billText.pointerId, type='Billtext').first()
+        if not spren:
+            spren = Spren(pointerId=billText.id, re=billText.pointerId, type='Billtext', pointerType='Bill', CreatorNode_obj_id=self_nodeId, Region_obj=billText.Region_obj)
+            spren.DateTime = billText.created
+        elif spren and spren.data:
+            if spren.CreatorNode_obj.id == self_nodeId and not spren.Validator_obj:
+                return spren
+            elif spren.Validator_obj and spren.Validator_obj.is_valid:
+                return None
+        from .models import Bill
+        if not Bill.objects.filter(id=billText.pointerId, Validator_obj__is_valid=True).exists():
+            prnt('bill not valid')
+            return None
+    else:
         spren = Spren(pointerId=billText.id, re=billText.pointerId, type='Billtext', pointerType='Bill', CreatorNode_obj_id=self_nodeId, Region_obj=billText.Region_obj)
         spren.DateTime = billText.created
-    elif spren and spren.data:
-        if spren.CreatorNode_obj.id == self_nodeId and not spren.Validator_obj:
-            return spren
-        elif spren.Validator_obj and spren.Validator_obj.is_valid:
-            return None
-    
     from utils.models import remove_tags, run_prompt, get_token_count
     if not spren.data:
         spren.data = {}
@@ -622,7 +636,7 @@ def summarize_bill(billText, self_nodeId=None):
     text = remove_tags(html)
     token_count = get_token_count(text)
     prnt('tokens:',token_count)
-    if token_count > 7000:
+    if token_count > 6700:
         text = ''
         for key, value in spren.data['bullets'].items():
             text += f"{value['data']}\n"
@@ -630,7 +644,8 @@ def summarize_bill(billText, self_nodeId=None):
     prnt()
     r = run_prompt(prompt)
     spren.data['status'] = r
-    spren.save()
+    if not test_run:
+        spren.save()
     return spren
 
 def verify_bill_spren(spren):
@@ -865,7 +880,7 @@ def run_assigned_duties(receivedDt=None, result=None):
                             log.save()
 
         job_assigned = False
-        max_mins = 35
+        max_mins = 42
 
         from posts.models import Post, Spren, Region
         seed_input = f"intelligence_{dt_to_string(receivedDt)}"
