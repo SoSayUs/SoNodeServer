@@ -547,9 +547,12 @@ def post_insight_view(request, iden):
     return render(request, "modals/post_insight.html", context)
 
 def post_more_options_view(request, iden):
-    prnt('-post_more_options_view',iden)
+    prnt('-post_more_options_view',iden, request.user.id)
     post = Post.objects.filter(id=iden).first()
-    useraction = Play.objects.filter(User_obj=request.user, Post_obj=post).first()
+    try:
+        useraction = Play.objects.filter(User_obj__id=request.user.id, Post_obj=post).first()
+    except:
+        useraction = None
     context = {
         'title': 'More Options',
         'post': post,
@@ -1349,16 +1352,25 @@ def tester_queue(obj=None):
 
     from network.models import Blockchain, Block, DataPacket, Plugin, _EarthChain_genesisId
     from utils.locked import verify_data, sign_obj, get_relevant_nodes, validate_obj
-    from utils.models import run_prompt
-    from transactions.models import Tx
+    from utils.models import open_browser, close_browser
+    from transactions.models import Wallet, Tx
     from accounts.models import UserPubKey, User
     from posts.models import Post, Update, Spren, ImageFile
-    from legis.models import  BillText, District, Party, Motion, Bill
+    from legis.models import  BillText, District, RepVote, Motion, Bill
     from posts.models import Region
     from utils.utils import superDelete, get_model_prefix, get_self_node, round_time, sigData_to_hash
     # # operatorData = get_operatorData()
     self_node = get_self_node()
     self_node_id = self_node.id
+    # self_node_id = get_operator_obj("self_nodeId")
+
+    w = Wallet.objects.filter(id='1walSo5cohzjXpVnEFE5TOgtU').first()
+    for t in Tx.objects.filter(ReceiverWallet_obj=w):
+        # for b in Block.objects.filter(Tx_obj=t):
+        #     super(Block, b).delete()
+        # super(Tx, t).delete()
+        t.delete(superDel=True, skip_block=None)
+    super(Wallet, w).delete()
 
     # for p in Bill.objects.all():
     #     # p.delete(force_delete=True)
@@ -1369,15 +1381,16 @@ def tester_queue(obj=None):
     # for p in BillText.objects.all():
     #     p.delete(force_delete=True)
 
-    # for d in District.objects.all():
+    # for u in RepVote.objects.all():
+    #     u.delete(force_delete=True)
+        
+    # for d in Motion.objects.all():
     #     # d.delete()
     #     superDelete(d, force_delete=True)
     
     # for u in Update.objects.filter():
     #     u.delete(force_delete=True)
 
-    # for u in ImageFile.objects.all():
-    #     u.delete(force_delete=True)
 
     # for d in Party.objects.all():
     #     superDelete(d, force_delete=True)
@@ -1398,9 +1411,9 @@ def tester_queue(obj=None):
     # prnt('masterData',masterData)
 
 
-    prompt = f'hello'
-    r = run_prompt(prompt)
-    prnt('r',r)
+    # prompt = f'hello'
+    # r = run_prompt(prompt)
+    # prnt('r',r)
 
 
     def block_run(input_block):
@@ -1573,7 +1586,88 @@ def tester_queue(obj=None):
     
 
     # Tidy().unvalidator_run()
+    # iden = 'sprSocmfhO3RHsdJCi4m5jjd'
+    # s = Spren.objects.filter(id=iden).first()
+    # prnt('s',s)
+    # from legis.utils import summarize_bill
+    # btext = BillText.objects.filter(id='1btxtSooT8iRgEkmlE2u2nGh2i').first()
+    # s1 = summarize_bill(btext, test_run=True)
+    # s2 = summarize_bill(btext, test_run=True)
+    # s3 = summarize_bill(btext, test_run=True)
+    # s4 = summarize_bill(btext, test_run=True)
+    # s5 = summarize_bill(btext, test_run=True)
+    # prnt('s1',s1.data)
 
+    # dicts = [s1.data, s2.data, s3.data, s4.data, s5.data]
+    
+    # from itertools import combinations
+
+    # prnt([(i, j) for (i, a), (j, b) in combinations(enumerate(dicts), 2) if a == b])
+
+
+    d = {'bullets': {'init': {'code': '0', 'data': "- Bill introduced to improve mental health services at the Department of Veterans Affairs.\n- The bill was read twice and referred to the Committee on Veterans' Affairs."}, '\n SECTION 1.  Short title; table of contents.\n': {'code': '1807779', 'data': '- The Act is titled the "Building Resources and Access for Veterans\' Mental Health Engagement Act of 2025" or the "BRAVE Act of 2025."\n- It includes sections on workforce improvement, Vet Center infrastructure and technology, women veterans, other matters, and a title specifically focused on workforce improvement.\n- The workforce improvement section covers reports on market pay surveys, qualifications for appointees, coordination between the Veterans Health Administration and Readjustment Counseling Service, and more.'}, '\n SEC. 101.  Report on market pay surveys for Readjustment Counseling Service positions.\n': {'code': '3564507', 'data': '- Congress mandates the Secretary of Veterans Affairs to review market pay surveys for VA employees.\n- The report must assess pay disparities and identify staffing challenges within each district.\n- Reports must cover diverse geographic areas, including rural and urban settings.\n- Pay assessments should consider third-party data, location, qualifications, and incentives.'}, '\n SEC. 102.  Qualifications of appointees in occupations that support mental health programs.\n': {'code': '5524412', 'data': '- Section 7402(b)(8)(C) of the United States Code is modified to remove the restriction on the duration of a period and replace it with "for a reasonable period of time recommended by the Under Secretary for Health."\n- Section 7402(b)(11)(B) of the United States Code is amended to allow the Secretary to waive the requirement of licensure or certification for an individual licensed professional mental health counselor, provided that this waiver is for a reasonable period of time recommended by the Under Secretary for Health.'}, '\n SEC. 103.  Report on coordination of Veterans Health Administration with Readjustment Counseling Service.\n': {'code': '0274743', 'data': '- The Secretary of Veterans Affairs must submit a report within 60 days regarding coordination between the Veterans Health Administration and the Readjustment Counseling Service.\n- The report should assess each Director\'s adherence to policies ensuring support facilities are aligned with Vet Centers for better service, especially for veterans at high risk for suicide.\n- The report must include an analysis of various aspects including staff contact information updates, professional consultations, documentation of these consultations, and coordination with active duty members in the Transition Assistance Program.\n- "Vet Center" is defined as per section 1712A(h) of title 38, United States Code.'}, '\n SEC. 201.  Vet Center defined.\n': {'code': '9941820', 'data': '- "Vet Center" refers to a specific type of facility as defined in section 1712A(h) of title 38, United States Code.'}, '\n SEC. 202. Comptroller General report on Readjustment Counseling Service model for expansion of Vet Center footprint.\n': {'code': '5054748', 'data': "- The Comptroller General of the United States is required to submit a report within one year after the Act's enactment.\n- The report should evaluate the Department of Veterans Affairs' model for expanding Vet Center real property footprint.\n- Key aspects of the evaluation include demand in rural areas, frequency of reassessment, needs of veterans with high crisis line activity or suicides, mobile Vet Center trends, and unique needs of veterans in assessed areas."}, '\n SEC. 203.  Improvement of guidance and information to improve veteran outreach efforts by Vet Centers.\n': {'code': '1445696', 'data': '- The Secretary of Veterans Affairs must ensure Vet Centers have demographic data for eligible individuals to tailor outreach activities.\n- Guidance on assessing the effectiveness of outreach activities, including metrics and targets, will be provided to Vet Centers.\n- A process will be developed to assess barriers veterans and Armed Forces members face in obtaining services from Vet Centers.\n- A process will also be implemented to evaluate staff barriers in providing services.'}, '\n SEC. 204.  Report on information technology system of Readjustment Counseling Service.\n': {'code': '0474480', 'data': '- The Secretary of Veterans Affairs must submit a report within 60 days.\n- The report should identify whether the Department is retaining or replacing RCSNet.\n- If retaining RCSNet, provide rationale and steps to maintain or improve functionality with a timeline.\n- If replacing RCSNet, provide rationale, implementation steps including timeline and estimated cost.'}, '\n SEC. 301.  Study on effectiveness of suicide prevention and mental health outreach programs of Department of Veterans Affairs for women veterans.\n': {'code': '5580769', 'data': "- The Secretary of Veterans Affairs is tasked with conducting surveys and hosting listening sessions within 240 days of the Act's enactment to assess women veterans' perceptions of VA resources.\n- Surveys will evaluate effectiveness, tailoring, integration of military sexual trauma information, potential improvements, and demographic targeting.\n- Sessions must cover urban and rural areas, ensuring representation from various demographics.\n- A report detailing findings and intended steps for refining resources based on feedback is due within one year."}, '\n SEC. 302.  Requirement for Department of Veterans Affairs to modify the REACH VET program to incorporate risk factors weighted for women veterans.\n': {'code': '1210240', 'data': '- The Secretary of Veterans Affairs has 60 days to modify the REACH VET program.\n- The modifications should incorporate risk factors weighted for women.\n- These factors include military sexual trauma and intimate partner violence.'}, '\n SEC. 303.  Review of and report on reintegration and readjustment services for veterans and family members in group retreat settings.\n': {'code': '4045707', 'data': "- The Secretary of Veterans Affairs is required to review requests for reintegration and readjustment services for veterans and their family members in group retreat program settings.\n- The review should focus on determining if current retreat programming meets demand, specifically for women-only retreats, disabled access retreats, particularly wheelchair accessible retreats, and retreats for veterans with specific medical needs.\n- Not later than 120 days after the enactment of this Act, the Secretary must submit a report to the Senate and House Veterans' Affairs Committees on whether the provision of reintegration and readjustment services should be increased and made permanent."}, '\n SEC. 401.  Extension of Staff Sergeant Parker Gordon Fox Suicide Prevention Grant Program.\n': {'code': '3561791', 'data': '- Section 201 of the Commander John Scott Hannon Veterans Mental Health Care Improvement Act of 2019 is amended.\n- Subsection (c)(2)(A) has its funding increased from $750,000 to $1,000,000.\n- Subsection (j) extends the duration from three years to six years.'}, '\n SEC. 402.  Access to mental health residential rehabilitation treatment programs for veterans with spinal cord injury or disorder.\n': {'code': '6060502', 'data': "- The Secretary of Veterans Affairs is required to submit a plan within 60 days of the Act's enactment, detailing access to mental health residential treatment programs for veterans with spinal cord injuries or disorders.\n- The plan must include staffing plans, medical equipment needs assessment, and location assessments.\n- A pilot program begins within 120 days, providing mental health residential treatment at least three Department facilities.\n- A report on the plan implementation, pilot program results, and expansion plans is due one year after enactment."}, '\n SEC. 403.  Mental health consultations and outreach on mental health services for veterans receiving compensation for disabilities relating to mental health diagnoses.\n': {'code': '7726960', 'data': '- **Section Redesignation and Table Update**: Section 1167 of Title 38, United States Code, is redesignated as section 1169. The table of sections at the beginning of chapter 11 is updated by removing the old item for section 1167 and adding a new item for section 1169.\n\n- **Subsection Modifications**: Section 1169 is further modified:\n  - Subsection (a) is renamed to "Initial mental health consultations."\n  - Subsections (b) and (c) are redesignated as (c) and (d), respectively.\n  - A new subsection (b) is added, detailing annual mental health consultations and outreach.\n  - Subsection (c) is modified by inserting "or (b)" after "under subsection (a)" both places it appears.\n  - Subsection (d) is modified by inserting "or as requiring reevaluation of any entitlement of the veteran to compensation under this chapter" before the period at the end.\n\n- **Biennial Reports**: Section 1169 is further amended by adding a new subsection (e):\n  - The Secretary must conduct biennial reviews and reports on outreach effectiveness and mental health services.\n  - Reviews should cover feedback, consultations sought, and factors deterring veterans from seeking consultations.\n  - The Secretary must ensure veterans can provide feedback and analyze it for future improvements.'}, '\n SEC. 404.  Joint report on effectiveness of programs of Department of Veterans Affairs and Department of Defense that promote access to mental health services for transitioning members of the Armed Forces.\n': {'code': '4944600', 'data': "- The Secretary of Veterans Affairs and the Secretary of Defense must jointly submit a report within 180 days after the Act's enactment.\n- The report should detail actions taken or planned to improve mental health services for transitioning military members.\n- It must assess the response to recommendations from the Comptroller General in July 2024.\n- The report should identify any duplicative efforts or gaps and recommend changes, including legislative action if necessary."}}, 'status': 'The bill aims to improve mental health services for the Department of Veterans Affairs by enhancing workforce qualifications, expanding Vet Center infrastructure and technology, addressing specific needs of women veterans, ensuring access to specialized treatment programs, and promoting coordination between VA and DoD mental health resources.'}
+    l = {'bullets': {'init': {'code': '0', 'data': "- Bill introduced to improve mental health services at the Department of Veterans Affairs.\n- The bill was read twice and referred to the Committee on Veterans' Affairs."}, '\n SECTION 1.  Short title; table of contents.\n': {'code': '1807779', 'data': '- The Act is titled the "Building Resources and Access for Veterans\' Mental Health Engagement Act of 2025" or the "BRAVE Act of 2025."\n- It includes sections on workforce improvement, Vet Center infrastructure and technology, women veterans, other matters, and a title specifically focusing on workforce improvement.\n- Key points include reports on market pay surveys, qualifications for mental health support roles, coordination between agencies, guidance for veteran outreach, IT system improvements, studies on suicide prevention programs for women veterans, modifications to the REACH VET program, reviews of reintegration services, grants for suicide prevention, access to residential rehabilitation, mental health consultations, and joint reports on mental health service effectiveness.'}, '\n SEC. 101.  Report on market pay surveys for Readjustment Counseling Service positions.\n': {'code': '3564507', 'data': '- Congress mandates the Secretary of Veterans Affairs to review market pay surveys for VA employees.\n- The report must assess pay disparities and identify staffing challenges within each district.\n- Reports must cover diverse geographic areas, including rural and urban settings.\n- Pay assessments should consider third-party data, location, qualifications, and incentives.'}, '\n SEC. 102.  Qualifications of appointees in occupations that support mental health programs.\n': {'code': '5524412', 'data': '- Section 7402(b)(8)(C) of the United States Code is modified to remove the restriction on the duration of a period and replace it with "for a reasonable period of time recommended by the Under Secretary for Health."\n- Section 7402(b)(11)(B) of the United States Code is amended to allow the Secretary to waive the requirement of licensure or certification for an individual licensed professional mental health counselor, provided that this waiver is for a reasonable period of time recommended by the Under Secretary for Health.'}, '\n SEC. 103.  Report on coordination of Veterans Health Administration with Readjustment Counseling Service.\n': {'code': '0274743', 'data': '- The Secretary of Veterans Affairs must submit a report within 60 days regarding coordination between the Veterans Health Administration and the Readjustment Counseling Service.\n- The report should assess each Director\'s adherence to policies ensuring support facilities are aligned with Vet Centers for better service, especially for veterans at high risk for suicide.\n- The report must include an analysis of various aspects including staff contact information updates, professional consultations, documentation of these consultations, and coordination with active duty members in the Transition Assistance Program.\n- "Vet Center" is defined as per section 1712A(h) of title 38, United States Code.'}, '\n SEC. 201.  Vet Center defined.\n': {'code': '9941820', 'data': '- "Vet Center" refers to a specific type of facility as defined in section 1712A(h) of title 38, United States Code.'}, '\n SEC. 202. Comptroller General report on Readjustment Counseling Service model for expansion of Vet Center footprint.\n': {'code': '5054748', 'data': "- The Comptroller General of the United States is required to submit a report within one year after the Act's enactment.\n- The report should evaluate the Department of Veterans Affairs' model for expanding Vet Center real property footprint.\n- Key aspects of the evaluation include demand in rural areas, frequency of reassessment, needs of veterans with high crisis line activity or suicides, mobile Vet Center trends, and unique needs of veterans in assessed areas."}, '\n SEC. 203.  Improvement of guidance and information to improve veteran outreach efforts by Vet Centers.\n': {'code': '1445696', 'data': '- The Secretary of Veterans Affairs must ensure Vet Centers have demographic data for eligible individuals to tailor outreach activities.\n- Guidance on assessing the effectiveness of outreach activities, including metrics and targets, will be provided to Vet Centers.\n- A process will be developed to assess barriers veterans and Armed Forces members face in obtaining services from Vet Centers.\n- A process will also be implemented to evaluate staff barriers in providing services.'}, '\n SEC. 204.  Report on information technology system of Readjustment Counseling Service.\n': {'code': '0474480', 'data': '- The Secretary of Veterans Affairs must submit a report within 60 days.\n- The report should identify whether the Department is retaining or replacing RCSNet.\n- If retaining RCSNet, provide rationale and steps to maintain or improve functionality with a timeline.\n- If replacing RCSNet, provide rationale, implementation steps including timeline and estimated cost.'}, '\n SEC. 301.  Study on effectiveness of suicide prevention and mental health outreach programs of Department of Veterans Affairs for women veterans.\n': {'code': '5580769', 'data': "- The Secretary of Veterans Affairs is tasked with conducting surveys and hosting listening sessions within 240 days of the Act's enactment to assess women veterans' perceptions of VA resources.\n- Surveys will evaluate effectiveness, tailoring, integration of military sexual trauma information, potential improvements, and demographic targeting.\n- Sessions must cover urban and rural areas, ensuring representation from various demographics.\n- A report detailing findings and intended steps for refining resources based on feedback is due within one year."}, '\n SEC. 302.  Requirement for Department of Veterans Affairs to modify the REACH VET program to incorporate risk factors weighted for women veterans.\n': {'code': '1210240', 'data': '- The Secretary of Veterans Affairs has 60 days to modify the REACH VET program.\n- The modifications should incorporate risk factors weighted for women.\n- These factors include military sexual trauma and intimate partner violence.'}, '\n SEC. 303.  Review of and report on reintegration and readjustment services for veterans and family members in group retreat settings.\n': {'code': '4045707', 'data': "- The Secretary of Veterans Affairs is required to review requests for reintegration and readjustment services for veterans and their family members in group retreat program settings.\n- The review should focus on determining if current retreat programming meets demand, specifically for women-only retreats, disabled access retreats, particularly wheelchair accessible retreats, and retreats for veterans with specific medical needs.\n- Not later than 120 days after the enactment of this Act, the Secretary must submit a report to the Senate and House Veterans' Affairs Committees on whether the provision of reintegration and readjustment services should be increased and made permanent."}, '\n SEC. 401.  Extension of Staff Sergeant Parker Gordon Fox Suicide Prevention Grant Program.\n': {'code': '3561791', 'data': '- Section 201 of the Commander John Scott Hannon Veterans Mental Health Care Improvement Act of 2019 is amended.\n- Subsection (c)(2)(A) has its funding increased from $750,000 to $1,000,000.\n- Subsection (j) extends the duration from three years to six years.'}, '\n SEC. 402.  Access to mental health residential rehabilitation treatment programs for veterans with spinal cord injury or disorder.\n': {'code': '6060502', 'data': "- The Secretary of Veterans Affairs is required to submit a plan within 60 days of the Act's enactment, detailing access to mental health residential treatment programs for veterans with spinal cord injuries or disorders.\n- The plan must include staffing plans, medical equipment needs assessment, and location assessments.\n- A pilot program begins within 120 days, providing mental health residential treatment at least three Department facilities.\n- A report on the plan implementation, pilot program results, and expansion plans is due one year after enactment."}, '\n SEC. 403.  Mental health consultations and outreach on mental health services for veterans receiving compensation for disabilities relating to mental health diagnoses.\n': {'code': '7726960', 'data': '- **Section Redesignation and Table Update**: Section 1167 of Title 38, United States Code, is redesignated as section 1169. The table of sections at the beginning of chapter 11 is updated by removing the old item for section 1167 and adding a new item for section 1169.\n\n- **Subsection Modifications**: Section 1169 is further modified:\n  - Subsection (a) is renamed to "Initial mental health consultations."\n  - Subsections (b) and (c) are redesignated as (c) and (d), respectively.\n  - A new subsection (b) is added, detailing annual mental health consultations and outreach.\n  - Subsection (c) is modified by inserting "or (b)" after "under subsection (a)" both places it appears.\n  - Subsection (d) is modified by inserting "or as requiring reevaluation of any entitlement of the veteran to compensation under this chapter" before the period at the end.\n\n- **Biennial Reports**: Section 1169 is further amended by adding a new subsection (e):\n  - The Secretary must conduct biennial reviews and reports on outreach effectiveness and mental health services.\n  - Reviews should cover feedback, consultations sought, and factors deterring veterans from seeking consultations.\n  - The Secretary must ensure veterans can provide feedback and analyze it for future improvements.'}, '\n SEC. 404.  Joint report on effectiveness of programs of Department of Veterans Affairs and Department of Defense that promote access to mental health services for transitioning members of the Armed Forces.\n': {'code': '4944600', 'data': "- The Secretary of Veterans Affairs and the Secretary of Defense must jointly submit a report within 180 days after the Act's enactment.\n- The report should detail actions taken or planned to improve mental health services for transitioning military members.\n- It must assess the response to recommendations from the Comptroller General in July 2024.\n- The report should identify any duplicative efforts or gaps and recommend changes, including legislative action if necessary."}}, 'status': 'The bill aims to improve mental health services for the Department of Veterans Affairs by enhancing workforce qualifications, expanding Vet Center infrastructure and technology, addressing specific needs of women veterans, ensuring access to specialized treatment programs, and promoting coordination between VA and DoD mental health resources.'}
+
+
+    # ~:mismatch break!,field:,data,
+    aa = {'bullets': {' SEC. 2.  Conveyance of Federal land to Ouray, Colorado.': {'code': '2435581', 'data': '- **Definitions**: The text defines terms such as "City," "Federal land," "Map," and "Secretary."\n- **Conveyance**: The Secretary is tasked with transferring all rights, title, and interests of the United States in Federal land to the City, including associated water rights.\n- **Requirements**: The conveyance must be made by quitclaim deed, subject to existing rights and a reversionary interest. It should be completed at no cost to the City.\n- **Costs and Responsibilities**: The Secretary will pay all costs except for surveys conducted by the City. The City assumes responsibility for repairs, operations, and maintenance of Full Moon Dam and related infrastructure.'}, ' SECTION 1.  Short title.': {'code': '9071327', 'data': '- The Crystal Reservoir Conveyance Act transfers federal land and associated water rights to the City of Ouray, Colorado.\n- The conveyed land includes the Crystal Reservoir site, Full Moon Dam, Full Moon Ditch, and related infrastructure.\n- The city assumes responsibility for repairs, operations, and maintenance of the dam and infrastructure.\n- The conveyance is subject to conditions ensuring the land remains open space for public recreational use.'}, 'init': {'code': '0', 'data': '- **Bill Introduction**: Introduced by Senators Bennett and Hickenlooper.\n- **Purpose**: To direct the Secretary of Agriculture to convey certain land managed by the Forest Service, including a reservoir, to the City of Ouray, Colorado.\n- **Committee Reference**: Referred to the Committee on Energy and Natural Resources.\n- **Reported with Amendment**: Reported by Senator Lee with an amendment that struck out all after the enacting clause and inserted italicized text.'}}, 'status': 'The bill directs the Secretary of Agriculture to convey to the City of Ouray, Colorado, certain land managed by the Forest Service, including a reservoir.'}
+    ab = {'bullets': {' SEC. 2.  Conveyance of Federal land to Ouray, Colorado.': {'code': '2435581', 'data': '- **Definitions**: The text defines terms such as "City," "Federal land," "Map," and "Secretary."\n- **Conveyance**: The Secretary is tasked with transferring all rights, title, and interests of the United States in Federal land to the City, including associated water rights.\n- **Requirements**: The conveyance must be made by quitclaim deed, subject to existing rights and a reversionary interest. It should be completed at no cost to the City.\n- **Costs and Responsibilities**: The Secretary will pay all costs except for surveys conducted by the City. The City assumes responsibility for repairs, operations, and maintenance of Full Moon Dam and related infrastructure.'}, ' SECTION 1.  Short title.': {'code': '9071327', 'data': '- The Act is titled the "Crystal Reservoir Conveyance Act."\n- It authorizes the conveyance of federal land, including Crystal Reservoir and associated facilities, to the City of Ouray, Colorado.\n- The conveyance includes fee simple title and all water rights associated with the land.\n- The City must assume responsibility for repairs, operations, and maintenance of Full Moon Dam and related infrastructure.'}, 'init': {'code': '0', 'data': '- **Bill Introduction**: Introduced by Senators Bennett and Hickenlooper.\n- **Purpose**: To direct the Secretary of Agriculture to convey certain land managed by the Forest Service, including a reservoir, to the City of Ouray, Colorado.\n- **Committee Reference**: Referred to the Committee on Energy and Natural Resources.\n- **Reported with Amendment**: Reported by Senator Lee with an amendment that struck out all after the enacting clause and inserted italicized text.'}}, 'status': 'The bill directs the Secretary of Agriculture to convey to the City of Ouray, Colorado, certain land managed by the Forest Service, including a reservoir.'}
+    # ~:---items do not match,{'objType': 'Spren', 'networkChain': 'regSoJjJHlFcVbpue8KG0lS', 'id': 'sprSokq6VO8UgpwzJBTzkQ7S', 'created': '2026-10-05T06:00:00.00Z', 'func': 'summarize_bills', 'CreatorNode_obj': 'nodSo4P4nQIHWZFavdJ', 'validatorNodeId': 'nodSo5bqKjLz8qZPzju', 'Validator_obj': None, 'Block_obj': None, 'modlVer': 1, 'Region_obj': 'regSoJjJHlFcVbpue8KG0lS', 'DateTime': '2026-09-30T23:00:00.00Z', 'pointerId': '1btxtSo26SOpdK02VDh3TFCiCf', 'pointerKey': 39, 're': '1bilSo8ZZloBrbIOSkuXp0Cju', 'type': 'Billtext', 'pointerType': 'Bill', 'data': {'status': 'The bill directs the Secretary of Agriculture to convey to the City of Ouray, Colorado, certain land managed by the Forest Service, including a reservoir.', 'bullets': {'init': {'code': '0', 'data': '- **Bill Introduction**: Introduced by Senators Bennett and Hickenlooper.\n- **Purpose**: To direct the Secretary of Agriculture to convey certain land managed by the Forest Service, including a reservoir, to the City of Ouray, Colorado.\n- **Committee Reference**: Referred to the Committee on Energy and Natural Resources.\n- **Reported with Amendment**: Reported by Senator Lee with an amendment that struck out all after the enacting clause and inserted italicized text.'}, ' SECTION 1.  Short title.': {'code': '9071327', 'data': '- The Act is titled the "Crystal Reservoir Conveyance Act."\n- It authorizes the conveyance of federal land, including Crystal Reservoir and associated facilities, to the City of Ouray, Colorado.\n- The conveyance includes fee simple title and all water rights associated with the land.\n- The City must assume responsibility for repairs, operations, and maintenance of Full Moon Dam and related infrastructure.'}, ' SEC. 2.  Conveyance of Federal land to Ouray, Colorado.': {'code': '2435581', 'data': '- **Definitions**: The text defines terms such as "City," "Federal land," "Map," and "Secretary."\n- **Conveyance**: The Secretary is tasked with transferring all rights, title, and interests of the United States in Federal land to the City, including associated water rights.\n- **Requirements**: The conveyance must be made by quitclaim deed, subject to existing rights and a reversionary interest. It should be completed at no cost to the City.\n- **Costs and Responsibilities**: The Secretary will pay all costs except for surveys conducted by the City. The City assumes responsibility for repairs, operations, and maintenance of Full Moon Dam and related infrastructure.'}}}, 'extra': None, 'signed': {'2026-10-05T06:00:16.41Z': {'pk': 'upkSoalMVn6hHQ1mq1xFPkz1', 'sig': 'MEUCIC0IIlyKhBP0yYAGMQkZoDVs_IYtxKuYK4YzA1HfEQyVAiEA-lpM9ZvaB2Bv_p-YVbEIeKsz0IvtWDch12p7I7ldjGE'}}}
+    # ~:#---verify_obj_to_data,upk-,<QuerySet [<UserPubKey: UPK:upkSoalMVn6hHQ1mq1xFPkz1>]>
+
+    import json
+    from difflib import SequenceMatcher
+
+    def char_match(d1, d2):
+        a = json.dumps(d1, sort_keys=True, ensure_ascii=False)
+        b = json.dumps(d2, sort_keys=True, ensure_ascii=False)
+        return SequenceMatcher(None, a, b, autojunk=False).ratio()  # 0.0 to 1.0
+        
+    from difflib import SequenceMatcher
+    def value_match(d1, d2):
+        try:
+            keys = d1.keys() | d2.keys()
+            if not keys:
+                return 1.0
+            total = 0.0
+            for k in keys:
+                if k in d1 and k in d2:
+                    total += SequenceMatcher(None, str(d1[k]), str(d2[k]), autojunk=False).ratio()
+            return total / len(keys)
+        except Exception as e:
+            prnt('err',str(e))
+        return 0
+
+    # # prnt('char_match',char_match(d, l))
+    # prnt('0',value_match(d, l))
+    # prnt('a',value_match(aa, ab))
+    # # prnt('b',value_match(ba, bb))
+    # prnt('a2',char_match(aa, ab))
+    # # prnt('b2',char_match(ba, bb))
+
+    # xml = 'https://www.senate.gov/legislative/LIS/roll_call_votes/vote1192/vote_119_2_00180.xml'
+    # # try:
+    # #     r = requests.get(xml)
+    # #     root = ET.fromstring(r.content)
+    # # except:
+    # driver = open_browser(xml)
+    # prnt('loaded')
+    # time.sleep(4)
+    # # element_present = EC.presence_of_element_located((By.XPATH, '/html/body'))
+    # # WebDriverWait(driver, 10).until(element_present)
+
+    # xml_container = driver.find_element(By.ID, 'webkit-xml-viewer-source-xml')
+    # xml_text = xml_container.get_attribute('innerHTML')
+    # close_browser(driver)
+    # root = ET.fromstring(xml_text)
+
+    # soup = BeautifulSoup(driver.page_source, 'html.parser')
+    # prnt('soup',soup)
+    # close_browser(driver)
+    # root = ET.fromstring(driver.page_source)
+    prnt()
+    # prnt('root',root)
+        
         
     
     prnt('done tester_queue')
@@ -1591,8 +1685,8 @@ def tester_queue_view(request):
             prnt('HELLLOO!!')
             import django_rq
             queue = django_rq.get_queue('low')
-            queue.enqueue(tester_queue, job_timeout=1200)
-            # queue.enqueue(tester_queue, job_timeout=3600)
+            # queue.enqueue(tester_queue, job_timeout=1200)
+            queue.enqueue(tester_queue, job_timeout=3600)
             from network.models import Tidy, Validator, _OperationsChain_genesisId
             # from posts.models import Region
             from transactions.models import Wallet,Tx
@@ -1603,9 +1697,9 @@ def tester_queue_view(request):
 
 
 
-            prompt = f'hello'
-            r = run_prompt(prompt)
-            prnt('r',r)
+            # prompt = f'hello'
+            # r = run_prompt(prompt)
+            # prnt('r',r)
 
 
                 
