@@ -33,7 +33,6 @@ from utils.utils import (
 
 
 
-
 import platform
 import os
 if platform.system() == 'Darwin':
@@ -42,8 +41,6 @@ elif platform.system() == 'Windows':
     device_system = 'windows'
 else:
     device_system = 'linux'
-
-
 
 
 def check_super_commands():
@@ -545,6 +542,8 @@ def finishScript(log, gov=None, special=None, func=None, log_event=True, send_of
                             gov = i
                             gov_id = gov.id
                             break
+        if gov and isinstance(gov, models.Model):
+            log.data['networkChain'] = gov.networkChain
     else:
         r = 'unknown'
     log.data['content_length'] = r
@@ -2698,7 +2697,7 @@ def run_prompt2(prompt, tkns_plus=0, prompt_type='ollama'):
 def run_prompt(
         prompt: str,
         model_path: str = '',
-        n_ctx: int = 9000,
+        n_ctx: int = 6700,
         n_gpu_layers: int = -1,
         max_tokens: int = 1000,
         seed: int = 42,
@@ -2798,10 +2797,20 @@ def run_prompt(
 
     import urllib.request
     def call_llama(prompt, max_tokens=512):
+        # body = json.dumps({
+        #     "messages": [{"role": "user", "content": prompt}],
+        #     "max_tokens": max_tokens,
+        #     "seed": seed,
+        # }).encode()
         body = json.dumps({
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": max_tokens,
+            "temperature": 0,
+            "top_k": 1,
+            "top_p": 1.0,
             "seed": seed,
+            # 'logprobs': True,
+            # 'top_logprobs': 5
         }).encode()
         req = urllib.request.Request(
             "http://127.0.0.1:8081/v1/chat/completions",
@@ -2825,12 +2834,16 @@ def run_prompt(
     #     top_k=top_k,
     #     repeat_penalty=repeat_penalty,
     # )
-    elapsed = time.perf_counter() - start
  
+    # prnt('output',output)
     text = output["choices"][0]["message"]["content"]
- 
+    elapsed = time.perf_counter() - start
+    # prnt('output',output)
     prnt("runtime_seconds", elapsed)
+    usage = output['usage']
     prnt("prompt_tokens", usage.get("prompt_tokens", 0))
+    # prnt("total_tokens", usage.get("total_tokens", 0))
+    completion_tokens = usage.get('completion_tokens',0)
     prnt("completion_tokens", completion_tokens)
     prnt("tokens_per_second", completion_tokens / elapsed if elapsed > 0 else 0.0)
 
@@ -3124,6 +3137,14 @@ def tasker(dt, test=False):
     result = {'dt':dt_to_string(dt),'now_utc':dt_to_string(now_utc())}
     # skip if start time is excessively delayed
 
+
+    # for b in Block.objects.filter(networkChain='1govSoncxteN093iomcu3TitB', validated=True):
+    #     b.is_not_valid()
+    # for b in Block.objects.filter(networkChain='1govSogivlgJQwMYxxaTLgUHA', validated=True):
+    #     b.is_not_valid()
+    # for b in Block.objects.filter(validated=False):
+    #     b.delete()
+
     difference = now_utc() - dt
     diff_mins = difference.total_seconds() / 60
     if diff_mins < 10 or test:
@@ -3175,7 +3196,7 @@ def tasker(dt, test=False):
                 prnt('enact_transaction tx',tx)
                 # result['unvalidated_txs'].append(tx.id)
                 django_rq.get_queue('main').enqueue(tx.enact_transaction, id=tx.id, job_timeout=60, result_ttl=7200)
-        for tx in Tx.objects.filter(validated=True).exclude(ReceiverBlock_obj__validated=True).order_by('ReceiverWallet_obj__id','created').distinct('ReceiverWallet_obj__id'):
+        for tx in Tx.objects.filter(validated=True).exclude(ReceiverBlock_obj__validated=True).order_by('ReceiverWallet_obj__id','-created').distinct('ReceiverWallet_obj__id'):
             if not exists_in_worker('send_for_block_creation', id=tx.id):
                 prnt('send_for_block_creation1 tx',tx)
                 result['unvalidated_txs'].append(tx.id)
