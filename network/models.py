@@ -604,7 +604,7 @@ class DataPacket(models.Model):
     chainName = models.CharField(max_length=50, default="", blank=True, null=True)
     func = models.CharField(max_length=90, default=None, blank=True, null=True)
     jobId = BinaryBase62Field(max_byte_length=30, null=True, blank=True)
-    task = models.CharField(max_length=10, default="1", blank=True, null=True)
+    task = models.CharField(max_length=50, default="1", blank=True, null=True)
     Region_obj = models.ForeignKey('posts.Region', related_name='%(class)s_region_obj', blank=True, null=True, on_delete=models.CASCADE)
     data = models.JSONField(default=dict, blank=True, null=True)
     notes = models.JSONField(default=dict, blank=True, null=True)
