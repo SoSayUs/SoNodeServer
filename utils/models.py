@@ -483,9 +483,9 @@ def create_share_object(func, region, special, dt=None, iden=None, job_dt=None, 
         dp.jobId = hash_obj_id('DataPacket', specific_data=f"{dt_to_string(job_dt)}{func}{region.id}")
         dp.created = job_dt
         dp.Node_obj = get_self_node()
-        dp.task = task
+        dp.task = str(task)
         dp.data['func'] = func
-        dp.data['task'] = task
+        dp.data['task'] = str(task)
         dp.data['created'] = dt_to_string(job_dt)
         dp.data['started'] = dt_to_string(now_utc())
         dp.data['region_name'] = region.Name
