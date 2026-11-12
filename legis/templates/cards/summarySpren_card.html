@@ -36,14 +36,14 @@
                 </div>
             <div class='TextContent' style='margin-top: 10px;'>
                 <ul class='Text'>
-                    {% call_method sprenPost.Spren_obj "list_spren_items" "items" as results %}
+                    {% call_method sprenPost.Pointer_obj "list_spren_items" "items" as results %}
                     {% for iden, text in results %}
                         <li style="white-space: pre-wrap;"><a href='?id={{ iden }}'>{{ text }}</a></li>
                         <br>
                     {% endfor %}
 
                     {% comment %}
-                    {% for i in sprenPost.Spren_obj.sprenitem_set.all %}
+                    {% for i in sprenPost.Pointer_obj.sprenitem_set.all %}
                         <li style="white-space: pre-wrap;"><a href='{{ i.get_absolute_url }}'>{{ i.content }}</a></li>
                         <br>
                     {% endfor %}

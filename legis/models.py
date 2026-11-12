@@ -694,13 +694,15 @@ class Meeting(LegisModel):
         meeting_terms = {}
         update_items = []
         order = 1
+        from utils.utils import value_is_none
         for s in statements:
             if s.order == None:
                 s.order = order
                 update_items.append(s)
             order += 1
             p_item = None
-            p_item = json.dumps({'Name':s.PersonName, 'obj_id':s.PersonName})
+            if not value_is_none(s.PersonName):
+                p_item = json.dumps({'Name':s.PersonName, 'obj_id':s.PersonName})
             if p_item:
                 try:
                     if not p_item in H_people:
@@ -708,7 +710,7 @@ class Meeting(LegisModel):
                     else:
                         H_people[p_item] += 1
                 except Exception as e:
-                    pass
+                    prnt('apply_terms error 062', str(e))
             if s.Terms_array:
                 for t in s.Terms_array:
                     if t in meeting_terms:
@@ -828,7 +830,7 @@ class Statement(LegisModel):
         if not version:
             version = self.modlVer
         if int(version) >= 1:
-            return ['objType','Meeting_obj','Person_obj','PersonName','Content','order','Government_obj','Chamber','Region_obj','Country_obj']
+            return ['objType','Meeting_obj','Person_obj','Content','order','Government_obj','Chamber','Region_obj','Country_obj']
     
     def commit_data(self, version=None):
         if not version:
@@ -903,9 +905,9 @@ class Statement(LegisModel):
         if not p.keyword_array:
             from utils.models import skipwords
             p.keyword_array = []
-            if create_person_trend and p.Person_obj: # not used
-                if 'FullName' in p.Person_obj.Update_obj.data and p.Person_obj.Update_obj.data['FullName'].lower() not in p.keyword_array:
-                    p.keyword_array.append(p.Person_obj.Update_obj.data['FullName'].lower())
+            # if create_person_trend and p.Person_obj: # not used
+            #     if 'FullName' in p.Person_obj.Update_obj.data and p.Person_obj.Update_obj.data['FullName'].lower() not in p.keyword_array:
+            #         p.keyword_array.append(p.Person_obj.Update_obj.data['FullName'].lower())
             if self.Terms_array:
                 for t in self.Terms_array:
                     if t not in p.keyword_array and t not in skipwords:
@@ -920,7 +922,7 @@ class Statement(LegisModel):
     
     def upon_validation(self):
         create_keyphrases(self, create_person_trend=False)
-        personPost = Post.objects.filter(Person_obj=self.Person_obj).first()
+        personPost = Post.objects.filter(pointerId=self.Person_obj.id).first()
         if personPost and personPost.DateTime < self.DateTime:
             personPost.DateTime = self.DateTime
             personPost.save()

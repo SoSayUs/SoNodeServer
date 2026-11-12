@@ -512,6 +512,7 @@ def finishScript(log, gov=None, special=None, func=None, log_event=True, send_of
     if is_id(log):
         log = DataPacket.objects.filter(id=log).first()
     if not log or 'completed' in log.func:
+        prnt('--finishScript previously completed')
         return None
     prnt('--finishScript', log.data['func'], gov, special)
     gov_id = None
@@ -920,6 +921,9 @@ def data_sort_priority(entry, version=None):
         result = sorted(entry, key=lambda x: type_order.get(get_app_name(model_name=x, am_i_model=True), float('inf')))
         datetime_priority = float('inf')
         return result
+    else:
+        prnt('data_sort_priority fail 1',type(entry), str(entry)[:500])
+        return (None, None)
     return (type_priority, datetime_priority)
 
 def sync_model(xModel, jsonContent, skip_fields=[], do_save=True, opBlock_data={}, force_sync=False, get_missing_blocks=True, skip_verify=False):
@@ -2697,7 +2701,7 @@ def run_prompt2(prompt, tkns_plus=0, prompt_type='ollama'):
 def run_prompt(
         prompt: str,
         model_path: str = '',
-        n_ctx: int = 6700,
+        n_ctx: int = 6500,
         n_gpu_layers: int = -1,
         max_tokens: int = 1000,
         seed: int = 42,
@@ -2821,31 +2825,25 @@ def run_prompt(
             # return json.load(r)["choices"][0]["message"]["content"]
 
     start = time.perf_counter()
-    output = call_llama(prompt, n_ctx)
-    # llm = Llama(**llama_kwargs)
- 
-    # prnt('start chat')
-    # output = llm.create_chat_completion(
-    #     messages=[{"role": "user", "content": prompt}],
-    #     max_tokens=max_tokens,
-    #     seed=seed,
-    #     temperature=temperature,
-    #     top_p=top_p,
-    #     top_k=top_k,
-    #     repeat_penalty=repeat_penalty,
-    # )
- 
-    # prnt('output',output)
-    text = output["choices"][0]["message"]["content"]
-    elapsed = time.perf_counter() - start
-    # prnt('output',output)
-    prnt("runtime_seconds", elapsed)
-    usage = output['usage']
-    prnt("prompt_tokens", usage.get("prompt_tokens", 0))
-    # prnt("total_tokens", usage.get("total_tokens", 0))
-    completion_tokens = usage.get('completion_tokens',0)
-    prnt("completion_tokens", completion_tokens)
-    prnt("tokens_per_second", completion_tokens / elapsed if elapsed > 0 else 0.0)
+    try:
+        output = call_llama(prompt, n_ctx)
+
+        text = output["choices"][0]["message"]["content"]
+        elapsed = time.perf_counter() - start
+        # prnt('output',output)
+        prnt("runtime_seconds", elapsed)
+        usage = output['usage']
+        prnt("prompt_tokens", usage.get("prompt_tokens", 0))
+        # prnt("total_tokens", usage.get("total_tokens", 0))
+        completion_tokens = usage.get('completion_tokens',0)
+        prnt("completion_tokens", completion_tokens)
+        prnt("tokens_per_second", completion_tokens / elapsed if elapsed > 0 else 0.0)
+    except Exception as e:
+        prnt('\nLLAMA FAIL', str(e))
+        text = ''
+        elapsed = time.perf_counter() - start
+        usage = {}
+        completion_tokens = 0
 
     if not return_stats:
         return text
@@ -3117,7 +3115,246 @@ def request_items(requested_items=[], nodes=None, supported_chain_list=None, req
                         result = True
         return result
 
+def _resolve_task_func(func):
+    # look up a task by name: this module, then network.utils, then utils.locked
+    import importlib
+    f = globals().get(func)
+    if callable(f):
+        return f
+    for mod in ('network.utils', 'utils.locked'):
+        f = getattr(importlib.import_module(mod), func, None)
+        if callable(f):
+            return f
+    return None
+
 def tasker(dt, test=False):
+    try:
+        est = pytz.timezone('US/Eastern')
+        est_time = dt.astimezone(est)
+        formatted_time = est_time.strftime("%I:%M:%S %p")
+        prnt('\n--tasker',formatted_time,'est')
+    except Exception:
+        prnt('\n--tasker',dt)
+    dt = round_time(dt, amount='10mins', dir='down')
+    prnt('dt_utc !!',dt)
+    check_super_commands()
+
+    if e_brake(1):
+        return
+    # runs every 10 minutes
+    from network.models import DataPacket, Block, Blockchain, Node, Sonet, _OperationsChain_genesisId, _block_creation_times, mandatoryChains, selectableChains, block_time_delay
+    from utils.locked import check_validation_consensus
+    result = {'dt':dt_to_string(dt),'now_utc':dt_to_string(now_utc())}
+    # skip if start time is excessively delayed
+
+
+    # try:
+    #     from posts.models import Update
+    #     u = Update.objects.filter(pointerId='1mtgSomfDnNHrXlmUvlhdL0Xd').order_by('-created').first()
+    #     if u:
+    #         u.delete(force_delete=True)
+    # except Exception as e:
+    #     prnt('tasker err 1',str(e))
+    # try:
+    #     from legis.models import Meeting
+    #     u = Meeting.objects.filter(id='1mtgSomfDnNHrXlmUvlhdL0Xd').first()
+    #     if u:
+    #         u.delete(force_delete=True)
+    # except Exception as e:
+    #     prnt('tasker err 1b',str(e))
+    
+    # try:
+    #     from posts.models import Update
+    #     u = Update.objects.filter(pointerId='1mtgSod5XoxNLrmHLAZDIpvEB').order_by('-created').first()
+    #     if u:
+    #         u.delete(force_delete=True)
+    # except Exception as e:
+    #     prnt('tasker err 1',str(e))
+    # try:
+    #     from legis.models import Meeting
+    #     u = Meeting.objects.filter(id='1mtgSod5XoxNLrmHLAZDIpvEB').first()
+    #     if u:
+    #         u.delete(force_delete=True)
+    # except Exception as e:
+    #     prnt('tasker err 1b',str(e))
+
+    difference = now_utc() - dt
+    diff_mins = difference.total_seconds() / 60
+    if diff_mins < 10 or test:
+        result = result | {'dps':[],'unvalidated_blocks':[],'new_block_candidate':[],'restore failed scrapers':[],'scrape assignment':[],'unvalidated_txs':[]}
+        self_node_id = get_operator_obj('self_nodeId')
+        low_queue = django_rq.get_queue('low')
+
+        if dt.minute >= 30 and dt.minute < 40:
+        # if dt.minute in _opBlock_creation_times:
+            compute_node_trust()
+            prnt("now_utc()-datetime.timedelta(minutes=block_time_delay('operations'))",now_utc()-datetime.timedelta(minutes=block_time_delay('operations')))
+            opChain = Blockchain.objects.filter(genesisId=_OperationsChain_genesisId, last_block_datetime__lte=now_utc()-datetime.timedelta(minutes=block_time_delay('operations'))).defer('queuedData').first()
+            if opChain:
+                block_assigned = opChain.new_block_candidate(self_node=self_node_id, dt=dt)
+                prnt('block_assigned',block_assigned)
+                if block_assigned:
+                    result['new_block_candidate'].append(opChain.genesisName)
+                    result['new_block_candidate'].append(block_assigned.id)
+        elif dt.minute >= 40:
+        # elif dt.minute >= 40 or dt.minute >= 10 and dt.minute <= 20:
+            for block in Block.objects.filter(networkChain=_OperationsChain_genesisId, validated__isnull=True).exclude(id__in=result['new_block_candidate']).only('id'):
+                result['unvalidated_blocks'].append(block.id)
+                result['new_block_candidate'].append(block.id)
+                if dt.minute >= 50:
+                    check_validation_consensus(block.id, block_id=block.id, downstream_worker=False)
+                elif not exists_in_worker('broadcast_block', queue_name='high', block_id=block.id):
+                    django_rq.get_queue('high').enqueue(block.broadcast_block, block_id=block.id, job_timeout=420, result_ttl=7200)
+        else:
+            for block in Block.objects.filter(networkChain=_OperationsChain_genesisId, validated__isnull=True).defer('data','extraData',"notes").order_by('index'):
+                django_rq.get_queue('high').enqueue(block.is_not_valid, mark_strike=False, note='tasker1', job_timeout=300, result_ttl=7200)
+            if dt.minute >= 20 and dt.minute < 30:
+                operationsPacket = DataPacket.objects.filter(Node_obj__id=self_node_id, func='share', networkChain=_OperationsChain_genesisId).defer('data').first() # broadcast nodeReviews and/or node updates
+                if not operationsPacket:
+                    operationsPacket = DataPacket(Node_obj_id=self_node_id, networkChain=_OperationsChain_genesisId, func='share', chainName=_OperationsChain_genesisId)
+                    operationsPacket.save()
+                if operationsPacket:
+                    django_rq.get_queue('chat').enqueue(operationsPacket.broadcast_dp, job_timeout=60, result_ttl=7200)
+
+        for block in Block.objects.filter(validated__isnull=True).exclude(networkChain=_OperationsChain_genesisId).exclude(id__in=result['new_block_candidate']).filter(Q(data__meta__isnull=True) | ~Q(data__meta__has_key='is_reward')).exclude(Blockchain_obj=None).values('id').order_by('created','index'): # exclude .data['meta']['is_reward']
+            result['unvalidated_blocks'].append(block['id'])
+            prnt('check_validation_consensus',block)
+            if not exists_in_worker('check_validation_consensus', queue_name=['main','high'], block_id=block['id']):
+                django_rq.get_queue('main').enqueue(check_validation_consensus, block=block['id'], block_id=block['id'], only_if_unkown=True, job_timeout=300, result_ttl=7200)
+        if e_brake(2):
+            return
+        from transactions.models import Tx
+        for tx in Tx.objects.exclude(enacted=True).exclude(ReceiverBlock_obj=None).filter(enact_dt__lt=now_utc()).filter(validated=True).order_by('enact_dt'):
+            if not exists_in_worker('enact_transaction', id=tx.id):
+                prnt('enact_transaction tx',tx)
+                # result['unvalidated_txs'].append(tx.id)
+                django_rq.get_queue('main').enqueue(tx.enact_transaction, id=tx.id, job_timeout=60, result_ttl=7200)
+        for tx in Tx.objects.filter(validated=True).exclude(ReceiverBlock_obj__validated=True).order_by('ReceiverWallet_obj__id','-created').distinct('ReceiverWallet_obj__id'):
+            if not exists_in_worker('send_for_block_creation', id=tx.id):
+                prnt('send_for_block_creation1 tx',tx)
+                result['unvalidated_txs'].append(tx.id)
+                django_rq.get_queue('main').enqueue(tx.send_for_block_creation, id=tx.id, downstream_worker=False, job_timeout=60, result_ttl=7200)
+        for tx in Tx.objects.filter(validated__isnull=True).order_by('created'):
+            if not exists_in_worker('send_for_block_creation', id=tx.id):
+                prnt('send_for_block_creation2 tx',tx)
+                result['unvalidated_txs'].append(tx.id)
+                django_rq.get_queue('main').enqueue(tx.send_for_block_creation, id=tx.id, downstream_worker=False, job_timeout=60, result_ttl=7200)
+
+        self_node = Node.objects.filter(id=self_node_id).values('chain_array','region_array','plugin_array').first()
+        if not self_node:
+            prnt('tasker: self node not found', self_node_id)
+            return result
+        prnt('self_node',self_node)
+
+        p_array = self_node['plugin_array'] or []
+        r_array = self_node['region_array'] or []
+        supported = list(p_array) + list(r_array) + ['All']
+        dataPackets = DataPacket.objects.filter(Node_obj__id=self_node_id, func='share').filter(Q(networkChain__in=supported)|Q(Region_obj__id__in=r_array)).exclude(networkChain=_OperationsChain_genesisId).exclude(data={}).defer('data','notes')
+        for dp in dataPackets:
+            if not exists_in_worker('broadcast_dp', queue_name=['chat'], iden=dp.id):
+                django_rq.get_queue('chat').enqueue(dp.broadcast_dp, iden=dp.id, job_timeout=300, result_ttl=7200)
+
+        processes = DataPacket.objects.filter(func__icontains='process', updated_on_node__lte=now_utc() - datetime.timedelta(minutes=9.5), created__gt=now_utc() - datetime.timedelta(minutes=60)).exclude(func__icontains='completed').defer('data').order_by('created')
+        prnt('processes,',processes)
+        if processes:
+            for log in processes:
+                prnt('processes log',log)
+                if log.created < now_utc() - datetime.timedelta(minutes=65):
+                    log.completed('passed_65_minutes')
+                elif not log.data:
+                    log.delete()
+                elif log.updated_on_node < now_utc() - datetime.timedelta(minutes=10):
+                    func = log.func
+                    if ':' in func:
+                        func = func[:func.find(':')]
+                    if not exists_in_worker(func, id=log.id):
+                        prnt('Continuing RunA:', func)
+                        queue = django_rq.get_queue('main' if ('block' in func or 'data_packet' in func) else 'low')
+                        f = _resolve_task_func(func)
+                        if f:
+                            queue.enqueue(f, log.id, job_timeout=300, result_ttl=7200)
+                        else:
+                            prnt('tasker: no function found for', func)
+
+        # return
+        # every 60 mins create block if data
+        prnt("self_node['chain_array']",self_node['chain_array'])
+        prnt("self_node['region_array']",self_node['region_array'])
+        prnt("self_node['plugin_array']",self_node['plugin_array'])
+        sonet = Sonet.objects.values('id').first()
+        if not sonet:
+            prnt('tasker: no Sonet object')
+            return result
+        if dt.minute in [t-20 for t in _block_creation_times]:
+            node_count = Node.objects.filter(activeNode=True).count()
+            if node_count and random.randrange(node_count if node_count <= 3 else node_count // 3) == 0:
+                from network.models import CommitData 
+                commit = CommitData()
+                commit, reveal = commit.create_pair()
+                from utils.locked import sign_obj
+                commit = sign_obj(commit, do_save=True)
+                reveal = sign_obj(reveal, do_save=True)
+                dp = DataPacket(Node_obj_id=self_node_id, func='share', networkChain=sonet['id'])
+                dp.save()
+                dp.add_item_to_share(commit)
+                django_rq.get_queue('chat').enqueue(dp.broadcast_dp, job_timeout=60, result_ttl=7200)
+
+        elif dt.minute in [t-10 for t in _block_creation_times]:
+            from network.models import RevealData 
+            reveal = RevealData.objects.filter(Node_obj__id=self_node_id, created=dt-datetime.timedelta(minutes=10)).first()
+            if reveal:
+                dp = DataPacket(Node_obj_id=self_node_id, func='share', networkChain=sonet['id'])
+                dp.save()
+                dp.add_item_to_share(reveal)
+                django_rq.get_queue('chat').enqueue(dp.broadcast_dp, job_timeout=60, result_ttl=7200)
+        elif dt.minute in _block_creation_times or test==True:
+            block_assigned = False
+            from network.models import universalChains, _SonetChain_genesisName, _EarthChain_genesisId, reward_models
+            # copy: universalChains is a module-level list, never mutate it
+            uChains = [c for c in universalChains if c not in (_OperationsChain_genesisId, _SonetChain_genesisName)]
+            uChains += [sonet['id'], _EarthChain_genesisId]
+            prnt('universalChains',uChains)
+            chains = Blockchain.objects.filter(genesisId__in=uChains, last_block_datetime__lte=dt - datetime.timedelta(minutes=block_time_delay()-10)).exclude(queuedData={}).defer('queuedData')
+            for chain in chains:
+                prnt('chain1',chain)
+                block_assigned = chain.new_block_candidate(self_node=self_node_id, dt=dt)
+                prntDebug('block_assigned1::',block_assigned)
+                if block_assigned:
+                    result['new_block_candidate'].append(chain.genesisName)
+                    result['new_block_candidate'].append(block_assigned.id)
+            try:
+                p_array = self_node['plugin_array'] if self_node['plugin_array'] else []
+                r_array = self_node['region_array'] if self_node['region_array'] else []
+                supported = list(p_array) + list(r_array)
+                chains = Blockchain.objects.filter(genesisId__in=supported, last_block_datetime__lte=dt - datetime.timedelta(minutes=block_time_delay()-10)).exclude(queuedData={}).defer('queuedData').order_by('?')
+                for c in chains:
+                    prnt('chain2',c)
+                    block_assigned = c.new_block_candidate(self_node=self_node_id, dt=dt)
+                    prntDebug('block_assigned2::',block_assigned)
+                    if block_assigned:
+                        result['new_block_candidate'].append(c.genesisName)
+                        result['new_block_candidate'].append(block_assigned.id)
+
+                chains = Blockchain.objects.exclude(rewardsData={}).exclude(queuedData={}).filter(last_block_datetime__lte=dt - datetime.timedelta(minutes=block_time_delay()-10)).defer('queuedData').order_by('?')
+                for c in chains:
+                    prnt('chain3',c)
+                    block_assigned = c.new_block_candidate(self_node=self_node_id, dt=dt)
+                    prntDebug('block_assigned3::',block_assigned)
+                    if block_assigned:
+                        result['new_block_candidate'].append(c.genesisName)
+                        result['new_block_candidate'].append(block_assigned.id)
+            except Exception as e:
+                prnt('tasker err 3',str(e))
+        if e_brake(3):
+            return
+        
+        if dt.minute < 10 and test==False:
+            create_job(run_script_duty, job_timeout=300, worker='high', receivedDt=dt, result=result)
+
+    return result
+
+
+def tasker2(dt, test=False):
     try:
         est = pytz.timezone('US/Eastern')
         est_time = dt.astimezone(est)

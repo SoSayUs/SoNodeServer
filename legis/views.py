@@ -145,6 +145,7 @@ def debate_view(request, region, chamber, govNumber, session, iden, year, month,
         m = Meeting.objects.filter(Title__iexact=iden.replace('_',' ')).first()
     else:
         m = Meeting.objects.filter(id=iden).first()
+    
     # m = p.Meeting_obj
     p = Post.objects.filter(id=get_post_id(m.id)).first()
     meetingUpdate = p.Update_obj
@@ -203,37 +204,48 @@ def debate_view(request, region, chamber, govNumber, session, iden, year, month,
             instruction = 'follow_topics add "%s"' %(topic)
         return render(request, "utils/dummy.html", {"result": 'success', 'userData': get_user_sending_data(user), 'instruction':instruction})
     wordCloud = None
+    statements = None
+    posts = []
     if topic:
         hasContext = False
         search = [f'{topic}']
         if speaker_id:
             if is_id(speaker_id):
-                posts = Post.objects.filter(Statement_obj__Meeting_obj=m).filter(Statement_obj__Person_obj__id=speaker_id).filter(Q(Statement_obj__Terms_array__overlap=search)|Q(Statement_obj__keyword_array__overlap=search)).select_related('Statement_obj__Person_obj', 'Statement_obj').order_by(*ordering)
+                # posts = Post.objects.filter(Statement_obj__Meeting_obj=m).filter(Statement_obj__Person_obj__id=speaker_id).filter(Q(Statement_obj__Terms_array__overlap=search)|Q(Statement_obj__keyword_array__overlap=search)).select_related('Statement_obj__Person_obj', 'Statement_obj').order_by(*ordering)
+                statements = (Statement.objects.filter(Meeting_obj=m, Person_obj__id=speaker_id).filter(Q(Terms_array__overlap=search)|Q(OrderOfBusiness=topic)|Q(SubjectOfBusiness=topic)).order_by(*ordering).values_list('id', flat=True))
             else:
-                posts = Post.objects.filter(Statement_obj__Meeting_obj=m).filter(Statement_obj__Person_obj__GovIden=speaker_id).filter(Q(Statement_obj__Terms_array__overlap=search)|Q(Statement_obj__keyword_array__overlap=search)).select_related('Statement_obj__Person_obj', 'Statement_obj').order_by(*ordering)
+                # posts = Post.objects.filter(Statement_obj__Meeting_obj=m).filter(Statement_obj__Person_obj__GovIden=speaker_id).filter(Q(Statement_obj__Terms_array__overlap=search)|Q(Statement_obj__keyword_array__overlap=search)).select_related('Statement_obj__Person_obj', 'Statement_obj').order_by(*ordering)
+                statements = (Statement.objects.filter(Meeting_obj=m, Person_obj__GovIden=speaker_id).filter(Q(Terms_array__overlap=search)|Q(OrderOfBusiness=topic)|Q(SubjectOfBusiness=topic)).order_by(*ordering).values_list('id', flat=True))
         else:
-            posts = Post.objects.filter(Statement_obj__Meeting_obj=m).filter(Q(Statement_obj__SubjectOfBusiness__icontains=topic)|Q(Statement_obj__Terms_array__overlap=search)|Q(Statement_obj__keyword_array__overlap=search)).order_by(*ordering)
-
+            # posts = Post.objects.filter(Statement_obj__Meeting_obj=m).filter(Q(Statement_obj__SubjectOfBusiness__icontains=topic)|Q(Statement_obj__Terms_array__overlap=search)|Q(Statement_obj__keyword_array__overlap=search)).order_by(*ordering)
+            statements = (Statement.objects.filter(Meeting_obj=m).filter(Q(Terms_array__overlap=search)|Q(OrderOfBusiness=topic)|Q(SubjectOfBusiness=topic)).order_by(*ordering).values_list('id', flat=True))
+            
         spren = Spren.objects.filter(pointerId=m.id, re=topic, type='Meeting_topic').first()
+
         if spren:
             sprenPost = spren.get_post()
-        prnt('sprenPost',sprenPost)
     elif business:
         hasContext = False
         if '___' in business:
             a = business.find('___')
             business = business[:a]
         x = business.replace('_',' ').replace('...','')
-        posts = Post.objects.filter(Statement_obj__Meeting_obj=m).filter(Q(Statement_obj__OrderOfBusiness__icontains=x.strip())|Q(Statement_obj__SubjectOfBusiness__icontains=x.strip())).order_by(*ordering)
+        statements = (Statement.objects.filter(Meeting_obj=m).filter(Q(OrderOfBusiness=x.strip())|Q(SubjectOfBusiness=x.strip())).order_by(*ordering).values_list('id', flat=True))
+        # posts = Post.objects.filter(Statement_obj__Meeting_obj=m).filter(Q(Statement_obj__OrderOfBusiness__icontains=x.strip())|Q(Statement_obj__SubjectOfBusiness__icontains=x.strip())).order_by(*ordering)
 
     elif speaker_id:
         if len(speaker_id) > 33:
-            posts = Post.objects.filter(Statement_obj__Meeting_obj=m).filter(Statement_obj__Person_obj__id=speaker_id).select_related('Statement_obj__Person_obj', 'Statement_obj').order_by(*ordering)
+            # posts = Post.objects.filter(Statement_obj__Meeting_obj=m).filter(Statement_obj__Person_obj__id=speaker_id).select_related('Statement_obj__Person_obj', 'Statement_obj').order_by(*ordering)
+            statements = (Statement.objects.filter(Meeting_obj=m).filter(Person_obj__id=speaker_id).order_by(*ordering).values_list('id', flat=True))
         else:
-            posts = Post.objects.filter(Statement_obj__Meeting_obj=m).filter(Statement_obj__Person_obj__GovIden=speaker_id).select_related('Statement_obj__Person_obj', 'Statement_obj').order_by(*ordering)
+            # posts = Post.objects.filter(Statement_obj__Meeting_obj=m).filter(Statement_obj__Person_obj__GovIden=speaker_id).select_related('Statement_obj__Person_obj', 'Statement_obj').order_by(*ordering)
+            statements = (Statement.objects.filter(Meeting_obj=m).filter(Person_obj__GovIden=speaker_id).order_by(*ordering).values_list('id', flat=True))
+        # posts = Post.objects.filter(Statement_obj__Meeting_obj=m).filter(Q(Statement_obj__OrderOfBusiness__icontains=x.strip())|Q(Statement_obj__SubjectOfBusiness__icontains=x.strip())).order_by(*ordering)
+
     elif speaker_name:
         speaker_name = speaker_name.replace('_',' ')
         posts = Post.objects.filter(Statement_obj__Meeting_obj=m).filter(Statement_obj__PersonName__iexact=speaker_name).select_related('Statement_obj__Person_obj', 'Statement_obj').order_by(*ordering)
+        statements = (Statement.objects.filter(Meeting_obj=m).filter(PersonName__iexact=speaker_name).order_by(*ordering).values_list('id', flat=True))
     
     elif time:
         prnt('time', time)
@@ -257,14 +269,14 @@ def debate_view(request, region, chamber, govNumber, session, iden, year, month,
         statements = (
             Statement.objects.filter(Meeting_obj=m).order_by(*ordering).values_list('id', flat=True)
         )
+    if statements:
         post_ids = [get_post_id(i) for i in statements]
         by_id = Post.objects.select_related('Update_obj').in_bulk(post_ids)
         posts = [by_id[pid] for pid in post_ids if pid in by_id]
 
-
     if id:
         setlist = paginater(posts, 'id=%s' %(id))
-        statement = setlist[0]
+        statement = setlist[0].Pointer_obj
         if statement.order:
             hasContext = statement.order
         else:

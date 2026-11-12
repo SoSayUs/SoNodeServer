@@ -173,7 +173,7 @@ def process_gathered_data(received_data, override_completed=False):
                                     return_dp.add_item_to_share(obj)
                                                     
                             return
-                        result = process_received_dp(local_datapacket, 'process_gathered_data', override_completed=True)
+                        result = process_received_dp(local_datapacket, 'process_gathered_data', override_completed=True, skip_log_check=True)
                         if result and 'data' in result:
                             local_data = result['data']
                         else:
@@ -234,7 +234,7 @@ def process_gathered_data(received_data, override_completed=False):
                                                     proceed = False
                                                     w += 'i'
                                                     if not return_dp:
-                                                        return_dp = DataPacket(chainId=received_obj['CreatorNode_obj'], chainName=received_obj['CreatorNode_obj'], func='share', Node_obj=self_node)
+                                                        return_dp = DataPacket(networkChain=received_obj['CreatorNode_obj'], chainName=received_obj['CreatorNode_obj'], func='share', Node_obj=self_node)
                                                         return_dp.save()
                                                     return_dp.add_item_to_share(obj)
                                                 # elif func in intelligence_funcs:
@@ -276,11 +276,11 @@ def process_gathered_data(received_data, override_completed=False):
                                                         elif local_attr:
                                                             # check if latest valid version, if not send
                                                             if not return_dp:
-                                                                return_dp = DataPacket(chainId=received_obj['CreatorNode_obj'], chainName=received_obj['CreatorNode_obj'], func='share', Node_obj=self_node)
+                                                                return_dp = DataPacket(networkChain=received_obj['CreatorNode_obj'], chainName=received_obj['CreatorNode_obj'], func='share', Node_obj=self_node)
                                                                 return_dp.save()
                                                             return_dp.add_item_to_share(local_attr)
-                                                    if field not in bypass_fields and local_attr and received_attr and sort_for_sign(local_attr) != sort_for_sign(received_attr) and (not is_intelli_func or value_match(local_attr, received_attr) < 0.92):
-                                                        prnt('mismatch break!','field:',field,'\n-database_attr:',sort_for_sign(local_attr, print_data=False),'\n-received_attr:',sort_for_sign(received_attr, print_data=False))
+                                                    if field not in bypass_fields and local_attr and received_attr and sort_for_sign(local_attr) != sort_for_sign(received_attr) and (is_intelli_func and value_match(local_attr, received_attr) < 0.92 or not is_intelli_func and isinstance(received_attr, dict) and value_match(local_attr, received_attr) < 0.99 or not is_intelli_func):
+                                                        prnt('mismatch break!','field:',field,received_obj['id'],'value_match(local_attr, received_attr)',value_match(local_attr, received_attr),'\n-database_attr:',sort_for_sign(local_attr, print_data=False),'\n-received_attr:',sort_for_sign(received_attr, print_data=False))
                                                         mismatch = True
                                                         break
                                                     elif field not in bypass_fields and (value_is_none(local_attr) and not value_is_none(received_attr) or value_is_none(received_attr) and not value_is_none(local_attr)):
@@ -290,23 +290,30 @@ def process_gathered_data(received_data, override_completed=False):
                                                 if mismatch:
                                                     w += '7'
                                                     def compare_texts(text1, text2, context=10):
+                                                        prnt('a')
                                                         min_length = min(len(text1), len(text2))
                                                         result = ''
-                                                        count = 0
-                                                        for y in range(min_length):
-                                                            if text1[i] != text2[i]:
-                                                                if count < 20:
-                                                                    start = max(0, y - context)
-                                                                    end = min(len(text1), len(text2), y + context + 1)
-                                                                    snippet1 = text1[start:end]
-                                                                    snippet2 = text2[start:end]
-                                                                    
-                                                                    result += f"pos:{y}:Text1:...{snippet1}...Text2: ...{snippet2}..."
-                                                                count += 1
-                                                        result = f'count:{count}: {result}'
-                                                        if len(text1) != len(text2):
-                                                            longer_text, shorter_text = (text1, text2) if len(text1) > len(text2) else (text2, text1)
-                                                            result += f"Extra characters in longer text: {longer_text[len(shorter_text):]}"
+                                                        try:
+                                                            count = 0
+                                                            prnt('b')
+                                                            for y in range(min_length):
+                                                                if text1[i] != text2[i]:
+                                                                    if count < 20:
+                                                                        start = max(0, y - context)
+                                                                        end = min(len(text1), len(text2), y + context + 1)
+                                                                        snippet1 = text1[start:end]
+                                                                        snippet2 = text2[start:end]
+                                                                        
+                                                                        result += f"pos:{y}:Text1:...{snippet1}...Text2: ...{snippet2}..."
+                                                                    count += 1
+                                                            result = f'count:{count}: {result}'
+                                                            prnt('c')
+                                                            if len(text1) != len(text2):
+                                                                prnt('d')
+                                                                longer_text, shorter_text = (text1, text2) if len(text1) > len(text2) else (text2, text1)
+                                                                result += f"Extra characters in longer text: {longer_text[len(shorter_text):]}"
+                                                        except Exception as e:
+                                                            prnt('compare_texts error 062', str(e))
                                                         return result
                                                     prnt('---items do not match', received_obj)
                                                     mismatches.append(received_obj['id'])
@@ -775,11 +782,15 @@ def process_posts_for_validating(received_json, override_completed=False):
                                                                         do_sync = True
                                                                         proceed = False
                                                                         w += 'd'
+                                                                    elif z_hash == obj_hash and not is_locked(obj):
+                                                                        if z['id'] not in matched_idens:
+                                                                            matched_idens.append(z['id'])
+                                                                            w += 'e'
                                                                 else:
                                                                     do_sync = True
                                                                     if z['id'] not in matched_idens:
                                                                         matched_idens.append(z['id'])
-                                                                        w += 'e'
+                                                                        w += 'g'
                                                                     
 
                                                                 
@@ -890,6 +901,11 @@ def process_posts_for_validating(received_json, override_completed=False):
                                                                         obj, sigs = super_sync(obj, z, do_save=True)
                                                                         if has_method(obj, 'boot'):
                                                                             obj.boot()
+                                                                        obj_hash = sigData_to_hash(obj, exclude_fields=['CreatorNode_obj', 'Validator_obj', 'signed'])
+                                                                        if z_hash == obj_hash and not is_locked(obj):
+                                                                            if z['id'] not in matched_idens:
+                                                                                matched_idens.append(z['id'])
+                                                                                w += 'b'
                                                                         # proceed = False
                                                                 if obj.id in matched_idens:
                                                                     w += 'G'

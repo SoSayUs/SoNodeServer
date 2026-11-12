@@ -759,7 +759,9 @@ class Spren(BaseModel):
         return self
 
     def get_post(self):
-        p = Post.all_objects.filter(Spren_obj=self).first()
+        p = Post.all_objects.filter(pointerId=self.id).first()
+        if p:
+            p.Pointer_obj = self
         return p
 
     def sync_with_post(self, post=None, pointer=None, do_save=True):

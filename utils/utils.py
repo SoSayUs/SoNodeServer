@@ -1800,7 +1800,7 @@ def get_dynamic_model(model_name, list=False, order_by=None, exclude={}, values=
             return None
 
 def create_dynamic_model(model_name, **kwargs):
-    # prnt('-create_dynamic_model',model_name)
+    prnt('-create_dynamic_model',model_name)
     model = get_model(model_name)
     try:
         del kwargs['objType']

@@ -2732,6 +2732,8 @@ def get_house_rollcalls_us(special=None, dt=None, iden=None, target={}, job_dt=N
                         for bill in foundBills:
                             if bill.NumberCode == bill_code and bill.Government_obj.GovernmentNumber == int(bCongress):
                                 break
+                            else:
+                                bill = None
                                 
                     detail = m.find('div', {'class':'detail-button'})
                     mLink = 'https://clerk.house.gov' + detail.find('a')['href']

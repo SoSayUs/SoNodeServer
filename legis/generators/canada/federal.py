@@ -8,7 +8,7 @@ from legis.models import *
 from legis.utils import get_gov, get_region, modify_gov, add_gov_menu_item
 from posts.models import *
 from utils.models import (
-    open_browser, finishScript, create_share_object,
+    open_browser, finishScript, create_share_object, close_browser
     )
 from utils.utils import (
     timezonify, logEvent, testing, declare_var, save_and_return,
@@ -67,10 +67,10 @@ prov_or_terr = {
 
 runTimes = {
     'initialize_region' : 1000,
-    'get_bills' : 1000, 'get_senate_bills' : 1000, 'get_house_bills' : 1000, 'get_all_bills' : 7200, 
-    'get_house_agendas' : 200, 'get_house_debates' : 1000, 'get_senate_debates' : 1000,
+    'get_bills_ca' : 1000, 'get_senate_bills' : 1000, 'get_house_bills' : 1000, 'get_all_bills' : 7200, 
+    'get_house_agendas' : 200, 'get_house_debates_ca' : 1000, 'get_senate_debates_ca' : 1000,
     'get_house_persons' : 2000, 'get_senate_persons' : 2000, 'get_senate_agendas' : 200,
-    'get_house_motions' : 200, 'get_senate_motions' : 200, 'get_senate_committees' : 200, 'get_house_expenses' : 600,
+    'get_house_motions_ca' : 200, 'get_senate_motions_ca' : 200, 'get_senate_committees' : 200, 'get_house_expenses' : 600,
     'get_todays_xml_agenda' : 1000, 'get_house_committees' : 1000, 'get_upcoming_senate_committees' : 200,
     }
 
@@ -84,10 +84,10 @@ functions = { # in gov_region timezone
     # # # mon - sat
     # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [8, 10, 12, 18, 24], 'cmds' : ['get_house_agendas'] },
     # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [8, 10, 12, 18, 24], 'cmds' : ['get_house_agendas', 'get_senate_agendas', 'get_todays_xml_agenda'] },
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [3, 7, 10, 12, 13, 15, 17, 20, 23], 'cmds' : ['get_bills'] },
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 6, 12, 18, 22], 'cmds' : ['get_house_debates', 'get_house_motions']},
-    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [4, 8, 13, 19, 23], 'cmds' : ['get_senate_debates', 'get_senate_motions']},
-    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [0, 24], 'cmds' : ['get_senate_debates']},
+    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [3, 7, 10, 12, 13, 15, 17, 20, 23], 'cmds' : ['get_bills_ca'] },
+    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [2, 6, 12, 18, 22], 'cmds' : ['get_house_debates_ca', 'get_house_motions_ca']},
+    {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [4, 8, 13, 19, 23], 'cmds' : ['get_senate_debates_ca', 'get_senate_motions_ca']},
+    # {'date' : ['x'], 'dayOfWeek' : [0,1,2,3,4,5], 'hour' : [0, 24], 'cmds' : ['get_senate_debates_ca']},
     ],
 }
 
@@ -96,13 +96,13 @@ approved_models = {
     'get_house_agendas' : ['Government', 'Agenda', 'AgendaTime', 'AgendaItem'],
     'get_house_persons' : ['Government', 'Person', 'Party', 'District', 'Region', 'ImageFile'],
     'get_senate_persons' : ['Government', 'Person', 'District', 'Party', 'Region', 'ImageFile'],
-    'get_bills' : ['Bill', 'BillText', 'Committee', 'Meeting', 'Government', 'Notification', 'Person'],
+    'get_bills_ca' : ['Bill', 'BillText', 'Committee', 'Meeting', 'Government', 'Notification', 'Person'],
     'get_house_bills' : ['Bill', 'BillVersion', 'Role', 'Person', 'Notification'],
     'get_senate_bills' : ['Bill', 'BillVersion', 'Role', 'Person', 'Notification'],
-    'get_house_debates' : ['Meeting', 'Statement', 'Agenda', 'Government', 'Person', 'Bill'],
-    'get_senate_debates' : ['Meeting', 'Statement', 'Bill'],
-    'get_house_motions' : ['Government', 'Motion', 'RepVote', 'Interaction', 'Person'],
-    'get_senate_motions' : ['Government', 'Motion', 'RepVote', 'Interaction'],
+    'get_house_debates_ca' : ['Meeting', 'Statement', 'Agenda', 'Government', 'Person', 'Bill'],
+    'get_senate_debates_ca' : ['Meeting', 'Statement', 'Bill'],
+    'get_house_motions_ca' : ['Government', 'Motion', 'RepVote', 'Interaction', 'Person'],
+    'get_senate_motions_ca' : ['Government', 'Motion', 'RepVote', 'Interaction'],
     'get_user_region' : ['District', 'Region', 'Role', 'Party', 'Person'],
 }
 
@@ -1057,8 +1057,8 @@ def get_house_agendas(url='https://www.ourcommons.ca/en/parliamentary-business/'
     return finishScript(log, gov, special)
 
 
-def get_bills(special=None, dt=None, iden=None, period='session', target_links=None, target_dt=None, job_dt=None, task=None, as_rq=True):
-    func = 'get_bills'
+def get_bills_ca(special=None, dt=None, iden=None, period='session', target_links=None, target_dt=None, job_dt=None, task=None, as_rq=True):
+    func = 'get_bills_ca'
     prnt(f'--{func} Canada', now_utc())
     dt = declare_var(dt, now_utc())
     task = declare_var(task, 1)
@@ -1148,15 +1148,15 @@ def get_bills(special=None, dt=None, iden=None, period='session', target_links=N
             task += 1
             if as_rq:
                 queue = django_rq.get_queue('low')
-                queue.enqueue(get_bills, special=special, target_links=target_links, target_dt=pub_dt, job_dt=job_dt, task=task, job_timeout=runTimes[func], result_ttl=7200)
+                queue.enqueue(get_bills_ca, special=special, target_links=target_links, target_dt=pub_dt, job_dt=job_dt, task=task, job_timeout=runTimes[func], result_ttl=7200)
             else:
-                get_bills(special=special, dt=now_utc(), target_links=target_links, target_dt=pub_dt, job_dt=job_dt, task=task, as_rq=False)
+                get_bills_ca(special=special, dt=now_utc(), target_links=target_links, target_dt=pub_dt, job_dt=job_dt, task=task, as_rq=False)
             if len(links) > max_links:
                 links = links[max_links:]
             else:
                 links = []
 
-    prntDebug('done get_bills')
+    prntDebug('done get_bills_ca')
     return finishScript(log, gov, special)
 
 def add_bill(b, func, special=None, country=None, iden=None, log=None):
@@ -1647,8 +1647,8 @@ def add_bill(b, func, special=None, country=None, iden=None, log=None):
     return log
     
 
-def get_house_debates(special=None, dt=None, objType='hansard', value='latest', iden=None, job_dt=None, as_rq=True):
-    func = 'get_house_debates'
+def get_house_debates_ca(special=None, dt=None, objType='hansard', value='latest', iden=None, job_dt=None, as_rq=True):
+    func = 'get_house_debates_ca'
     prnt(f'--{func} Canada', now_utc())
     dt = declare_var(dt, now_utc())
     country = get_region('Canada')
@@ -1692,11 +1692,18 @@ def get_house_hansard_or_committee(objType, value, country, log):
         # xml = 'https://www.ourcommons.ca/PublicationSearch/en/?View=D&Item=&ParlSes=from2002-05-02to2002-05-02&oob=&Topic=&Proc=&Per=&Prov=&Cauc=&Text=&RPP=15&order=&targetLang=&SBS=0&MRR=2000000&PubType=37&xml=1'
         is_hansard = True
     prntDebug('xml',xml)
-    from utils.utils import proxy_request
-    # r = proxy_request(xml, country='CA')
-    r = proxy_request(xml)
+
+    # driver = open_browser(xml, headless=True)
+    driver = open_browser(xml)
+    prnt('loaded')
+    time.sleep(10)
+    xml_container = driver.find_element(By.ID, 'webkit-xml-viewer-source-xml')
+    xml_text = xml_container.get_attribute('innerHTML')
+    close_browser(driver)
+    root = ET.fromstring(xml_text)
+
     prntDebug('received')
-    root = ET.fromstring(r.content)
+    # root = ET.fromstring(r.content)
     publications = root.find('Publications')
     pubs = publications.findall('Publication')
     for p in reversed(pubs[:2]):
@@ -1879,7 +1886,7 @@ def get_house_hansard_or_committee(objType, value, country, log):
                         pass
                     statement.OrderOfBusiness = i.find('OrderOfBusiness').text
                     statement.SubjectOfBusiness = i.find('SubjectOfBusiness').text
-                    if statement.SubjectOfBusiness:
+                    if statement.SubjectOfBusiness and statement.SubjectOfBusiness not in meetingU.data.get('subjects', []):
                         if 'subjects' in meetingU.data:
                             meetingU.data['subjects'].append(statement.SubjectOfBusiness)
                         else:
@@ -2052,8 +2059,8 @@ def get_house_hansard_or_committee(objType, value, country, log):
     return log, gov
 
 
-def get_house_motions(special=None, dt=None):
-    func = 'get_house_motions'
+def get_house_motions_ca(special=None, dt=None):
+    func = 'get_house_motions_ca'
     prnt(f'--{func} Canada', now_utc())
     dt = declare_var(dt, now_utc())
     country = get_region('Canada')
@@ -2238,8 +2245,8 @@ def add_house_motion(motion, country, log):
     #     break
 
 
-def get_senate_debates(special=None, dt=None, period='latest'):
-    func = 'get_senate_debates'
+def get_senate_debates_ca(special=None, dt=None, period='latest'):
+    func = 'get_senate_debates_ca'
     prnt(f'--{func} Canada', now_utc())
     dt = declare_var(dt, now_utc())
     country = get_region('Canada')
@@ -2592,8 +2599,8 @@ def add_senate_hansard(link, reprocess, country, log):
     return log, gov, proceed
 
 
-def get_senate_motions(special=None, dt=None, time='latest'):   
-    func = 'get_senate_motions' 
+def get_senate_motions_ca(special=None, dt=None, time='latest'):   
+    func = 'get_senate_motions_ca' 
     prnt(f'--{func} Canada', now_utc())
     dt = declare_var(dt, now_utc())
     country = get_region('Canada')

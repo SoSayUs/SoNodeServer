@@ -196,7 +196,7 @@ def summarize_meeting(meeting, self_nodeId=None):
     # text = remove_tags(html)
     token_count = get_token_count(text)
     prnt('tokens:',token_count)
-    prompt = f'Briefly summarize the following text in bullet form with "\n" linebreaks, do not say anything other than the summary: {text}'
+    prompt = f'Briefly summarize the following text in bullet form with "\\n" linebreaks, do not say anything other than the summary: {text}'
     prnt()
     r = run_prompt(prompt)
     spren.data['summary'] = r.replace("\n-", "\n\n-")
@@ -214,9 +214,16 @@ def summarize_topic(obj, topic, self_nodeId=None):
         search = [str(topic)]
         from posts.models import Post
         from django.db.models import Q
-        posts = Post.all_objects.filter(Statement_obj__Meeting_obj=obj).filter(Q(Statement_obj__SubjectOfBusiness__icontains=topic)|Q(Statement_obj__Terms_array__overlap=search)|Q(Statement_obj__keyword_array__overlap=search)).order_by('Statement_obj__order','DateTime')
-        post_count = posts.count()
-        prnt('posts.count()',posts.count())
+        from legis.models import Statement
+        statements = Statement.objects.filter(Meeting_obj=obj).filter(Q(SubjectOfBusiness__icontains=topic)|Q(Terms_array__overlap=search)|Q(keyword_array__overlap=search)).order_by('order')
+        post_dict = {p.pointerId: p for p in Post.all_objects.filter(pointerId__in=[s.id for s in statements]).order_by('DateTime')}
+        for s in statements:
+            if s.id in post_dict:
+                post_dict[s.id].Statement_obj = s
+        posts = [post_dict[s.id] for s in statements if s.id in post_dict]
+
+        post_count = len(posts)
+        prnt('posts.count()',post_count)
     from posts.models import Spren
     spren = Spren.objects.filter(pointerId=obj.id, re=topic, type='Meeting_topic').first()
     if not spren:
@@ -452,8 +459,8 @@ def makeText(data):
     text = ""
 
     from legis.models import Statement
-    from utils.models import is_id
-    from utils.utils import get_token_count, is_id
+    from utils.models import get_token_count
+    from utils.utils import is_id
     for i in data:
         if is_id(i):
             s = Statement.objects.filter(id=i).first()
@@ -896,7 +903,7 @@ def run_assigned_duties(receivedDt=None, result=None):
             else:
                 if job == 'summarize_meetings':
                     from legis.utils import summarize_meetings
-                    meetings = Post.objects.filter(pointerType='Meeting', validated=True, created__gt=receivedDt - datetime.timedelta(days=10), networkChain__in=self_node.chain_array).exclude(Update_obj=None).order_by('-created')
+                    meetings = Post.objects.filter(pointerType='Meeting', validated=True, created__gt=receivedDt - datetime.timedelta(days=10), Region_obj__is_supported=True, Region_obj__id__in=self_node.region_array).exclude(Update_obj=None).order_by('-created')
                     for meeting_post in meetings:
                         if not Spren.objects.filter(pointerId=meeting_post.pointerId, pointerType='Meeting', Validator_obj__is_valid=True).exists():
                             scrapers, validators = get_node_assignment(chainId=meeting_post.Region_obj.id, func=job, dt=receivedDt, plugin_id=get_plugin('legis'), nodeType='intelligence')

@@ -604,7 +604,7 @@ class DataPacket(models.Model):
     chainName = models.CharField(max_length=50, default="", blank=True, null=True)
     func = models.CharField(max_length=90, default=None, blank=True, null=True)
     jobId = BinaryBase62Field(max_byte_length=30, null=True, blank=True)
-    task = models.IntegerField(default=1)
+    task = models.CharField(max_length=10, default="1", blank=True, null=True)
     Region_obj = models.ForeignKey('posts.Region', related_name='%(class)s_region_obj', blank=True, null=True, on_delete=models.CASCADE)
     data = models.JSONField(default=dict, blank=True, null=True)
     notes = models.JSONField(default=dict, blank=True, null=True)
@@ -4936,8 +4936,9 @@ class Tidy:
 
     def uncommitted_posts_run(self, hours=4):
         prnt('-uncommitted_posts_run',now_utc(), hours)
-        from utils.utils import logEvent, get_latest_dataPacket
+        from utils.utils import logEvent, get_latest_dataPacket, fetch_obj_data
         from utils.locked import check_commit_data
+        from utils.models import sync_model
         dt=now_utc()
         # from utils.models import get_model
         def run_me(model_name):
@@ -5030,6 +5031,7 @@ class Tidy:
                     if obj_iden in has_block:
                         # or has_field(p, 'Update_obj') and p.Update_obj and p.Update_obj.id in has_block:
                         prnt('opt1')
+                        obj_dict = None
                         # if p.pointerId in has_block:
                         for block in has_block[obj_iden]:
                             if next:
@@ -5048,6 +5050,17 @@ class Tidy:
                                                             super(get_model(pointer._meta.object_name), pointer).save()
                                                             next = False
                                                             break
+                                                        # elif p.pointerId in b.data or p.id in b.extraData:
+                                                        #     if not obj_dict:
+                                                        #         obj_dict = fetch_obj_data(p.pointerId)
+                                                        #     if obj_dict:
+                                                        #         if p.pointerId in b.data and check_commit_data(pointer, b.data[p.pointerId]) or p.id in b.extraData and check_commit_data(pointer, b.extraData[p.id]):
+                                                        #             obj, sigs, proceed_to_sync, updatedDB = sync_model(pointer, obj_dict, skip_fields=[], do_save=True, opBlock_data={}, get_missing_blocks=False)
+                                                        #             if updatedDB:
+                                                        #                 pointer.Block_obj = b
+                                                        #                 super(get_model(pointer._meta.object_name), pointer).save()
+                                                        #                 next = False
+                                                        #                 break
                                 elif has_field(p, 'Block_obj'):
                                     if not p.Block_obj or (p.id not in p.Block_obj.data or not check_commit_data(p, p.Block_obj.data[p.id]) and p.id not in p.Block_obj.extraData or not check_commit_data(p, p.Block_obj.extraData[p.id])):
                                         if block.validated:

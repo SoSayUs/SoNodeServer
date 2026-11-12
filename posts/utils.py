@@ -860,7 +860,7 @@ def paginater(queryset_list, page, pointers=None):
         x = 0
         for i in queryset_list:
             if i.pointerType == 'Statement':
-                if (isinstance(iden, int) or (isinstance(iden, str) and iden.strip('-').isdigit())) and i.Statement_obj.order == int(iden) or isinstance(iden, str) and i.Statement_obj.id == iden:
+                if (isinstance(iden, int) or (isinstance(iden, str) and iden.strip('-').isdigit())) and i.Pointer_obj.order == int(iden) or isinstance(iden, str) and i.pointerId == iden:
                     z = clamp((x-7), 0)
                     for y in queryset_list[z:]:
                         queryset.append(y)
