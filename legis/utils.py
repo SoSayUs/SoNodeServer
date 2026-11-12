@@ -144,7 +144,7 @@ def summarize_meetings(special=None, post=None, dt=None, max_mins=45):
                             spren = future.result()
                             if spren:
                                 if not log:
-                                    log = create_share_object(func, region, special=special, dt=dt)
+                                    log = create_share_object(func, region, special=special, dt=dt, task=post.pointerId)
                                 log.updateShare(spren)
                             prnt(f"Got result: {spren}")
                         except Exception as e:
