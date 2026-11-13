@@ -286,6 +286,10 @@ def process_gathered_data(received_data, override_completed=False):
                                                     if field not in bypass_fields and local_attr and received_attr and sort_for_sign(local_attr) != sort_for_sign(received_attr) and (is_intelli_func and value_match(local_attr, received_attr) < intelliMatch_rate or not is_intelli_func and isinstance(received_attr, dict) and value_match(local_attr, received_attr) < dict_match or not is_intelli_func):
                                                         prnt('mismatch break!','field:',field,received_obj['id'],'value_match(local_attr, received_attr)',value_match(local_attr, received_attr),'\n-database_attr:',sort_for_sign(local_attr, print_data=False),'\n-received_attr:',sort_for_sign(received_attr, print_data=False))
                                                         if not is_intelli_func or (not sender_node.trust_score > trust_requirement and not self_node.trust_score > trust_requirement):
+                                                            prnt('is_intelli_func',is_intelli_func)
+                                                            prnt('trust_requirement',trust_requirement)
+                                                            prnt('sender_node.trust_score',sender_node.trust_score)
+                                                            prnt('self_node.trust_score',self_node.trust_score)
                                                             # larger llama prompts have larger differences, auto accept if node is trusted
                                                             mismatch = True
                                                             break
@@ -1327,6 +1331,7 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
                 opBlock = Block.objects.filter(id=opBlock['id']).first()
                 if opBlock:
                     # opBlock.is_not_valid(note=f'epochData1-err:{e}', mark_strike=False)
+                    import django_rq
                     django_rq.get_queue('high').enqueue(check_validation_consensus, block=opBlock, block_id=opBlock.id, only_if_unkown=True, job_timeout=420, result_ttl=7200)
             invalidate(block, note=f'epochData2-err:{e}', strike=False, opBlock_data={})
             return False, True, []
@@ -1448,7 +1453,7 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
                 retreived_vals_list = request_items(missing_vals, supported_chain_list=prev_block.networkChain, return_updated_objs=True, check_consensus=False, get_missing_blocks=False, override_completed=False)
                 prnt('retreived_vals_list',retreived_vals_list)
                 if retreived_vals_list:
-                    prev_validators += [v for v in retreived_vals_list if v.CreatorNode_obj.id in validator_list[:required_validators] and v not in validations]
+                    prev_validators += [v for v in retreived_vals_list if v.CreatorNode_obj.id in prev_validator_list[:prev_required_validators] and v not in validations]
         
         if block.extraData:
             prnt('block.extraData',block.extraData)
@@ -3165,7 +3170,7 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
                 eligible = True
             else:
                 try:
-                    eligible = for_commitment(i, genesis_obj, block)
+                    eligible = for_commitment(x, genesis_obj, block)
                 except:
                     eligible = True
             # if eligible and uncommitted_required and has_field(x, 'Block_obj') and x.Block_obj and x.id in x.Block_obj.data and check_commit_data(x, x.Block_obj.data[x.id]):
@@ -3791,6 +3796,7 @@ def verify_obj_to_data(obj, target_data, user=None, return_user=False, requireSu
                     #     x += 'i'
                     is_valid = verify_data(target_data, upks, sign_dict)
         elif user and not failed:
+            # not currently in use
             x += '10'
             prntDebug(f, 'user-',user)
             if not failed and not requireSuper or not failed and requireSuper and user.assess_super_status(dt=target_dt):
