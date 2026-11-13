@@ -805,6 +805,8 @@ def convert_to_datetime(data): # repeated above, both used
 
 
 def modelData_to_hash(obj): # unused
+    import hashlib
+    from utils.locked import convert_to_dict
     if not isinstance(obj, dict):
         data = convert_to_dict(obj)
     else:
@@ -860,6 +862,8 @@ def save_sigs(sigs):
                 s.delete()
 
 
+_EXISTS_SCAN_LIMIT = 90
+
 def exists_in_worker(func, queue=None, queue_name=['main','high','low'], currently_running_only=False, job_count=1, **args):
     prnt('-exists_in_worker',func,queue,queue_name,args)
     from rq.job import Job
@@ -904,30 +908,30 @@ def exists_in_worker(func, queue=None, queue_name=['main','high','low'], current
 
     found_jobs = 0
 
-    for queue in workers: # currently running
-        conn = queue.connection
-        for w in Worker.all(conn):
-            if queue_name in [q.name for q in w.queues]:
+    # currently running. (Was `queue_name in [names]`, which compared a list against strings and never matched.)
+    target_names = {q.name for q in workers}
+    if workers:
+        for w in Worker.all(workers[0].connection):
+            if target_names & {q.name for q in w.queues}:
                 job = w.get_current_job()
-                if job:
-                    prnt('current job.func_name',job.func_name, 'req_kw:',{k:v for k, v in args.items()}, 'job.args:',job.args, 'kw:',[k for k in job.kwargs.values()])
-                    if job.func_name.endswith(func):
-                        found_jobs += 1
-                        if found_jobs >= job_count:
-                            prnt('return 2 true')
-                            return True
+                if job and job.func_name.endswith(func) and job_matches(job, args):
+                    found_jobs += 1
+                    if found_jobs >= job_count:
+                        prnt('return 2 true')
+                        return True
 
                 
     if not currently_running_only:
         for queue in workers:
             total_jobs = 0
             job_ids = queue.job_ids
-            for job_id in job_ids:
-                job = queue.fetch_job(job_id)
+            for job in Job.fetch_many(job_ids, connection=queue.connection):  # one round trip, not one per job
                 if job:
                     total_jobs += 1
-                    if total_jobs >= 90:
-                        prntDebug('return 7 true')
+                    if total_jobs >= _EXISTS_SCAN_LIMIT:
+                        # backpressure: a queue this deep counts as 'exists', so the caller skips enqueueing.
+                        # Migrated call sites use utils.jobs.enqueue_unique, which has no scan limit.
+                        prnt('exists_in_worker: scan limit hit, treating as exists', func, queue.name)
                         return True
 
                     if job.func_name.endswith(func):
@@ -2839,6 +2843,7 @@ def initial_save(item, share=False, length=None):
                 prnt('create post fail', str(e))
                 p = False
         if share:
+            from utils.models import share_with_network
             share_with_network(item)
         prnt('done initial save', item)
     else:

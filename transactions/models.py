@@ -1,5 +1,5 @@
 from utils.models import get_self_node
-from django.db import models
+from django.db import models, transaction as db_transaction
 from django.db.models import Q
 
 from network.models import Blockchain, Block
@@ -248,6 +248,27 @@ class Tx(models.Model):
         else:
             return str(result)
 
+    def _lock_wallets(self):
+        # row-lock this tx's wallets, always in pk order so concurrent txs sharing wallets can't deadlock.
+        # Must be called inside transaction.atomic().
+        wallet_ids = sorted({w.pk for w in (self.SenderWallet_obj, self.ReceiverWallet_obj) if w})
+        list(Wallet.objects.select_for_update().filter(pk__in=wallet_ids).order_by('pk').values_list('pk', flat=True))
+
+    def unenact(self, value=False):
+        # reverse of enact_transaction, under the same wallet locks: flips enacted (True -> value) and re-tallies
+        # the wallets in the same DB transaction, so it can't interleave with an enact on the same wallets.
+        # Returns True if this call un-enacted the tx.
+        if not Tx.objects.filter(pk=self.pk, enacted=True).exists():
+            return False
+        with db_transaction.atomic():
+            self._lock_wallets()
+            changed = Tx.objects.filter(pk=self.pk, enacted=True).update(enacted=value, updated_on_node=now_utc())
+            if changed:
+                self.tally_tokens()
+        if changed:
+            self.enacted = value
+        return bool(changed)
+
     def enact_transaction(self, id=None):
         prnt('-enact_transaction',self.validated, self.enact_dt)
         if not self.validated:
@@ -267,15 +288,25 @@ class Tx(models.Model):
         if not self.ReceiverBlock_obj or not self.ReceiverBlock_obj.validated == True:
             prnt('rf4')
             return False
-        if self.SenderWallet_obj:
-            sender_wallet = self.SenderWallet_obj
-            sender_wallet.contents = self.calculate(contents=self.tokens, dir='send', exclude_from_tally=self)
-            sender_wallet.save(update_fields=['contents'])
-        receiver_wallet = self.ReceiverWallet_obj
-        receiver_wallet.contents = self.calculate(contents=self.tokens, dir='receive', exclude_from_tally=self)
-        receiver_wallet.save(update_fields=['contents'])
+
+        # Serialize per wallet. Lock order is by pk so two txs sharing wallets can't deadlock.
+        # Claiming the tx is a conditional UPDATE, so only one worker can flip enacted, and a tx
+        # invalidated since the checks above (validated=False) is not enacted. If anything below
+        # raises, the whole block rolls back, including the claim.
+        with db_transaction.atomic():
+            self._lock_wallets()
+            claimed = Tx.objects.filter(pk=self.pk, validated=True).exclude(enacted=True).update(enacted=True, updated_on_node=now_utc())
+            if not claimed:
+                self.refresh_from_db(fields=['enacted', 'validated'])
+                return bool(self.enacted)  # another worker enacted it (True), or it was invalidated (False)
+            if self.SenderWallet_obj:
+                sender_wallet = self.SenderWallet_obj
+                sender_wallet.contents = self.calculate(contents=self.tokens, dir='send', exclude_from_tally=self)
+                sender_wallet.save(update_fields=['contents'])
+            receiver_wallet = self.ReceiverWallet_obj
+            receiver_wallet.contents = self.calculate(contents=self.tokens, dir='receive', exclude_from_tally=self)
+            receiver_wallet.save(update_fields=['contents'])
         self.enacted = True
-        super(Tx, self).save()
         return True
         
     def tally_tokens(self):
@@ -458,10 +489,7 @@ class Tx(models.Model):
                 if 'pending' in senderChain.queuedData and self.id in senderChain.queuedData['pending']:
                     del senderChain.queuedData['pending'][self.id]
                 senderChain.save()
-            if self.enacted:
-                self.enacted = False
-                super(Tx, self).save()
-                self.tally_tokens()
+            self.unenact(False)
 
     def initialize(self):
         self.modlVer = self.latestVer

@@ -11,6 +11,7 @@ from utils.models import (
     connect_to_node, sign_post_header, sync_model
 )
 
+from utils.jobs import enqueue_unique
 import django_rq
 import datetime
 import json
@@ -861,10 +862,8 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                                 else:
                                     queue = django_rq.get_queue('high')
                                     if not prev_block and val_block.index > 1:
-                                        if not exists_in_worker('retrieve_missing_blocks', blockchain=val_block.Blockchain_obj, starting_point=start):
-                                            queue.enqueue(retrieve_missing_blocks, blockchain=val_block.Blockchain_obj, starting_point=start, items_to_get=2, job_timeout=300, result_ttl=7200)
-                                    if not exists_in_worker('check_validation_consensus', block_id=val_block.id):
-                                        queue.enqueue(check_validation_consensus, val_block, block_id=val_block.id, broadcast_if_unknown=False, get_missing_blocks=get_missing_blocks, job_timeout=420, result_ttl=7200)
+                                        enqueue_unique(queue, retrieve_missing_blocks, unique=[val_block.Blockchain_obj.pk, start], blockchain=val_block.Blockchain_obj, starting_point=start, items_to_get=2, job_timeout=300)
+                                    enqueue_unique(queue, check_validation_consensus, val_block, unique=val_block.id, block_id=val_block.id, broadcast_if_unknown=False, get_missing_blocks=get_missing_blocks, job_timeout=420)
                             elif val_block.validated and not v.Block_obj:
                                 if v.id in val_block.extraData and check_commit_data(v, val_block.extraData[v.id]) or v.id in val_block.data and check_commit_data(v, val_block.data[v.id]):
                                     prnt('adding val_block to val:',v.id,val_block)
@@ -999,9 +998,8 @@ def rebroadcast_dp(dp_id, override_completed=False):
         return
 
     queue = django_rq.get_queue("main")
-    if not exists_in_worker('process_data_packet', queue=queue, id=dp_id):
-        prnt('add to main worker')
-        queue.enqueue(process_data_packet, dp_id, job_timeout=240, result_ttl=3600)
+    prnt('add to main worker')
+    enqueue_unique(queue, process_data_packet, dp_id, unique=dp_id, job_timeout=240, result_ttl=3600)
 
     if dp.rebroadcast_dt and dp.rebroadcast_dt > now_utc() - datetime.timedelta(hours=2):
         prnt('already broadcast')
@@ -1058,9 +1056,8 @@ def rebroadcast_block(dp_id):
         else:
             queue = django_rq.get_queue('main')
             worker = 'main'
-        if not exists_in_worker('process_received_blocks', queue=queue, id=dp.id):
-            prnt(f'add worker job {worker}')
-            queue.enqueue(process_received_blocks, dp.id, job_timeout=500, result_ttl=3600)
+        prnt(f'add worker job {worker}')
+        enqueue_unique(queue, process_received_blocks, dp.id, unique=dp.id, job_timeout=500, result_ttl=3600)
             
     if dp.rebroadcast_dt and dp.rebroadcast_dt > now_utc() - datetime.timedelta(hours=2):
         prnt('already broadcast')
@@ -1959,13 +1956,11 @@ def resolve_block_differences(starting_block, competing_blocks=None, validated_b
             queue = django_rq.get_queue('main')
         if fetch_blocks:
             prnt('resolve_bd13',block.id)
-            if not exists_in_worker('retrieve_missing_blocks', queue_name=['main','high'], blockchain=starting_block.networkChain, starting_point=fetch_blocks, items_to_get=len(fetch_blocks)):
-                queue.enqueue(retrieve_missing_blocks, blockchain=starting_block.networkChain, starting_point=fetch_blocks, items_to_get=len(fetch_blocks), job_timeout=300, result_ttl=7200)
+            enqueue_unique(queue, retrieve_missing_blocks, unique=[starting_block.networkChain, fetch_blocks], blockchain=starting_block.networkChain, starting_point=fetch_blocks, items_to_get=len(fetch_blocks), job_timeout=300)
         if check_consensus:
             prnt('resolve_bd14',block.id)
             for block in check_consensus:
-                if not exists_in_worker('check_validation_consensus', queue_name=['main','high'], block_id=block.id):
-                    queue.enqueue(check_validation_consensus, block, block_id=block.id, job_timeout=420, result_ttl=7200)
+                enqueue_unique(queue, check_validation_consensus, block, unique=block.id, block_id=block.id, job_timeout=420)
         if not fetch_blocks and not check_consensus:
             for block in competing_blocks:
                 if state['consensus_found'] and candidate is None or state['consensus_found'] and candidate and not candidate_state['consensus_found']:

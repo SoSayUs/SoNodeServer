@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction as db_transaction
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -18,6 +18,7 @@ from utils.utils import (
     deactivate, convert_to_datetime, dynamic_bulk_update, get_app_name, get_pointer_type, logBroadcast, get_app_info,
     find_or_create_chain_from_object, get_data, sigData_to_hash, is_locked
 )
+from utils.jobs import enqueue_unique
 from utils.locked import hash_obj_id, verify_obj_to_data, sort_for_sign, validate_obj, dt_to_string, sign_obj, get_relevant_nodes, get_node_assignment, check_block_contents, get_commit_data, get_signing_data, sign_for_sending, convert_to_dict, check_validation_consensus, verify_data
 
 import datetime
@@ -2733,6 +2734,8 @@ class Block(models.Model):
 
     def is_not_valid(self, id=None, mark_strike=True, note='', check_posts=False, super_delete_content=False, remove_block=False, revision_limit=True):
         prnt('--is_not_valid',self,note,self.validated)
+        if self.pk:
+            self.refresh_from_db(fields=['validated'])  # bound-method jobs carry a snapshot taken at enqueue time
         from utils.utils import get_self_node, superDelete, has_field, get_data
         if self.validated == False:
             prnt('already invalid')
@@ -2751,8 +2754,7 @@ class Block(models.Model):
                         break
                 if invalidate:
                     for b in Block.objects.filter(id__in=invalidate):
-                        if not exists_in_worker('is_not_valid', queue_name=['high','main'], id=b.id):
-                            django_rq.get_queue('high').enqueue(b.is_not_valid, id=b.id, note=f'followed_previous_fail_b-{self.id}', super_delete_content=super_delete_content, revision_limit=False, job_timeout=120, result_ttl=7200)
+                        enqueue_unique('high', b.is_not_valid, unique=b.id, id=b.id, note=f'followed_previous_fail_b-{self.id}', super_delete_content=super_delete_content, revision_limit=False, job_timeout=120)
 
             if self.Blockchain_obj.genesisId == _OperationsChain_genesisId:
                 for node_record in Leger.objects.filter(Block_obj__id=self.id, is_valid=True):
@@ -2763,8 +2765,7 @@ class Block(models.Model):
                 prnt('dependent_blocks',dependent_blocks)
                 if dependent_blocks:
                     for b in dependent_blocks:
-                        if not exists_in_worker('is_not_valid', queue_name=['high','main'], id=b.id):
-                            django_rq.get_queue('high').enqueue(b.is_not_valid, id=b.id, note=f'dependent_block_fail_b-{self.id}', super_delete_content=super_delete_content, revision_limit=False, job_timeout=120, result_ttl=7200)
+                        enqueue_unique('high', b.is_not_valid, unique=b.id, id=b.id, note=f'dependent_block_fail_b-{self.id}', super_delete_content=super_delete_content, revision_limit=False, job_timeout=120)
             return
         if revision_limit:
             proceeding_block1 = Block.objects.filter(Blockchain_obj=self.Blockchain_obj, prv_hash=self.hash, validated=True).values('hash').first()
@@ -2924,8 +2925,7 @@ class Block(models.Model):
                     break
             if invalidate:
                 for b in Block.objects.filter(id__in=invalidate):
-                    if not exists_in_worker('is_not_valid', queue_name=['high','main'], id=b.id):
-                        django_rq.get_queue('high').enqueue(b.is_not_valid, id=b.id, note=f'followed_previous_fail_a-{self.id}', super_delete_content=super_delete_content, revision_limit=False, job_timeout=120, result_ttl=7200)
+                    enqueue_unique('high', b.is_not_valid, unique=b.id, id=b.id, note=f'followed_previous_fail_a-{self.id}', super_delete_content=super_delete_content, revision_limit=False, job_timeout=120)
         
         if not following_blocks or not any(b for b in following_blocks if b['validated']):
             if self.Tx_obj and self.Tx_obj.SenderBlock_obj == self:
@@ -2938,13 +2938,10 @@ class Block(models.Model):
                     self.Tx_obj.save(update_fields=['ReceiverBlock_obj'])
                 if self.Tx_obj.validated:
                     if self.Tx_obj.enacted:
-                        self.Tx_obj.enacted = None
-                        self.Tx_obj.save(update_fields=['enacted'])
-                        self.Tx_obj.tally_tokens()
+                        self.Tx_obj.unenact(None)
                     if Block.objects.filter(Blockchain_obj=self.Blockchain_obj, index=self.index, CreatorNode_obj=self.CreatorNode_obj, DateTime__gte=now_utc() - datetime.timedelta(minutes=10)).count() < 3:
                         # self.Tx_obj.send_for_block_creation(id=self.Tx_obj.id)
-                        if not exists_in_worker('send_for_block_creation', queue_name=['high','main'], id=self.Tx_obj.id):
-                            django_rq.get_queue('main').enqueue(self.Tx_obj.send_for_block_creation, id=self.Tx_obj.id, job_timeout=120, result_ttl=7200)
+                        enqueue_unique('main', self.Tx_obj.send_for_block_creation, unique=self.Tx_obj.id, id=self.Tx_obj.id, job_timeout=120)
             
             else:
                 prnt('a3')
@@ -2956,8 +2953,7 @@ class Block(models.Model):
             if dependent_blocks:
                 for b in dependent_blocks:
                     # b.is_not_valid(note=f'dependent_block_fail-{self.id}', super_delete_content=super_delete_content, revision_limit=False)
-                    if not exists_in_worker('is_not_valid', queue_name=['high','main'], id=b.id):
-                        django_rq.get_queue('high').enqueue(b.is_not_valid, id=b.id, note=f'dependent_block_fail_a-{self.id}', super_delete_content=super_delete_content, revision_limit=False, job_timeout=120, result_ttl=7200)
+                    enqueue_unique('high', b.is_not_valid, unique=b.id, id=b.id, note=f'dependent_block_fail_a-{self.id}', super_delete_content=super_delete_content, revision_limit=False, job_timeout=120)
         self.Blockchain_obj.chain_length = Block.objects.filter(Blockchain_obj=self.Blockchain_obj, validated=True).order_by('-index').count()
         last_block = Block.objects.filter(Blockchain_obj=self.Blockchain_obj, validated=True).order_by('-created').first()
         if last_block:
@@ -2999,16 +2995,14 @@ class Block(models.Model):
 
                 if Block.objects.filter(networkChain=self.networkChain, prv_hash=self.hash, validated__isnull=True).exists():
                     next_block = Block.objects.filter(networkChain=self.networkChain, prv_hash=self.hash, validated__isnull=True).defer('notes','validations','data','extraData').order_by('created').first()
-                    if not exists_in_worker('check_validation_consensus', queue_name=['main','high'], block=next_block):
-                        django_rq.get_queue('main').enqueue(check_validation_consensus, next_block, job_timeout=300, result_ttl=7200)
+                    enqueue_unique('main', check_validation_consensus, next_block, unique=next_block.id, job_timeout=300)
 
                 if self.Tx_obj and self != self.Tx_obj.SenderBlock_obj:
                     from transactions.models import Tx
                     if Tx.objects.filter(validated=True, ReceiverBlock_obj=None, ReceiverWallet_obj=self.Tx_obj.ReceiverWallet_obj).exists():
                         next_tx = Tx.objects.filter(validated=True, ReceiverBlock_obj=None, ReceiverWallet_obj=self.Tx_obj.ReceiverWallet_obj).order_by('created').first()
                         if next_tx:
-                            if not exists_in_worker('send_for_block_creation', id=next_tx.id):
-                                django_rq.get_queue('main').enqueue(next_tx.send_for_block_creation, id=next_tx.id, downstream_worker=False, job_timeout=60, result_ttl=7200)
+                            enqueue_unique('main', next_tx.send_for_block_creation, unique=next_tx.id, id=next_tx.id, downstream_worker=False, job_timeout=60)
                 return True
             prnt('-perform operations',self)
             if self.index > 1 and not Block.objects.filter(networkChain=self.networkChain, hash=self.prv_hash, index=self.index-1, validated=True).exists():
@@ -3027,8 +3021,13 @@ class Block(models.Model):
                 dynamic_bulk_update('Node', update_data={'rec_change': self.id}, id__in=[i for i in self.data])
 
             proceed = False
-            self.validated = True
-            self.save(update_fields=['validated'])
+            # claim the transition under a row lock: another worker may have invalidated this block since refresh_from_db()
+            with db_transaction.atomic():
+                if Block.objects.select_for_update().filter(pk=self.pk, validated=False).exists():
+                    prnt('block invalidated by another worker, not marking valid', self.id)
+                    return False
+                self.validated = True
+                self.save(update_fields=['validated'])
             self_node = get_self_node()
             if self.Blockchain_obj.genesisId == _OperationsChain_genesisId:
                 prnt('z1')
@@ -3146,19 +3145,16 @@ class Block(models.Model):
 
             if Block.objects.filter(networkChain=self.networkChain, prv_hash=self.hash, validated__isnull=True).exists():
                 next_block = Block.objects.filter(networkChain=self.networkChain, prv_hash=self.hash, validated__isnull=True).defer('notes','validations','data','extraData').order_by('created').first()
-                if not exists_in_worker('check_validation_consensus', queue_name=['main','high'], block=next_block):
-                    django_rq.get_queue('main').enqueue(check_validation_consensus, next_block, job_timeout=300, result_ttl=7200)
+                enqueue_unique('main', check_validation_consensus, next_block, unique=next_block.id, job_timeout=300)
 
             if self.Tx_obj and self != self.Tx_obj.SenderBlock_obj:
                 from transactions.models import Tx
                 if Tx.objects.filter(validated=True, ReceiverBlock_obj=None, ReceiverWallet_obj=self.Tx_obj.ReceiverWallet_obj).exists():
                     next_tx = Tx.objects.filter(validated=True, ReceiverBlock_obj=None, ReceiverWallet_obj=self.Tx_obj.ReceiverWallet_obj).order_by('created').first()
                     if next_tx:
-                        if not exists_in_worker('send_for_block_creation', id=next_tx.id):
-                            django_rq.get_queue('main').enqueue(next_tx.send_for_block_creation, id=next_tx.id, downstream_worker=False, job_timeout=60, result_ttl=7200)
+                        enqueue_unique('main', next_tx.send_for_block_creation, unique=next_tx.id, id=next_tx.id, downstream_worker=False, job_timeout=60)
             elif self.Tx_obj and self == self.Tx_obj.SenderBlock_obj:
-                if not exists_in_worker('send_for_block_creation', id=self.Tx_obj.id):
-                    django_rq.get_queue('main').enqueue(self.Tx_obj.send_for_block_creation, id=self.Tx_obj.id, downstream_worker=False, job_timeout=60, result_ttl=7200)
+                enqueue_unique('main', self.Tx_obj.send_for_block_creation, unique=self.Tx_obj.id, id=self.Tx_obj.id, downstream_worker=False, job_timeout=60)
 
             if self.Blockchain_obj.genesisId == _OperationsChain_genesisId:
                 for b in Block.objects.filter(networkChain=self.networkChain, index=self.index-1, validated=False):
@@ -3310,9 +3306,7 @@ class Block(models.Model):
         prnt('-mark_block_valid',self)
         if downstream_worker and not testing():
             prnt('run on worker',worker_name)
-            queue = django_rq.get_queue(worker_name)
-            if not exists_in_worker('is_valid_operations', queue=queue, id=self.id):
-                queue.enqueue(self.is_valid_operations, id=self.id, attempts=attempts, downstream_worker=downstream_worker, job_timeout=1200, result_ttl=7200)
+            enqueue_unique(worker_name, self.is_valid_operations, unique=self.id, id=self.id, attempts=attempts, downstream_worker=downstream_worker, job_timeout=1200)
             return True
         else:
             return self.is_valid_operations(attempts=attempts, downstream_worker=downstream_worker)

@@ -21,6 +21,7 @@ from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from cryptography.fernet import Fernet
 
 from utils.locked import dt_to_string, load_key
+from utils.jobs import enqueue_unique
 from utils.utils import (
     prnt, save_sigs, now_utc, seperate_by_type, logError, get_node, is_debug, declare_var,
     round_time, get_operator_obj, get_self_node, is_id, get_model_prefix, get_dynamic_model, has_field,
@@ -47,13 +48,38 @@ def check_super_commands():
     ...
 
 
-_e_brake_end_dt = None
+_e_brake_end_dt = None  # process-local fallback (e.g. set from a shell on this process only); use set_e_brake() to brake every worker
 _e_brake = 0
 # 0 = run all!
 # 1 = run nothing
 # 2 = resolve blocks
 # 3 = resolve blocks/txs/posts, stop all scrapers
 # 4 = finish active scrapers, do not call from tasker
+_E_BRAKE_KEY = 'sonet:e_brake'
+_e_brake_cache = (0.0, 0)  # (checked_at, redis level), so hot paths don't hit Redis on every call
+
+def set_e_brake(level, minutes=None):
+    # shared across all gunicorn/RQ processes via Redis. level 0 clears it; minutes=None holds until cleared.
+    global _e_brake_cache
+    conn = django_rq.get_connection('default')
+    if level:
+        conn.set(_E_BRAKE_KEY, int(level), ex=int(minutes * 60) if minutes else None)
+    else:
+        conn.delete(_E_BRAKE_KEY)
+    _e_brake_cache = (0.0, 0)
+
+def _redis_e_brake():
+    global _e_brake_cache
+    checked_at, level = _e_brake_cache
+    if time.monotonic() - checked_at < 1.0:
+        return level
+    try:
+        raw = django_rq.get_connection('default').get(_E_BRAKE_KEY)
+        level = int(raw) if raw else 0
+    except Exception:
+        level = 0  # Redis unreachable: fall back to the process-local value only
+    _e_brake_cache = (time.monotonic(), level)
+    return level
 
 def e_brake(priority):
     global _e_brake
@@ -61,8 +87,10 @@ def e_brake(priority):
     if _e_brake_end_dt and _e_brake_end_dt < now_utc():
         _e_brake_end_dt = None
         _e_brake = 0
-    if _e_brake and priority >= _e_brake:
-        prnt('STOP! E_BREAK',priority,'>=',_e_brake)
+    levels = [l for l in (_e_brake, _redis_e_brake()) if l]
+    level = min(levels) if levels else 0  # the strictest (lowest) brake wins
+    if level and priority >= level:
+        prnt('STOP! E_BREAK',priority,'>=',level)
         return True
         # raise Exception('E_BREAK')
     return False
@@ -841,6 +869,7 @@ def update_chromeDriver(required_version=None):
             # chrome_link = f'https://storage.googleapis.com/chrome-for-testing-public/{stable_ver}/mac-arm64/chrome-mac-arm64.zip'
         driver_link = f'https://storage.googleapis.com/chrome-for-testing-public/{required_version}/mac-arm64/chromedriver-mac-arm64.zip'
 
+        import subprocess
         group = subprocess.check_output("id -gn", shell=True).decode().strip()
         import getpass
         username = getpass.getuser()
@@ -876,13 +905,9 @@ def update_chromeDriver(required_version=None):
 def create_job(job_func, job_timeout=60, worker='low', clear_chrome_job=False, **kwargs):
     prnt('-create_job',worker,job_func)
     try:
-        if isinstance(worker, str):
-            queue = django_rq.get_queue(worker)
-        else:
-            queue = worker
-        if not exists_in_worker(job_func.__name__, queue=queue, **kwargs):
-            queue.enqueue(job_func, **kwargs, job_timeout=job_timeout, result_ttl=7200)
-            
+        queue = django_rq.get_queue(worker) if isinstance(worker, str) else worker
+        enqueue_unique(queue, job_func, job_timeout=job_timeout, **kwargs)
+
         if clear_chrome_job:
             from utils.cronjobs import clear_chrome
             queue.enqueue(clear_chrome, job_timeout=10)
@@ -3172,11 +3197,11 @@ def tasker(dt, test=False):
                 result['new_block_candidate'].append(block.id)
                 if dt.minute >= 50:
                     check_validation_consensus(block.id, block_id=block.id, downstream_worker=False)
-                elif not exists_in_worker('broadcast_block', queue_name='high', block_id=block.id):
-                    django_rq.get_queue('high').enqueue(block.broadcast_block, block_id=block.id, job_timeout=420, result_ttl=7200)
+                else:
+                    enqueue_unique('high', block.broadcast_block, unique=block.id, block_id=block.id, job_timeout=420)
         else:
             for block in Block.objects.filter(networkChain=_OperationsChain_genesisId, validated__isnull=True).defer('data','extraData',"notes").order_by('index'):
-                django_rq.get_queue('high').enqueue(block.is_not_valid, mark_strike=False, note='tasker1', job_timeout=300, result_ttl=7200)
+                enqueue_unique('high', block.is_not_valid, unique=block.id, mark_strike=False, note='tasker1', job_timeout=300)
             if dt.minute >= 20 and dt.minute < 30:
                 operationsPacket = DataPacket.objects.filter(Node_obj__id=self_node_id, func='share', networkChain=_OperationsChain_genesisId).defer('data').first() # broadcast nodeReviews and/or node updates
                 if not operationsPacket:
@@ -3188,26 +3213,21 @@ def tasker(dt, test=False):
         for block in Block.objects.filter(validated__isnull=True).exclude(networkChain=_OperationsChain_genesisId).exclude(id__in=result['new_block_candidate']).filter(Q(data__meta__isnull=True) | ~Q(data__meta__has_key='is_reward')).exclude(Blockchain_obj=None).values('id').order_by('created','index'): # exclude .data['meta']['is_reward']
             result['unvalidated_blocks'].append(block['id'])
             prnt('check_validation_consensus',block)
-            if not exists_in_worker('check_validation_consensus', queue_name=['main','high'], block_id=block['id']):
-                django_rq.get_queue('main').enqueue(check_validation_consensus, block=block['id'], block_id=block['id'], only_if_unkown=True, job_timeout=300, result_ttl=7200)
+            enqueue_unique('main', check_validation_consensus, unique=block['id'], block=block['id'], block_id=block['id'], only_if_unkown=True, job_timeout=300)
         if e_brake(2):
             return
         from transactions.models import Tx
         for tx in Tx.objects.exclude(enacted=True).exclude(ReceiverBlock_obj=None).filter(enact_dt__lt=now_utc()).filter(validated=True).order_by('enact_dt'):
-            if not exists_in_worker('enact_transaction', id=tx.id):
-                prnt('enact_transaction tx',tx)
-                # result['unvalidated_txs'].append(tx.id)
-                django_rq.get_queue('main').enqueue(tx.enact_transaction, id=tx.id, job_timeout=60, result_ttl=7200)
+            prnt('enact_transaction tx',tx.id)
+            enqueue_unique('main', tx.enact_transaction, unique=tx.id, id=tx.id, job_timeout=60)
         for tx in Tx.objects.filter(validated=True).exclude(ReceiverBlock_obj__validated=True).order_by('ReceiverWallet_obj__id','-created').distinct('ReceiverWallet_obj__id'):
-            if not exists_in_worker('send_for_block_creation', id=tx.id):
-                prnt('send_for_block_creation1 tx',tx)
-                result['unvalidated_txs'].append(tx.id)
-                django_rq.get_queue('main').enqueue(tx.send_for_block_creation, id=tx.id, downstream_worker=False, job_timeout=60, result_ttl=7200)
+            prnt('send_for_block_creation1 tx',tx.id)
+            result['unvalidated_txs'].append(tx.id)
+            enqueue_unique('main', tx.send_for_block_creation, unique=tx.id, id=tx.id, downstream_worker=False, job_timeout=60)
         for tx in Tx.objects.filter(validated__isnull=True).order_by('created'):
-            if not exists_in_worker('send_for_block_creation', id=tx.id):
-                prnt('send_for_block_creation2 tx',tx)
-                result['unvalidated_txs'].append(tx.id)
-                django_rq.get_queue('main').enqueue(tx.send_for_block_creation, id=tx.id, downstream_worker=False, job_timeout=60, result_ttl=7200)
+            prnt('send_for_block_creation2 tx',tx.id)
+            result['unvalidated_txs'].append(tx.id)
+            enqueue_unique('main', tx.send_for_block_creation, unique=tx.id, id=tx.id, downstream_worker=False, job_timeout=60)
 
         self_node = Node.objects.filter(id=self_node_id).values('chain_array','region_array','plugin_array').first()
         if not self_node:
@@ -3220,14 +3240,14 @@ def tasker(dt, test=False):
         supported = list(p_array) + list(r_array) + ['All']
         dataPackets = DataPacket.objects.filter(Node_obj__id=self_node_id, func='share').filter(Q(networkChain__in=supported)|Q(Region_obj__id__in=r_array)).exclude(networkChain=_OperationsChain_genesisId).exclude(data={}).defer('data','notes')
         for dp in dataPackets:
-            if not exists_in_worker('broadcast_dp', queue_name=['chat'], iden=dp.id):
-                django_rq.get_queue('chat').enqueue(dp.broadcast_dp, iden=dp.id, job_timeout=300, result_ttl=7200)
+            enqueue_unique('chat', dp.broadcast_dp, unique=dp.id, iden=dp.id, job_timeout=300)
 
         processes = DataPacket.objects.filter(func__icontains='process', updated_on_node__lte=now_utc() - datetime.timedelta(minutes=9.5), created__gt=now_utc() - datetime.timedelta(minutes=60)).exclude(func__icontains='completed').defer('data').order_by('created')
-        prnt('processes,',processes)
+        processes = list(processes) # one query; prnt()-ing the queryset itself ran it again
+        prnt('processes count',len(processes))
         if processes:
             for log in processes:
-                prnt('processes log',log)
+                prnt('processes log',log.id)
                 if log.created < now_utc() - datetime.timedelta(minutes=65):
                     log.completed('passed_65_minutes')
                 elif not log.data:
@@ -3236,14 +3256,13 @@ def tasker(dt, test=False):
                     func = log.func
                     if ':' in func:
                         func = func[:func.find(':')]
-                    if not exists_in_worker(func, id=log.id):
+                    f = _resolve_task_func(func)
+                    if f:
                         prnt('Continuing RunA:', func)
-                        queue = django_rq.get_queue('main' if ('block' in func or 'data_packet' in func) else 'low')
-                        f = _resolve_task_func(func)
-                        if f:
-                            queue.enqueue(f, log.id, job_timeout=300, result_ttl=7200)
-                        else:
-                            prnt('tasker: no function found for', func)
+                        queue = 'main' if ('block' in func or 'data_packet' in func) else 'low'
+                        enqueue_unique(queue, f, log.id, unique=log.id, job_timeout=300)
+                    else:
+                        prnt('tasker: no function found for', func)
 
         # return
         # every 60 mins create block if data
@@ -4780,6 +4799,7 @@ def node_ai_capable():
 
 def return_test_result(log):
     from posts.models import Post
+    from utils.utils import get_data
     prnt('\nreturn_test_result')
     isTest = testing()
     # shareData = log.data['shareData']

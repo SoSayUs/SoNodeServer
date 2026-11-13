@@ -7,6 +7,7 @@ from network.models import _OperationsChain_genesisId, DataPacket, EventLog, Son
 from network.utils import process_received_data
 from utils.models import (assess_received_header, set_model_attrs, share_with_network,
     )
+from utils.jobs import enqueue_unique
 from utils.utils import (prnt, prntDebug, testing, get_self_node, get_operator_obj,
     get_dynamic_model, now_utc, get_or_create_model, has_field,
     string_to_dt, get_model, exists_in_worker, get_timeData, self_is_active
@@ -336,16 +337,16 @@ def request_dp_view(request, packet_id):
                 queued_job = False
                 sender_id = request.headers.get("Senderid")
                 chat_queue = django_rq.get_queue("chat")
-                if not exists_in_worker('broadcast_dp', queue=chat_queue, iden=packet_id, packet_id=packet_id, target_node=sender_id):
-                    from network.models import DataPacket
-                    dp = DataPacket.objects.filter(id=packet_id).defer('data').first()
-                    if dp:
-                        prnt('add to chat worker')
-                        chat_queue.enqueue(dp.broadcast_dp, iden=packet_id, packet_id=packet_id, target_node=sender_id, job_timeout=360, result_ttl=3600)
+                from network.models import DataPacket
+                dp = DataPacket.objects.filter(id=packet_id).defer('data').first()
+                if dp:
+                    prnt('add to chat worker')
+                    job, created = enqueue_unique(chat_queue, dp.broadcast_dp, unique=[packet_id, sender_id], iden=packet_id, packet_id=packet_id, target_node=sender_id, job_timeout=360, result_ttl=3600)
+                    if created:
                         queued_job = True
                         return JsonResponse({'message' : 'Success', 'queued_job':queued_job, "nodeId": get_operator_obj('self_nodeId')})
-                    else:
-                        return JsonResponse({'message' : 'Not Found', 'packet_id':packet_id, "nodeId": get_operator_obj('self_nodeId')})
+                else:
+                    return JsonResponse({'message' : 'Not Found', 'packet_id':packet_id, "nodeId": get_operator_obj('self_nodeId')})
         except Exception as e:
             prnt('request_dp_view fail',str(e))
             return JsonResponse({'message' : 'Fail', 'err':str(e), "nodeId": get_operator_obj('self_nodeId')})
@@ -405,8 +406,8 @@ def is_data_processing_view(request, iden):
                 return JsonResponse({'message' : 'Success', 'result':'failed', 'status': dp.func, 'iden': dp.id})
             else:
                 queue = django_rq.get_queue('main')
-                if not exists_in_worker('process_received_data', queue=queue, id=dp.id):
-                    queue.enqueue(process_received_data, dp.id, downstream_worker=False, skip_log_check=True, job_timeout=3000, result_ttl=3600)
+                job, created = enqueue_unique(queue, process_received_data, dp.id, unique=dp.id, downstream_worker=False, skip_log_check=True, job_timeout=3000, result_ttl=3600)
+                if created:
                     return JsonResponse({'message' : 'Success', 'result':'running', 'iden': dp.id, 'added_to_queue':True})
                 else:
                     return JsonResponse({'message' : 'Success', 'result':'running', 'iden': dp.id, 'added_to_queue':False})
@@ -509,8 +510,7 @@ def receive_data_view(request):
                             dp.func = dp.func + '_' + func
                             dp.save()
                         queue = django_rq.get_queue("main")
-                        if not exists_in_worker('process_received_data', queue=queue, id=dp.id):
-                            queue.enqueue(process_received_data, dp.id, downstream_worker=False, skip_log_check=True, get_missing_blocks=False, override_completed=True, job_timeout=3000, result_ttl=3600)
+                        enqueue_unique(queue, process_received_data, dp.id, unique=dp.id, downstream_worker=False, skip_log_check=True, get_missing_blocks=False, override_completed=True, job_timeout=3000, result_ttl=3600)
 
                         return JsonResponse({'message' : 'Success', 'iden': dp.id})
             # else:
@@ -1335,9 +1335,8 @@ def receive_posts_for_validating_view(request):
                 if 'completed' not in dp.func and 'failed' not in dp.func or dp.updated_on_node < now_utc() - datetime.timedelta(minutes=15):
                     prnt('add to low worker')
                     queue = django_rq.get_queue('low')
-                    if not exists_in_worker('process_posts_for_validating', queue=queue, id=dp.id):
-                        from utils.locked import process_posts_for_validating
-                        queue.enqueue(process_posts_for_validating, dp.id, job_timeout=600, result_ttl=3600)
+                    from utils.locked import process_posts_for_validating
+                    enqueue_unique(queue, process_posts_for_validating, dp.id, unique=dp.id, job_timeout=600, result_ttl=3600)
             if is_last and dp and dp.updated_on_node < now_utc() - datetime.timedelta(minutes=15):
                 status = 'too_soon'
             elif is_last and dp and 'completed' in dp.func:
@@ -1383,9 +1382,8 @@ def receive_gathered_data_view(request):
                 if 'completed' not in dp.func and 'failed' not in dp.func or dp.updated_on_node < now_utc() - datetime.timedelta(minutes=15):
                     prnt('add to low worker')
                     queue = django_rq.get_queue('low')
-                    if not exists_in_worker('process_gathered_data', queue=queue, id=dp.id):
-                        from utils.locked import process_gathered_data
-                        queue.enqueue(process_gathered_data, dp.id, job_timeout=600, result_ttl=3600)
+                    from utils.locked import process_gathered_data
+                    enqueue_unique(queue, process_gathered_data, dp.id, unique=dp.id, job_timeout=600, result_ttl=3600)
             if is_last and dp and dp.updated_on_node < now_utc() - datetime.timedelta(minutes=15):
                 status = 'too_soon'
             elif is_last and dp and 'completed' in dp.func:
@@ -1466,10 +1464,9 @@ def receive_blocks_view(request):
                     if not dp.rebroadcast_dt or dp.rebroadcast_dt < now_utc() - datetime.timedelta(hours=1):
                         prnt('p3')
                         chat_queue = django_rq.get_queue("chat")
-                        if not exists_in_worker('rebroadcast_block', queue=chat_queue, id=dp.id):
-                            from network.utils import rebroadcast_block
-                            prnt('add to chat worker')
-                            chat_queue.enqueue(rebroadcast_block, dp.id, job_timeout=240, result_ttl=3600)
+                        from network.utils import rebroadcast_block
+                        prnt('add to chat worker')
+                        enqueue_unique(chat_queue, rebroadcast_block, dp.id, unique=dp.id, job_timeout=240, result_ttl=3600)
 
             if is_last and dp and dp.updated_on_node < now_utc() - datetime.timedelta(minutes=25):
                 status = 'too_soon'
@@ -1515,10 +1512,9 @@ def receive_data_packet_view(request):
                     if not dp.rebroadcast_dt or dp.rebroadcast_dt < now_utc() - datetime.timedelta(hours=1):
                     
                         chat_queue = django_rq.get_queue("chat")
-                        if not exists_in_worker('rebroadcast_dp', queue=chat_queue, id=dp.id):
-                            from network.utils import rebroadcast_dp
-                            prnt('add to chat worker')
-                            chat_queue.enqueue(rebroadcast_dp, dp.id, job_timeout=240, result_ttl=3600)
+                        from network.utils import rebroadcast_dp
+                        prnt('add to chat worker')
+                        enqueue_unique(chat_queue, rebroadcast_dp, dp.id, unique=dp.id, job_timeout=240, result_ttl=3600)
 
             if is_last and dp and dp.updated_on_node < now_utc() - datetime.timedelta(minutes=15):
                 status = 'too_soon'

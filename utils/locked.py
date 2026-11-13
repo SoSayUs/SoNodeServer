@@ -1230,9 +1230,8 @@ def process_posts_for_validating(received_json, override_completed=False):
 
                             prntDebug(f'val posts step6')
 
-                            if not exists_in_worker('broadcast_dp', queue_name=['chat','low'], iden=dataPacket.id):
-                                import django_rq
-                                django_rq.get_queue('low').enqueue(dataPacket.broadcast_dp, iden=dataPacket.id, job_timeout=300, result_ttl=7200)
+                            from utils.jobs import enqueue_unique
+                            enqueue_unique('low', dataPacket.broadcast_dp, unique=dataPacket.id, iden=dataPacket.id, job_timeout=300)
             except Exception as e:
                 prnt('process posts fail 873',str(e),'q',q,'w',w)
                 logError(f'ValidatePosts fail {str(e)}', code='873', func='processes_posts_for_validating', extra={'q':q,"log":log.id if log else'none'})
@@ -1260,10 +1259,9 @@ def process_posts_for_validating(received_json, override_completed=False):
 
         import django_rq
         chat_queue = django_rq.get_queue("chat")
-        if not exists_in_worker('broadcast_dp', queue=chat_queue, iden=return_dp.id, target_node=sender_node.id):
-            from network.models import DataPacket
-            prnt('add to chat worker')
-            chat_queue.enqueue(return_dp.broadcast_dp, iden=return_dp.id, target_node=sender_node.id, job_timeout=360, result_ttl=3600)
+        from utils.jobs import enqueue_unique
+        prnt('add to chat worker')
+        enqueue_unique(chat_queue, return_dp.broadcast_dp, unique=[return_dp.id, sender_node.id], iden=return_dp.id, target_node=sender_node.id, job_timeout=360, result_ttl=3600)
 
     return result
 
@@ -1506,14 +1504,8 @@ def check_validation_consensus(block=None, do_mark_valid=True, create_val=True, 
                     if winning_block.validated:
                         return True, True, validations
                     else:
-                        from utils.models import exists_in_worker
-                        if not exists_in_worker('check_validation_consensus', queue_name=['main','high'], block=winning_block):
-                            import django_rq
-                            if winning_block.networkChain == _OperationsChain_genesisId:
-                                queue = django_rq.get_queue('high')
-                            else:
-                                queue = django_rq.get_queue('main')
-                            queue.enqueue(check_validation_consensus, winning_block, job_timeout=300, result_ttl=7200)
+                        from utils.jobs import enqueue_unique
+                        enqueue_unique('high' if winning_block.networkChain == _OperationsChain_genesisId else 'main', check_validation_consensus, winning_block, unique=winning_block.id, job_timeout=300)
                         invalidate(block, note='did_not_pass_discrepenacies4', strike=False, opBlock_data={})
                         return False, True, []
             else:
@@ -3292,10 +3284,10 @@ def check_block_contents(block, retrieve_missing=True, update_items=False, log_m
                 # logEvent(f'requesting:{fetch_idens}', func='check_block_contents')
                 if downstream_worker:
                     import django_rq
-                    queue = django_rq.get_queue('low')
-                    if not exists_in_worker('request_items', queue=queue, requested_items=fetch_idens, nodes=request_nodes):
+                    from utils.jobs import enqueue_unique
+                    job, created = enqueue_unique('low', request_items, fetch_idens, unique=[fetch_idens, request_nodes], nodes=request_nodes, get_missing_blocks=get_missing_blocks, job_timeout=600)
+                    if created:
                         # attempts += 1
-                        queue.enqueue(request_items, fetch_idens, nodes=request_nodes, get_missing_blocks=get_missing_blocks, job_timeout=600, result_ttl=7200)
                         if return_missing:
                             return [], []
                         return []
