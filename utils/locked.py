@@ -73,6 +73,9 @@ def process_gathered_data(received_data, override_completed=False):
             prnt('bypass for time')
         else: 
             return
+    intelliMatch_rate = 0.92
+    dict_match = 0.99
+    trust_requirement = 0.7
     created = 0
     matches = 0
     mismatches = []
@@ -119,6 +122,7 @@ def process_gathered_data(received_data, override_completed=False):
             prnt('job_dt2',dt_to_string(job_dt))
             prnt('job_dt2a',content[0]['id'])
         total = len(content)
+        obj_list = []
         matched_idens = []
         model_types = []
         exceptions = ['Update'] # these do not need to be stated in scraper approved_models
@@ -279,10 +283,12 @@ def process_gathered_data(received_data, override_completed=False):
                                                                 return_dp = DataPacket(networkChain=received_obj['CreatorNode_obj'], chainName=received_obj['CreatorNode_obj'], func='share', Node_obj=self_node)
                                                                 return_dp.save()
                                                             return_dp.add_item_to_share(local_attr)
-                                                    if field not in bypass_fields and local_attr and received_attr and sort_for_sign(local_attr) != sort_for_sign(received_attr) and (is_intelli_func and value_match(local_attr, received_attr) < 0.92 or not is_intelli_func and isinstance(received_attr, dict) and value_match(local_attr, received_attr) < 0.99 or not is_intelli_func):
+                                                    if field not in bypass_fields and local_attr and received_attr and sort_for_sign(local_attr) != sort_for_sign(received_attr) and (is_intelli_func and value_match(local_attr, received_attr) < intelliMatch_rate or not is_intelli_func and isinstance(received_attr, dict) and value_match(local_attr, received_attr) < dict_match or not is_intelli_func):
                                                         prnt('mismatch break!','field:',field,received_obj['id'],'value_match(local_attr, received_attr)',value_match(local_attr, received_attr),'\n-database_attr:',sort_for_sign(local_attr, print_data=False),'\n-received_attr:',sort_for_sign(received_attr, print_data=False))
-                                                        mismatch = True
-                                                        break
+                                                        if not is_intelli_func or (not sender_node.trust_score > trust_requirement and not self_node.trust_score > trust_requirement):
+                                                            # larger llama prompts have larger differences, auto accept if node is trusted
+                                                            mismatch = True
+                                                            break
                                                     elif field not in bypass_fields and (value_is_none(local_attr) and not value_is_none(received_attr) or value_is_none(received_attr) and not value_is_none(local_attr)):
                                                         prnt('mismatch break2!','field:',field,'local_attr:',local_attr,'received_attr:',received_attr)
                                                         mismatch = True
@@ -328,6 +334,9 @@ def process_gathered_data(received_data, override_completed=False):
                                                     obj_hash = sigData_to_hash(received_obj, exclude_fields=['CreatorNode_obj', 'Validator_obj', 'signed'])
                                                     if is_intelli_func and value_match(local_attr, received_attr) < 1:
                                                         obj_hash = 'intelliMatch'
+                                                        if value_match(local_attr, received_attr) < intelliMatch_rate:
+                                                            if sender_node.trust_score < self_node.trust_score and self_node.trust_score > trust_requirement:
+                                                                obj_list.append(local_obj)
                                                     validator.data[received_obj['id']] = obj_hash
                                                     matched_idens.append(received_obj['id'])
                                                     w += 'b'
@@ -359,9 +368,9 @@ def process_gathered_data(received_data, override_completed=False):
     q += '19'
     from utils.models import connect_to_node
     validator = sign_obj(validator)
-    obj_list = [convert_to_dict(validator)]
+    obj_list = [convert_to_dict(validator)] + obj_list
     for i in content:
-        if i['id'] in matched_idens:
+        if i['id'] in matched_idens and i not in obj_list:
             obj_list.append(i)
     content = None
 
@@ -769,8 +778,6 @@ def process_posts_for_validating(received_json, override_completed=False):
                                                                 # if multiple matches, check index, save appropriate version
                                                                 # check required_for_validation before assigning to val
 
-
-
                                                                 proceed = True
                                                                 do_sync = False
                                                                 obj = get_dynamic_model(z['objType'], exclude=exclude, id=z['id'])
@@ -791,17 +798,9 @@ def process_posts_for_validating(received_json, override_completed=False):
                                                                     if z['id'] not in matched_idens:
                                                                         matched_idens.append(z['id'])
                                                                         w += 'g'
-                                                                    
-
-                                                                
+                                                                  
                                                                 if proceed and obj:
                                                                     w += 'D'
-                                                                        
-
-
-
-
-
                                                                     if obj and obj.signed and has_field(obj, 'Validator_obj') and (not obj.Validator_obj or not obj.Validator_obj.signed or not obj.Validator_obj.is_valid):
                                                                         w += 'a'
                                                                         if has_field(obj, 'Validator_obj') and obj.Validator_obj and obj.id in obj.Validator_obj.data and obj.Validator_obj.data[obj.id] == sigData_to_hash(obj) and obj.Validator_obj.dt_appropriate(obj):
@@ -822,13 +821,6 @@ def process_posts_for_validating(received_json, override_completed=False):
                                                                             #     w += 'b'
                                                                             # else:
                                                                             w += 'd'
-
-
-
-
-
-
-
                                                                             # w += 'c'
                                                                             
                                                                             try:
@@ -1033,7 +1025,7 @@ def process_posts_for_validating(received_json, override_completed=False):
                                         iden = z['id']
                                     else:
                                         iden = str(z)[:100]
-                                prnt('W:',w)
+                                prnt('Wv:',w)
                 sorted_content.clear()
                 now = now_utc()
 

@@ -556,11 +556,11 @@ class BlockchainAdmin(AutoForeignKeyAdmin):
         model = Blockchain
 
 class EventLogAdmin(AutoForeignKeyAdmin):
-    list_display = ['id','func','jobId','type',full_utc('created'),full_utc('updated_on_node')]
+    list_display = ['id','func','jobId','type','pointerId','Node_obj',full_utc('created'),full_utc('updated_on_node')]
     list_display_links = []
     list_editable = []
     list_filter = []
-    search_fields = AutoForeignKeyAdmin.search_fields + ['type', 'id']
+    search_fields = AutoForeignKeyAdmin.search_fields + ['type', 'id','pointerId','Node_obj__id']
     class Meta:
         model = EventLog
 

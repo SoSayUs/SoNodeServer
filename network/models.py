@@ -679,8 +679,8 @@ class DataPacket(models.Model):
                             log_dt_end = round_time(now_utc(), dir='down', amount='hour')
                             log_dt_start = log_dt_end - datetime.timedelta(hours=1)
 
-                            completed_jobs = EventLog.objects.filter(Node_obj=r.TargetNode_obj, func__contains='completed_job:', created__gte=log_dt_start, created__lt=log_dt_end).count()
-                            incomplete_jobs = EventLog.objects.filter(Node_obj=r.TargetNode_obj, func__contains='assigned_job:', created__gte=log_dt_start, created__lt=log_dt_end).count()
+                            completed_jobs = EventLog.objects.filter(Node_obj=r.TargetNode_obj, func__contains='completed_job:', created__gte=log_dt_start, created__lt=log_dt_end).distinct('jobId').order_by('jobId','created').count()
+                            incomplete_jobs = EventLog.objects.filter(Node_obj=r.TargetNode_obj, func__contains='assigned_job:', created__gte=log_dt_start, created__lt=log_dt_end).distinct('jobId').order_by('jobId','created').count()
                             total = completed_jobs + incomplete_jobs
                             r.job_success = completed_jobs / total if total else 0.5
 
@@ -701,8 +701,8 @@ class DataPacket(models.Model):
                                         failures += 1
 
 
-                            commits = CommitData.objects.filter(Node_obj=r.TargetNode_obj, added_to_node__gte=log_dt_start, added_to_node__lt=log_dt_end, dataType='salt')
-                            reveals = RevealData.objects.filter(Node_obj=r.TargetNode_obj, added_to_node__gte=log_dt_start, added_to_node__lt=log_dt_end, dataType='salt')
+                            commits = CommitData.objects.filter(Node_obj=r.TargetNode_obj, added_to_node__gte=log_dt_start, added_to_node__lt=log_dt_end, dataType='salt').distinct('jobId').order_by('jobId','created')
+                            reveals = RevealData.objects.filter(Node_obj=r.TargetNode_obj, added_to_node__gte=log_dt_start, added_to_node__lt=log_dt_end, dataType='salt').distinct('jobId').order_by('jobId','created')
                             mapping = {}
                             for c in commits:
                                 mapping[c.id] = {'commit':c}
@@ -1817,6 +1817,7 @@ class CommitData(models.Model):
         r.id = hash_obj_id(r, random_iden=True)
         r.Node_obj = self_node
         r.networkChain = sonet_id
+        r.dataType = self.dataType
 
         self.created = now
         self.hash = quick_hash(r.value)
@@ -2973,6 +2974,14 @@ class Block(models.Model):
                 if self.Blockchain_obj.last_block_datetime < now - datetime.timedelta(minutes=block_time_delay()-1):
                     prnt('check new block candidate',now,self.id, self.Blockchain_obj.id)
                     self.Blockchain_obj.new_block_candidate(self_node=self_node, dt=now)
+
+        required_validators = self.get_required_validator_count(return_node_data=False)
+        creator_nodes, validator_list, broadcast_list = self.get_assigned_nodes(fetch_broadcast_list=False)
+        prnt('creator_nodes',creator_nodes)
+        prnt('self.validations',self.validations)
+        validated_nodes = [i for i in validator_list[:required_validators] if i in [self.validations[i]['CreatorNode_obj'] for i in self.validations]]
+        prnt('validated_nodes',validated_nodes)
+        dynamic_bulk_update('EventLog', update_data={'func': 'completed_job:block_validation'}, jobId=self.id, Node_obj__id__in=validated_nodes, func='assigned_job:block_validation')
 
         if remove_block:
             self.delete()
@@ -4361,10 +4370,11 @@ class Blockchain(models.Model):
                         func=f'assigned_job:block_validation',
                         type='job_tracker',
                         )
-                    region = Region.objects.filter(id=self.genesisId).only('id').first()
-                    if region:
-                        log.Region_obj = region
-                    log.save()
+                    if not EventLog.objects.filter(jobId=log.jobId, Node_obj__id=log.Node_obj.id, type=log.type).exists():
+                        region = Region.objects.filter(id=self.genesisId).only('id').first()
+                        if region:
+                            log.Region_obj = region
+                        log.save()
             return new_block
         elif transaction:
             prnt('has transaction')

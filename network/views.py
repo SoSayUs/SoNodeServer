@@ -1568,7 +1568,7 @@ def receive_data(request, dp_name='func', packet_creator='from_header', model_ty
     plugin_id = request.headers.get("Pluginid")
     prnt('plugin_id',plugin_id)
     func = request.headers.get("func")
-    task = int(request.headers.get("task", 1))
+    task = request.headers.get("task", '1')
     job_id = request.headers.get("Job-Id")
     blockId = request.headers.get("Blockid")
     if blockId:

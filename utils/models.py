@@ -3147,37 +3147,6 @@ def tasker(dt, test=False):
     result = {'dt':dt_to_string(dt),'now_utc':dt_to_string(now_utc())}
     # skip if start time is excessively delayed
 
-
-    # try:
-    #     from posts.models import Update
-    #     u = Update.objects.filter(pointerId='1mtgSomfDnNHrXlmUvlhdL0Xd').order_by('-created').first()
-    #     if u:
-    #         u.delete(force_delete=True)
-    # except Exception as e:
-    #     prnt('tasker err 1',str(e))
-    # try:
-    #     from legis.models import Meeting
-    #     u = Meeting.objects.filter(id='1mtgSomfDnNHrXlmUvlhdL0Xd').first()
-    #     if u:
-    #         u.delete(force_delete=True)
-    # except Exception as e:
-    #     prnt('tasker err 1b',str(e))
-    
-    # try:
-    #     from posts.models import Update
-    #     u = Update.objects.filter(pointerId='1mtgSod5XoxNLrmHLAZDIpvEB').order_by('-created').first()
-    #     if u:
-    #         u.delete(force_delete=True)
-    # except Exception as e:
-    #     prnt('tasker err 1',str(e))
-    # try:
-    #     from legis.models import Meeting
-    #     u = Meeting.objects.filter(id='1mtgSod5XoxNLrmHLAZDIpvEB').first()
-    #     if u:
-    #         u.delete(force_delete=True)
-    # except Exception as e:
-    #     prnt('tasker err 1b',str(e))
-
     difference = now_utc() - dt
     diff_mins = difference.total_seconds() / 60
     if diff_mins < 10 or test:
@@ -3289,7 +3258,7 @@ def tasker(dt, test=False):
             node_count = Node.objects.filter(activeNode=True).count()
             if node_count and random.randrange(node_count if node_count <= 3 else node_count // 3) == 0:
                 from network.models import CommitData 
-                commit = CommitData()
+                commit = CommitData(dataType='salt')
                 commit, reveal = commit.create_pair()
                 from utils.locked import sign_obj
                 commit = sign_obj(commit, do_save=True)
@@ -3301,9 +3270,9 @@ def tasker(dt, test=False):
 
         elif dt.minute in [t-10 for t in _block_creation_times]:
             from network.models import RevealData 
-            reveal = RevealData.objects.filter(Node_obj__id=self_node_id, created=dt-datetime.timedelta(minutes=10)).first()
+            reveal = RevealData.objects.filter(Node_obj__id=self_node_id, created=dt-datetime.timedelta(minutes=10), dataType='salt').first()
             if reveal:
-                dp = DataPacket(Node_obj_id=self_node_id, func='share', networkChain=sonet['id'])
+                dp = DataPacket(Node_obj_id=self_node_id, func='share', networkChain=sonet['id'], dataType='salt')
                 dp.save()
                 dp.add_item_to_share(reveal)
                 django_rq.get_queue('chat').enqueue(dp.broadcast_dp, job_timeout=60, result_ttl=7200)
@@ -4241,10 +4210,6 @@ def compute_node_trust():
         else:
             lr = 0.10   # gain trust slower
 
-        # updated_trust = (
-        #     (1 - lr) * previous_trust
-        #     + lr * observed_trust
-        # )
         updated_trust = (
             (1 - lr) * previous_trust
             + lr * observed_trust
@@ -4262,9 +4227,6 @@ def compute_node_trust():
         # clamp
         updated_trust = max(TRUST_FLOOR, min(TRUST_CEILING, updated_trust))
 
-        # clamp
-        updated_trust = max(TRUST_FLOOR, min(TRUST_CEILING, updated_trust))
-
         node.trust_score = updated_trust
         node.influence_score = math.sqrt(updated_trust)
         node.score_dt = now_utc()
@@ -4275,8 +4237,6 @@ def compute_node_trust():
             review.interactions = 0
             updated_reviews.append(review)
         
-
-
     NodeReview.objects.bulk_update(updated_reviews, ['trust_score','interactions'])
     # Save all nodes at once
     with transaction.atomic():

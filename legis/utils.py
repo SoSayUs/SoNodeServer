@@ -231,10 +231,13 @@ def summarize_topic(obj, topic, self_nodeId=None):
         spren.DateTime = obj.DateTime
     elif spren and spren.data:
         if spren.CreatorNode_obj.id == self_nodeId and not spren.Validator_obj:
-            if spren.created >= round_time(now_utc(), amount='hour') - datetime.timedelta(hours=2):
-                return None
+            # if spren.created >= round_time(now_utc(), amount='hour') - datetime.timedelta(hours=2):
+            #     prnt('r1')
+            #     return None
+            prnt('r2')
             return spren
         elif spren.Validator_obj and spren.Validator_obj.is_valid:
+            prnt('r3')
             return None
         
     prnt('-------------')
@@ -884,7 +887,8 @@ def run_assigned_duties(receivedDt=None, result=None):
                                 type='job_tracker',
                                 Region_obj=gov.Region_obj
                                 )
-                            log.save()
+                            if not EventLog.objects.filter(jobId=log.jobId, Node_obj__id=log.Node_obj.id, type=log.type, created=log.created, Region_obj__id=log.Region_obj.id).exists():
+                                log.save()
 
         job_assigned = False
         max_mins = 42
@@ -924,7 +928,8 @@ def run_assigned_duties(receivedDt=None, result=None):
                                             type='job_tracker',
                                             Region_obj=meeting_post.Region_obj
                                             )
-                                        log.save()
+                                        if not EventLog.objects.filter(jobId=log.jobId, Node_obj__id=log.Node_obj.id, type=log.type, created=log.created, Region_obj__id=log.Region_obj.id).exists():
+                                            log.save()
                 if job == 'summarize_bills':
                     from legis.utils import summarize_bills
                     from legis.models import BillText
@@ -958,7 +963,8 @@ def run_assigned_duties(receivedDt=None, result=None):
                                                     type='job_tracker',
                                                     Region_obj_id=region_id
                                                     )
-                                                log.save()
+                                                if not EventLog.objects.filter(jobId=log.jobId, Node_obj__id=log.Node_obj.id, type=log.type, created=log.created, Region_obj__id=log.Region_obj.id).exists():
+                                                    log.save()
         if result:
             return result
 
