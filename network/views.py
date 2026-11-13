@@ -578,6 +578,7 @@ def request_data_view(request):
                         requested_update_dt = string_to_dt(requested_data['requested_update_dt'])
                     else:
                         requested_update_dt = None
+                    from utils.utils import get_sigData
                     try:
                         sigData = get_sigData(requested_data)
                         sig = sigData['sig']
