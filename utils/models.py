@@ -3866,8 +3866,8 @@ def compute_node_trust():
       - interaction count
       - reviewer influence_score (derived from trust_score in review)
     """
-
-    # should also track when a node goes dark, lower trust score if happens often
+    
+    # should also track when a node goes dark (suspended_dt in recent legers), lower score if it happens often
 
     from django.db import transaction
     from network.models import Node, NodeReview, recent_failure_range, recent_failure_count
