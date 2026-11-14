@@ -286,7 +286,7 @@ def process_gathered_data(received_data, override_completed=False):
                                                     if field not in bypass_fields and local_attr and received_attr and sort_for_sign(local_attr) != sort_for_sign(received_attr) and (is_intelli_func and value_match(local_attr, received_attr) < intelliMatch_rate or not is_intelli_func and isinstance(received_attr, dict) and value_match(local_attr, received_attr) < dict_match or not is_intelli_func):
                                                         w += 'a'
                                                         prnt('mismatch break!','field:',field,received_obj['id'],'value_match(local_attr, received_attr)',value_match(local_attr, received_attr),'\n-database_attr:',sort_for_sign(local_attr, print_data=False),'\n-received_attr:',sort_for_sign(received_attr, print_data=False))
-                                                        if not is_intelli_func or (not sender_node.influence_score > trust_requirement and not self_node.influence_score > trust_requirement):
+                                                        if not is_intelli_func or (not sender_node.trust_score > trust_requirement and not self_node.trust_score > trust_requirement):
                                                             # larger llama prompts have larger differences, auto accept if node is trusted
                                                             mismatch = True
                                                             w += 'b'
@@ -338,7 +338,7 @@ def process_gathered_data(received_data, override_completed=False):
                                                     if is_intelli_func and value_match(local_attr, received_attr) < 1:
                                                         obj_hash = 'intelliMatch'
                                                         if value_match(local_attr, received_attr) < intelliMatch_rate:
-                                                            if sender_node.influence_score < self_node.influence_score and self_node.influence_score > trust_requirement:
+                                                            if sender_node.trust_score < self_node.trust_score and self_node.trust_score > trust_requirement:
                                                                 obj_list.append(local_obj)
                                                     validator.data[received_obj['id']] = obj_hash
                                                     matched_idens.append(received_obj['id'])
