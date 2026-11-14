@@ -707,9 +707,9 @@ class DataPacket(models.Model):
                             mapping = {}
                             for c in commits:
                                 mapping[c.id] = {'commit':c}
-                                for r in reveals:
-                                    if r.created == c.created:
-                                        mapping[c.id]['reveal'] = r
+                                for rv in reveals:  # was `r`, which overwrote the NodeReview being refreshed
+                                    if rv.created == c.created:
+                                        mapping[c.id]['reveal'] = rv
                                         break
                             salts_committed = 0
                             salts_revealed = 0
@@ -717,10 +717,9 @@ class DataPacket(models.Model):
                             for iden, data in mapping.items():
                                 salts_committed += 1
                                 if not data.get('reveal', None) or data['commit'].hash != quick_hash(data['reveal'].value):
-                                    # dt = data['commit'].created + 20
-                                    # if Block.objects.filter(DateTime=string_to_dt(dt), CreatorNode_obj=r.TargetNode_obj).exists():
-                                        # violations += 1
-                                    ...
+                                    dt = data['commit'].created + datetime.timeDelta(minutes=20)
+                                    if Block.objects.filter(DateTime=dt, CreatorNode_obj=r.TargetNode_obj).exists():
+                                        violations += 1
                                 else:
                                     salts_revealed += 1
                             
@@ -743,7 +742,8 @@ class DataPacket(models.Model):
                         reviews = []
                     
                 except Exception as e:
-                    prnt('err 42312', str(e))
+                    import traceback
+                    prnt('err 42312', str(e), traceback.format_exc())
                 # for c in Blockchain.objects.filter(id__in=self_node.chain_array, chain_length__gt=1):
                 blocks = Block.objects.filter(Blockchain_obj__id__in=self_node.chain_array, validated=True).values('id','Blockchain_obj__id','DateTime').distinct('Blockchain_obj__id').order_by('Blockchain_obj__id','-DateTime')
                 for b in blocks:

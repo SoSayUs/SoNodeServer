@@ -3902,7 +3902,8 @@ def compute_node_trust():
     review_map = {}
     peer_reviews = defaultdict(list)
     for r in reviews:
-        prnt('r',r.TargetNode_obj,r.CreatorNode_obj)
+        target_id, creator_id = r.TargetNode_obj_id, r.CreatorNode_obj_id  # *_id: no per-review Node query
+        prnt('r',target_id,creator_id)
 
         recent_failures = 0
         if r.failures:
@@ -3915,22 +3916,26 @@ def compute_node_trust():
                     prnt('fail dt:',dt)
                     recent_failures += 1
         prnt('recent_failures',recent_failures)
-        peer_reviews[r.TargetNode_obj.id].append({
-        "TargetNode_obj": r.TargetNode_obj.id,
-        "CreatorNode_obj": r.CreatorNode_obj.id,
+        peer_reviews[target_id].append({
+        "TargetNode_obj": target_id,
+        "CreatorNode_obj": creator_id,
         "response_success": r.response_success,
-        "job_success": job_successes.get(r.CreatorNode_obj.id, 0.5),
-        "block_success": block_successes.get(r.TargetNode_obj.id, 0.5),
-        "consensus_alignment": alignments.get(r.TargetNode_obj.id, 0.5),
-        "reveal_success": reveal_successes.get(r.TargetNode_obj.id, 0.5),
+        # the TARGET's job result as this reviewer reported it. (Was the reviewer's own consensus alignment,
+        # so the target's job results never reached its score.)
+        "job_success": r.job_success,
+        # how often this reviewer's job votes agree with the network consensus: used to weight the review
+        "reviewer_alignment": job_successes.get(creator_id, 0.5),
+        "block_success": block_successes.get(target_id, 0.5),
+        "consensus_alignment": alignments.get(target_id, 0.5),
+        "reveal_success": reveal_successes.get(target_id, 0.5),
         "trust_score": r.trust_score,
         "interactions": r.interactions,
         "timestamp": int(r.lastUpdate.timestamp()),
         "recent_failures": recent_failures
             })
 
-        if r.CreatorNode_obj.id == self_node_id:
-            review_map[r.TargetNode_obj.id] = r
+        if creator_id == self_node_id:
+            review_map[target_id] = r
 
     reviews = []
     block_successes.clear()
@@ -3959,6 +3964,9 @@ def compute_node_trust():
     def metric_score(r):
         return sum(r[k] * w for k, w in METRIC_WEIGHTS.items())
 
+    # reviewer standing = the reviewer's OWN trust (previous run), not the trust it assigned the target
+    reviewer_trust_prev = {nid: (n.trust_score or 0.5) for nid, n in nodes.items()}
+
     for node_id, node in nodes.items():
         prnt('node_id',node_id)
         if not Node.objects.filter(id=node_id).exists():
@@ -3972,11 +3980,11 @@ def compute_node_trust():
             if r['interactions'] < MIN_INTERACTIONS:
                 continue
 
-            # Reviewer influence = sqrt(reviewer trust_score from the review)
-            reviewer_trust = r.get("trust_score", 0.5)
+            # Reviewer influence = sqrt(the reviewer node's own trust_score)
+            reviewer_trust = reviewer_trust_prev.get(r['CreatorNode_obj'], 0.5)
             reviewer_influence = math.sqrt(max(reviewer_trust, 0))
 
-            w = recency_weight(r['timestamp']) * interaction_weight(r['interactions']) * reviewer_influence
+            w = recency_weight(r['timestamp']) * interaction_weight(r['interactions']) * reviewer_influence * r['reviewer_alignment']
             total_weighted_score += metric_score(r) * w
             total_weight += w
 
@@ -4041,10 +4049,11 @@ def compute_node_trust():
             updated_reviews.append(review)
         
     NodeReview.objects.bulk_update(updated_reviews, ['trust_score','interactions'])
-    # Save all nodes at once
+    # Persist the scores. These are Node.no_sign_fields (local-only), so they are written directly.
+    # Do NOT use node.save() here: Node.save() silently writes nothing for a locked node (one in a validated
+    # block, i.e. every live node), which left trust_score at its 0.5 default.
     with transaction.atomic():
-        for node in nodes.values():
-            node.save()
+        Node.objects.bulk_update(list(nodes.values()), ['trust_score','influence_score','score_dt'])
     
 
 
