@@ -201,14 +201,18 @@ class Tx(models.Model):
             if self.SenderBlock_obj:
                 prev_Sendblock = self.SenderBlock_obj.get_previous_block()
                 if prev_Sendblock and prev_Sendblock._meta.object_name == 'Blockchain' or prev_Sendblock and prev_Sendblock.validated:
-                    if self.SenderBlock_obj.validated:
+                    if self.SenderBlock_obj.validated and self.SenderBlock_obj.Tx_obj == self:
                         prnt('true1')
                         return True
             else:
-                from utils.utils import request_is_valid, get_chain_id
+                from utils.utils import request_is_valid, fetch_obj_data
                 if request_is_valid(self.senderBlockId, vals=10, chain=self.networkChain):
-                    prnt('true2')
-                    return True
+                    # should use position_sort to find nodes assigned to sender chain
+                    block_dict = fetch_obj_data(self.senderBlockId)
+                    if block_dict and verify_obj_to_data(block_dict, block_dict):
+                        if block_dict.get('validated', False) and block_dict.get('Tx_obj', None) == self:
+                            prnt('true2')
+                            return True
             # else:
             #     from utils.utils import get_chain_id
             #     self_node = get_self_node()

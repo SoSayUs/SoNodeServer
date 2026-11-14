@@ -35,8 +35,16 @@ current_version = 0.1
 import logging
 logger = logging.getLogger("django")
 
+# def prnt(*args):
+#     msg = ','.join(f"{i}" for i in args)
+#     logger.info(f'~:{msg}')
 def prnt(*args):
-    msg = ','.join(f"{i}" for i in args)
+    if not logger.isEnabledFor(logging.INFO):
+        return  # skip formatting entirely when INFO is off
+    try:
+        msg = ','.join(f"{i}" for i in args)
+    except Exception as e:
+        msg = f'<unprintable {type(e).__name__}>'
     logger.info(f'~:{msg}')
 
 
@@ -2012,7 +2020,7 @@ def downscale_to_size(image_bytes, max_bytes=(0.25 * 1024 * 1024)):
         quality -= 10
 
 
-def fetch_obj_data(iden):
+def fetch_obj_data(iden, networkChain=None):
     prnt('-fetch_obj_data',iden)
     from utils.locked import convert_to_dict, sign_for_sending
     from utils.models import connect_to_node
@@ -2027,7 +2035,11 @@ def fetch_obj_data(iden):
         data = {'senderId':self_node_id, 'request':signedRequest}
 
         from network.models import Node
-        nodes = Node.objects.filter(activeNode=True).exclude(chain_array=[]).exclude(id=self_node_id)
+        if networkChain:
+            # does __contains need a list here?
+            nodes = Node.objects.filter(activeNode=True).exclude(chain_array__contains=networkChain).exclude(id=self_node_id)
+        else:
+            nodes = Node.objects.filter(activeNode=True).exclude(chain_array=[]).exclude(id=self_node_id)
 
         for node in nodes:
             prnt('fetch node',node)

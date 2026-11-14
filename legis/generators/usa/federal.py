@@ -3303,6 +3303,7 @@ def add_official_debate_transcript(country, gov, chamber, log, url, driver=None,
                                                         snippedText = snippedText.replace(firstQuote, '', 1)
                                                         prnt('make_statement-a')
                                                         order, log = make_statement(speaker, firstQuote, subtitle, order, log)
+                                                        order += 1
                                                         x = find_first_title(snippedText)
                                                         nextSpeaker = x
                                                         prnt('nextSpeaker2',nextSpeaker)

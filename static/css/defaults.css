@@ -901,7 +901,7 @@ body a:hover{
   margin-top: 25px;
   margin-left:auto;
   margin-right:auto;
-  border-radius: 7px;
+  border-radius: 50%;
 }
 .reactionBar img.miniSprenPic {
   position:relative;
@@ -911,7 +911,7 @@ body a:hover{
   margin-top: -3px;
   margin-left:-3px;
   margin-right:-3px;
-  border-radius: 7px;
+  border-radius: 50%;
 }
 .card .profileInfo div{
   position:relative;

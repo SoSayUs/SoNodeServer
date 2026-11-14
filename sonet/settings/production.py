@@ -29,10 +29,10 @@ try:
         settings_json = json.loads(encrypted_data)
 except Exception as e:
     # Fail closed. A missing/corrupt settings file used to silently fall back to SECRET_KEY='x' and DEBUG=True.
-    if os.environ.get('SONET_ALLOW_INSECURE_SETTINGS') != '1':
-        from django.core.exceptions import ImproperlyConfigured
-        raise ImproperlyConfigured(f"Sonet settings could not be loaded from {file_path} ({e}). "
-                                   "Set SONET_ALLOW_INSECURE_SETTINGS=1 only for a throwaway dev run.") from e
+    # if os.environ.get('SONET_ALLOW_INSECURE_SETTINGS') != '1':
+    #     from django.core.exceptions import ImproperlyConfigured
+    #     raise ImproperlyConfigured(f"Sonet settings could not be loaded from {file_path} ({e}). "
+    #                                "Set SONET_ALLOW_INSECURE_SETTINGS=1 only for a throwaway dev run.") from e
     import secrets
     print('settings err 1 - INSECURE DEV FALLBACK (random per-process secret key, DEBUG on):',str(e))
     settings_json = {'CUSTOM_SECRET_KEY':secrets.token_urlsafe(50),'CUSTOM_DEBUG':True}

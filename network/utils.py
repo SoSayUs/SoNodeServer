@@ -572,7 +572,13 @@ def process_received_data(received_data, block_dict=None, downstream_worker=True
                         if blockchain:
                             chain_list[validator.networkChain] = blockchain
                     if validator.networkChain in chain_list:
-                        chain_list[validator.networkChain].add_item_to_queue(validator)                
+                        chain_list[validator.networkChain].add_item_to_queue(validator)
+                elif validator.validatorType == 'Block':
+                    if 'assigned_job' in validator.func:
+                        if Block.objects.filter(id=validator.jobId, validated=True).exists():
+                            validator.func = validator.func.replace('assigned_job', 'completed_job')
+                            validator.save()
+
             
             validated_idens = [i for i in validIds if not i.startswith(get_model_prefix('Update')) and not i.startswith(get_model_prefix('Notification'))]
             prnt('vals step2a',len(validated_idens))

@@ -284,18 +284,17 @@ def process_gathered_data(received_data, override_completed=False):
                                                                 return_dp.save()
                                                             return_dp.add_item_to_share(local_attr)
                                                     if field not in bypass_fields and local_attr and received_attr and sort_for_sign(local_attr) != sort_for_sign(received_attr) and (is_intelli_func and value_match(local_attr, received_attr) < intelliMatch_rate or not is_intelli_func and isinstance(received_attr, dict) and value_match(local_attr, received_attr) < dict_match or not is_intelli_func):
+                                                        w += 'a'
                                                         prnt('mismatch break!','field:',field,received_obj['id'],'value_match(local_attr, received_attr)',value_match(local_attr, received_attr),'\n-database_attr:',sort_for_sign(local_attr, print_data=False),'\n-received_attr:',sort_for_sign(received_attr, print_data=False))
-                                                        if not is_intelli_func or (not sender_node.trust_score > trust_requirement and not self_node.trust_score > trust_requirement):
-                                                            prnt('is_intelli_func',is_intelli_func)
-                                                            prnt('trust_requirement',trust_requirement)
-                                                            prnt('sender_node.trust_score',sender_node.trust_score)
-                                                            prnt('self_node.trust_score',self_node.trust_score)
+                                                        if not is_intelli_func or (not sender_node.influence_score > trust_requirement and not self_node.influence_score > trust_requirement):
                                                             # larger llama prompts have larger differences, auto accept if node is trusted
                                                             mismatch = True
+                                                            w += 'b'
                                                             break
                                                     elif field not in bypass_fields and (value_is_none(local_attr) and not value_is_none(received_attr) or value_is_none(received_attr) and not value_is_none(local_attr)):
                                                         prnt('mismatch break2!','field:',field,'local_attr:',local_attr,'received_attr:',received_attr)
                                                         mismatch = True
+                                                        w += 'c'
                                                         break
                                                 if mismatch:
                                                     w += '7'
@@ -339,7 +338,7 @@ def process_gathered_data(received_data, override_completed=False):
                                                     if is_intelli_func and value_match(local_attr, received_attr) < 1:
                                                         obj_hash = 'intelliMatch'
                                                         if value_match(local_attr, received_attr) < intelliMatch_rate:
-                                                            if sender_node.trust_score < self_node.trust_score and self_node.trust_score > trust_requirement:
+                                                            if sender_node.influence_score < self_node.influence_score and self_node.influence_score > trust_requirement:
                                                                 obj_list.append(local_obj)
                                                     validator.data[received_obj['id']] = obj_hash
                                                     matched_idens.append(received_obj['id'])
@@ -374,7 +373,7 @@ def process_gathered_data(received_data, override_completed=False):
     validator = sign_obj(validator)
     obj_list = [convert_to_dict(validator)] + obj_list
     for i in content:
-        if i['id'] in matched_idens and i not in obj_list:
+        if i['id'] in matched_idens and any([z for z in obj_list if z['id'] == i['id']]):
             obj_list.append(i)
     content = None
 

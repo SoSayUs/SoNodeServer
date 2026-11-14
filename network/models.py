@@ -702,8 +702,8 @@ class DataPacket(models.Model):
                                         failures += 1
 
 
-                            commits = CommitData.objects.filter(Node_obj=r.TargetNode_obj, added_to_node__gte=log_dt_start, added_to_node__lt=log_dt_end, dataType='salt').distinct('jobId').order_by('jobId','created')
-                            reveals = RevealData.objects.filter(Node_obj=r.TargetNode_obj, added_to_node__gte=log_dt_start, added_to_node__lt=log_dt_end, dataType='salt').distinct('jobId').order_by('jobId','created')
+                            commits = CommitData.objects.filter(Node_obj=r.TargetNode_obj, added_to_node__gte=log_dt_start, added_to_node__lt=log_dt_end, dataType='salt')
+                            reveals = RevealData.objects.filter(Node_obj=r.TargetNode_obj, added_to_node__gte=log_dt_start, added_to_node__lt=log_dt_end, dataType='salt')
                             mapping = {}
                             for c in commits:
                                 mapping[c.id] = {'commit':c}
@@ -717,9 +717,9 @@ class DataPacket(models.Model):
                             for iden, data in mapping.items():
                                 salts_committed += 1
                                 if not data.get('reveal', None) or data['commit'].hash != quick_hash(data['reveal'].value):
-                                    # check if targetNode is block creater at data['commit'].created + 20 mins for targetNode supported chains
-                                    # if so:
-                                    # violations += 1
+                                    # dt = data['commit'].created + 20
+                                    # if Block.objects.filter(DateTime=string_to_dt(dt), CreatorNode_obj=r.TargetNode_obj).exists():
+                                        # violations += 1
                                     ...
                                 else:
                                     salts_revealed += 1
@@ -2975,7 +2975,8 @@ class Block(models.Model):
         creator_nodes, validator_list, broadcast_list = self.get_assigned_nodes(fetch_broadcast_list=False)
         prnt('creator_nodes',creator_nodes)
         prnt('self.validations',self.validations)
-        validated_nodes = [i for i in validator_list[:required_validators] if i in [self.validations[i]['CreatorNode_obj'] for i in self.validations]]
+        # validated_nodes = [i for i in validator_list[:required_validators] if i in [self.validations[i]['CreatorNode_obj'] for i in self.validations]]
+        validated_nodes = [v.CreatorNode_obj.id for v in Validator.objects.filter(jobId=self.id).only('CreatorNode_obj')]
         prnt('validated_nodes',validated_nodes)
         dynamic_bulk_update('EventLog', update_data={'func': 'completed_job:block_validation'}, jobId=self.id, Node_obj__id__in=validated_nodes, func='assigned_job:block_validation')
 
@@ -3130,7 +3131,8 @@ class Block(models.Model):
                 creator_nodes, validator_list, broadcast_list = self.get_assigned_nodes(fetch_broadcast_list=False)
                 prnt('creator_nodes',creator_nodes)
                 prnt('self.validations',self.validations)
-                validated_nodes = [i for i in validator_list[:required_validators] if i in [self.validations[i]['CreatorNode_obj'] for i in self.validations]]
+                # validated_nodes = [i for i in validator_list[:required_validators] if i in [self.validations[i]['CreatorNode_obj'] for i in self.validations]]
+                validated_nodes = [v.CreatorNode_obj.id for v in Validator.objects.filter(jobId=self.id).only('CreatorNode_obj')]
                 prnt('validated_nodes',validated_nodes)
                 dynamic_bulk_update('EventLog', update_data={'func': 'completed_job:block_validation'}, jobId=self.id, Node_obj__id__in=validated_nodes, func='assigned_job:block_validation')
 
