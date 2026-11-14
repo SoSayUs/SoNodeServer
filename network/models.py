@@ -720,6 +720,8 @@ class DataPacket(models.Model):
                                     dt = data['commit'].created + datetime.timeDelta(minutes=20)
                                     if Block.objects.filter(DateTime=dt, CreatorNode_obj=r.TargetNode_obj).exists():
                                         violations += 1
+
+                                        
                                 else:
                                     salts_revealed += 1
                             
