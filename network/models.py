@@ -675,10 +675,10 @@ class DataPacket(models.Model):
                     prnt('reviews', reviews.count())
                     if reviews:
                         items = []
+                        log_dt_end = round_time(now_utc(), dir='down', amount='hour')
+                        log_dt_start = log_dt_end - datetime.timedelta(hours=1)
                         for r in reviews:
                             prnt('r', r)
-                            log_dt_end = round_time(now_utc(), dir='down', amount='hour')
-                            log_dt_start = log_dt_end - datetime.timedelta(hours=1)
 
                             completed_jobs = EventLog.objects.filter(Node_obj=r.TargetNode_obj, func__contains='completed_job:', created__gte=log_dt_start, created__lt=log_dt_end).distinct('jobId').order_by('jobId','created').count()
                             incomplete_jobs = EventLog.objects.filter(Node_obj=r.TargetNode_obj, func__contains='assigned_job:', created__gte=log_dt_start, created__lt=log_dt_end).distinct('jobId').order_by('jobId','created').count()
@@ -690,7 +690,9 @@ class DataPacket(models.Model):
                                 for dt, data in r.response_times.items():
                                     if string_to_dt(dt) >= log_dt_start:
                                         successes += 1
-                                r.response_times = {}
+                                # response_times is NOT cleared here any more. It is cleared together with
+                                # `interactions` in compute_node_trust, so both cover the same period.
+                                # (Clearing it every broadcast made successes/interactions read ~1/6 of the truth.)
                             r.response_success = 0.5
                             if r.interactions and r.interactions >= successes:
                                 r.response_success = (successes/r.interactions)
@@ -721,7 +723,7 @@ class DataPacket(models.Model):
                                     if Block.objects.filter(DateTime=dt, CreatorNode_obj=r.TargetNode_obj).exists():
                                         violations += 1
 
-                                        
+
                                 else:
                                     salts_revealed += 1
                             
@@ -732,6 +734,7 @@ class DataPacket(models.Model):
                             # remove commit/reveals after done
 
                             r.lastUpdate = now_utc()
+                            r.id = hash_obj_id('NodeReview', specific_data=f"{dt_to_string(log_dt_start)}-{r.TargetNode_obj.id}-{self_node.id}")
 
                             r = sign_obj(r, do_save=False)
                             v = verify_obj_to_data(r, r)

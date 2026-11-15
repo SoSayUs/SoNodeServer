@@ -117,12 +117,18 @@ class ComputeNodeTrustTests(unittest.TestCase):
             return nodes[1].trust_score
         self.assertGreater(t({'A': 1.0, 'B': 0.0}), t({'A': 0.0, 'B': 1.0}))
 
+    def test_self_review_is_ignored_even_if_it_claims_everything(self):
+        nodes = [FakeNode(f'N{i}') for i in range(3)]
+        run(nodes, [review('N1', 'N1', resp=1.0, job=1.0, inter=500), review('N1', 'N2', resp=0.0, job=0.0, inter=40)])
+        self.assertLess(nodes[1].trust_score, 0.5)  # only the outside review counts
+
     def test_own_reviews_get_trust_written_back_and_interactions_reset(self):
         nodes = [FakeNode(f'N{i}') for i in range(3)]
         calls = run(nodes, [review('N1', 'N0'), review('N1', 'N2')])
         updated, fields = calls['review_bulk'][0]
-        self.assertEqual(fields, ['trust_score', 'interactions'])
+        self.assertEqual(fields, ['trust_score', 'interactions', 'response_times'])
         self.assertEqual([u.interactions for u in updated], [0])
+        self.assertEqual([u.response_times for u in updated], [{}])  # reset together with interactions
         self.assertAlmostEqual(updated[0].trust_score, nodes[1].trust_score)
 
 

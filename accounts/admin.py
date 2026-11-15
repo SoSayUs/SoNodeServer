@@ -500,7 +500,7 @@ class DataPacketAdmin(AutoForeignKeyAdmin):
         model = DataPacket
 
 class NodeAdmin(AutoForeignKeyAdmin):
-    list_display = ['id','node_name','User_obj',full_utc('activated_dt'),full_utc('suspended_dt'),'activeNode',full_utc('lastUpdate'),full_utc('updated_on_node'),'pos']
+    list_display = ['id','node_name','User_obj',full_utc('activated_dt'),full_utc('suspended_dt'),'activeNode','trust_score',full_utc('lastUpdate'),full_utc('updated_on_node'),'pos']
     list_display_links = []
     list_editable = []
     list_filter = []

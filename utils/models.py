@@ -3628,9 +3628,11 @@ def compute_creator_reveal_violations(log_dt_start, log_dt_end):
     from django.db.models import Count, Q
     from network.models import NodeReview
 
+    # A NodeReview is a latest-state snapshot whose lastUpdate is rewritten on every broadcast (~10 min), so at
+    # compute time every row's lastUpdate is inside the CURRENT hour. An upper bound of log_dt_end therefore
+    # matched nothing, and this metric was always empty (every node read the 0.5 default).
     reviews = NodeReview.objects.filter(
         lastUpdate__gte=log_dt_start,
-        lastUpdate__lt=log_dt_end,
     )
 
     consensus = (
@@ -3668,9 +3670,11 @@ def compute_reveal_success(log_dt_start, log_dt_end):
     from django.db.models import Avg
     from network.models import NodeReview
 
+    # A NodeReview is a latest-state snapshot whose lastUpdate is rewritten on every broadcast (~10 min), so at
+    # compute time every row's lastUpdate is inside the CURRENT hour. An upper bound of log_dt_end therefore
+    # matched nothing, and this metric was always empty (every node read the 0.5 default).
     reviews = NodeReview.objects.filter(
         lastUpdate__gte=log_dt_start,
-        lastUpdate__lt=log_dt_end,
     )
 
     scores = (
@@ -3689,9 +3693,11 @@ def compute_job_success(log_dt_start, log_dt_end):
     from django.db.models import Count, Q, F, Case, When, BooleanField, Subquery, OuterRef
     from network.models import NodeReview
 
+    # A NodeReview is a latest-state snapshot whose lastUpdate is rewritten on every broadcast (~10 min), so at
+    # compute time every row's lastUpdate is inside the CURRENT hour. An upper bound of log_dt_end therefore
+    # matched nothing, and this metric was always empty (every node read the 0.5 default).
     reviews = NodeReview.objects.filter(
         lastUpdate__gte=log_dt_start,
-        lastUpdate__lt=log_dt_end,
     )
 
     # --------------------------------
@@ -3866,7 +3872,7 @@ def compute_node_trust():
       - interaction count
       - reviewer influence_score (derived from trust_score in review)
     """
-    
+
     # should also track when a node goes dark (suspended_dt in recent legers), lower score if it happens often
 
     from django.db import transaction
@@ -3888,10 +3894,10 @@ def compute_node_trust():
     reveal_successes = compute_reveal_success(log_dt_start, log_dt_end)
     creator_violations = compute_creator_reveal_violations(log_dt_start, log_dt_end)
 
-    # block_successes = compute_block_success(log_dt_start, log_dt_end)
-    # alignments = compute_consensus_alignment(log_dt_start, log_dt_end)
-    # job_successes = compute_job_success(log_dt_start, log_dt_end)
-    # reveal_successes = compute_reveal_success(log_dt_start, log_dt_end)
+
+
+
+
 
 
     nodes = {n.id: n for n in Node.objects.exclude(activated_dt=None)}
@@ -3903,6 +3909,8 @@ def compute_node_trust():
     peer_reviews = defaultdict(list)
     for r in reviews:
         target_id, creator_id = r.TargetNode_obj_id, r.CreatorNode_obj_id  # *_id: no per-review Node query
+        if target_id == creator_id:
+            continue  # a node's review of itself is never evidence (it could claim any interactions/scores)
         prnt('r',target_id,creator_id)
 
         recent_failures = 0
@@ -3946,8 +3954,8 @@ def compute_node_trust():
     METRIC_WEIGHTS = {
         "response_success": 0.10,
         "job_success": 0.30,
-        "block_success": 0.25,
-        "consensus_alignment": 0.20,
+        "block_success": 0.10,
+        "consensus_alignment": 0.35,
         "reveal_success": 0.15,
     }
 
@@ -3969,6 +3977,7 @@ def compute_node_trust():
 
     for node_id, node in nodes.items():
         prnt('node_id',node_id)
+        prnt('peer_reviews[target_id]',peer_reviews[node_id])
         if not Node.objects.filter(id=node_id).exists():
             request_items([node_id])
         reviews_for_node = peer_reviews.get(node_id, [])
@@ -3999,7 +4008,7 @@ def compute_node_trust():
             if node.id == self_node_id:
                 from utils.utils import self_is_active
                 self_is_active(False)
-                prnt("self_is_active1",self_is_active())
+                # prnt("self_is_active1",self_is_active())
         else:
             if node.suspended_dt:
                 node.suspended_dt = None
@@ -4007,7 +4016,7 @@ def compute_node_trust():
             if node.id == self_node_id and node.activeNode:
                 from utils.utils import self_is_active
                 self_is_active(True)
-                prnt("self_is_active2",self_is_active())
+                # prnt("self_is_active2",self_is_active())
 
         observed_trust = total_weighted_score / total_weight if total_weight > 0 else 0.5
 
@@ -4046,9 +4055,10 @@ def compute_node_trust():
         if review:
             review.trust_score = updated_trust
             review.interactions = 0
+            review.response_times = {}   # same period as interactions, see broadcast_dp
             updated_reviews.append(review)
         
-    NodeReview.objects.bulk_update(updated_reviews, ['trust_score','interactions'])
+    NodeReview.objects.bulk_update(updated_reviews, ['trust_score','interactions','response_times'])
     # Persist the scores. These are Node.no_sign_fields (local-only), so they are written directly.
     # Do NOT use node.save() here: Node.save() silently writes nothing for a locked node (one in a validated
     # block, i.e. every live node), which left trust_score at its 0.5 default.
