@@ -41,7 +41,19 @@ def review(target, creator, resp=1.0, job=0.5, trust=0.5, inter=40):
                                  lastUpdate=NOW - datetime.timedelta(minutes=10))
 
 
-def run(nodes, reviews, job=None, self_id='N0'):
+_FN = None
+
+
+def _function():
+    global _FN
+    if _FN is None:  # parse the big models.py once, not on every run()
+        with open(SRC) as f:
+            tree = ast.parse(f.read())
+        _FN = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'compute_node_trust'][0]
+    return _FN
+
+
+def run(nodes, reviews, job=None, self_id='N0', reveal=None, block=None, consensus=None):
     calls = {'node_bulk': [], 'review_bulk': []}
 
     class NodeM:
@@ -61,13 +73,11 @@ def run(nodes, reviews, job=None, self_id='N0'):
     dj.transaction = types.SimpleNamespace(atomic=contextlib.contextmanager(lambda: (yield)))
     uu = types.ModuleType('utils.utils')
     uu.self_is_active = lambda *a: None
-    with open(SRC) as f:
-        tree = ast.parse(f.read())
-    fn = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'compute_node_trust'][0]
+    fn = _function()
     ns = dict(prnt=lambda *a, **k: None, datetime=datetime, now_utc=lambda: NOW, round_time=lambda d, **k: d,
               get_operator_obj=lambda k: self_id, string_to_dt=lambda s: NOW, request_items=lambda *a, **k: None,
-              compute_block_success=lambda *a: {}, compute_consensus_alignment=lambda *a: {},
-              compute_job_success=lambda *a: dict(job or {}), compute_reveal_success=lambda *a: {},
+              compute_block_success=lambda *a: dict(block or {}), compute_consensus_alignment=lambda *a: dict(consensus or {}),
+              compute_job_success=lambda *a: dict(job or {}), compute_reveal_success=lambda *a: dict(reveal or {}),
               compute_creator_reveal_violations=lambda *a: {})
     with mock.patch.dict(sys.modules, {'network.models': net, 'django.db': dj, 'utils.utils': uu}):
         exec(compile(ast.Module(body=[fn], type_ignores=[]), 'compute_node_trust', 'exec'), ns)
@@ -121,6 +131,41 @@ class ComputeNodeTrustTests(unittest.TestCase):
         nodes = [FakeNode(f'N{i}') for i in range(3)]
         run(nodes, [review('N1', 'N1', resp=1.0, job=1.0, inter=500), review('N1', 'N2', resp=0.0, job=0.0, inter=40)])
         self.assertLess(nodes[1].trust_score, 0.5)  # only the outside review counts
+
+    # ---- evidence-based scoring: a metric with nothing to measure (reads 0.5) is left out, not counted as 0.5 ----
+    def _one_target(self, resp=1.0, job=0.5, reveal=None, block=None, consensus=None):
+        nodes = [FakeNode('N0'), FakeNode('T'), FakeNode('A')]
+        run(nodes, [review('T', 'A', resp=resp, job=job)], reveal=reveal, block=block, consensus=consensus)
+        return nodes[1].trust_score
+
+    def test_metrics_without_evidence_do_not_dilute_a_good_node(self):
+        # job=1.0 and response=1.0 are 0.4 of the weight and both perfect -> full credit (observed 1.0)
+        self.assertAlmostEqual(self._one_target(job=1.0), 0.5 + 0.1 * 0.5, places=9)
+
+    def test_response_alone_gets_only_partial_credit(self):
+        # evidence weight 0.10 of 0.40 -> confidence 0.25 -> observed 0.625
+        self.assertAlmostEqual(self._one_target(), 0.9 * 0.5 + 0.1 * 0.625, places=9)
+
+    def test_response_plus_reveal_evidence(self):
+        # evidence weight 0.25 of 0.40 -> confidence 0.625 -> observed 0.8125
+        self.assertAlmostEqual(self._one_target(reveal={'T': 1.0}), 0.9 * 0.5 + 0.1 * 0.8125, places=9)
+
+    def test_bad_evidence_is_scored_low(self):
+        self.assertLess(self._one_target(resp=0.0, job=0.0), 0.45)
+
+    def _converged(self, **evidence):
+        nodes = [FakeNode('N0'), FakeNode('T'), FakeNode('A')]
+        for _ in range(200):
+            run(nodes, [review('T', 'A', resp=1.0)], **evidence)
+        return nodes[1].trust_score
+
+    def test_one_cheap_metric_cannot_reach_the_trust_requirement(self):
+        self.assertLess(self._converged(), 0.7)               # response only -> 0.625
+        self.assertGreater(self._converged(reveal={'T': 1.0}), 0.7)  # response + reveal -> 0.8125
+
+    def test_no_block_or_job_activity_is_not_penalised(self):
+        quiet = self._converged(reveal={'T': 1.0})
+        self.assertAlmostEqual(quiet, 0.8125, places=3)
 
     def test_own_reviews_get_trust_written_back_and_interactions_reset(self):
         nodes = [FakeNode(f'N{i}') for i in range(3)]
