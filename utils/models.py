@@ -3969,8 +3969,28 @@ def compute_node_trust():
     def interaction_weight(interactions):
         return min(1.0, interactions / 50)
 
+    # A metric only counts for a review when there is evidence for it. Every metric reads a neutral 0.5 when there is
+    # nothing to measure (no jobs assigned, no block created, no validator votes, no salts committed this hour).
+    # Counting that default at full weight put 90% of a healthy node's score at 0.5 and capped it near 0.55.
+    # Exactly 0.5 is treated as "no evidence": a genuine 0.5 is neutral anyway, so misreading one changes little.
+    # FULL_EVIDENCE_WEIGHT is the share of the total metric weight that must have evidence for full credit; below it the
+    # score is pulled toward 0.5 in proportion, so a node can't earn a high score from one cheap metric
+    # (response alone caps at 0.625, under the 0.7 trust_requirement in locked.py).
+    FULL_EVIDENCE_WEIGHT = 0.4
+
+    def has_evidence(r, k):
+        if k == "response_success":
+            return r["interactions"] > 0
+        return abs(r[k] - 0.5) > 1e-9
+
     def metric_score(r):
-        return sum(r[k] * w for k, w in METRIC_WEIGHTS.items())
+        used = {k: w for k, w in METRIC_WEIGHTS.items() if has_evidence(r, k)}
+        evidence_weight = sum(used.values())
+        if not evidence_weight:
+            return 0.5
+        raw = sum(r[k] * w for k, w in used.items()) / evidence_weight
+        confidence = min(1.0, evidence_weight / FULL_EVIDENCE_WEIGHT)
+        return 0.5 + confidence * (raw - 0.5)
 
     # reviewer standing = the reviewer's OWN trust (previous run), not the trust it assigned the target
     reviewer_trust_prev = {nid: (n.trust_score or 0.5) for nid, n in nodes.items()}
