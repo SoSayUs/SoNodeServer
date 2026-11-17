@@ -5374,7 +5374,7 @@ def sign_obj(item, operatorData=None, keys=None, do_save=True, req_sigs=None, ke
                 from network.models import Signature
                 from django.contrib.contenttypes.models import ContentType
                 sig_obj = Signature(pointerId=item.id, pointerKey=ContentType.objects.get_for_model(item), Upk_obj_id=pkey, sig=sig, DateTime=string_to_dt(signing_dt))
-                sig_obj.save()
+                sig_obj.save(pointer=item)
                 if do_save:
                     item.save()
             err += 'M'
