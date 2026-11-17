@@ -581,7 +581,7 @@ class Signature(models.Model):
                     pointer = get_dynamic_model(self.pointerId, id=self.pointerId)
                 prnt('pointer1',pointer)
                 self.pointerKey = ContentType.objects.get_for_model(pointer)
-            elif self.pointerKey:
+            elif self.pointerKey and not self.pointerId:
                 if not pointer:
                     pointer = self.Pointer_obj
                 prnt('pointer2',pointer)
@@ -735,6 +735,7 @@ class DataPacket(models.Model):
 
                             r.lastUpdate = now_utc()
                             r.id = hash_obj_id('NodeReview', specific_data=f"{dt_to_string(log_dt_start)}-{r.TargetNode_obj.id}-{self_node.id}")
+                            r.save()
 
                             r = sign_obj(r, do_save=False)
                             v = verify_obj_to_data(r, r)
@@ -1713,11 +1714,11 @@ class NodeReview(models.Model):
         if int(version) >= 1:
             return {'objType': 'NodeReview', 'modlVer': 1, 'id': None, 'created': None, 'lastUpdate': None, 'TargetNode_obj': None, 'CreatorNode_obj': None, 'special_attrs': None, 'accessed': None, 'response_times': {}, 'response_success': 0.5, 'job_success': 0.5, 'interactions': 0, 'avg_response_time': None, 'last_fail': None, 'failures': None, 'strikes': None, 'trust_score': 0.5, 'signed': {}}
         
-    def get_hash_to_id(self, version=None):
-        if not version:
-            version = self.modlVer
-        if int(version) >= 1:
-            return ['objType','TargetNode_obj','CreatorNode_obj']
+    # def get_hash_to_id(self, version=None):
+    #     if not version:
+    #         version = self.modlVer
+    #     if int(version) >= 1:
+    #         return ['objType','TargetNode_obj','CreatorNode_obj']
     
     def commit_data(self, version=None):
         if not version:
