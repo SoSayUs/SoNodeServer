@@ -3960,7 +3960,7 @@ def compute_node_trust():
     }
 
     REVIEW_HALF_LIFE_HOURS = 48
-    MIN_INTERACTIONS = 10
+    MIN_INTERACTIONS = 5
 
     def recency_weight(timestamp):
         age_hours = (time.time() - timestamp) / 3600
