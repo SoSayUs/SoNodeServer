@@ -8,6 +8,8 @@ from accounts import views as account_views
 from django.urls import path, re_path, include
 
 urlpatterns = [
+    # re_path('some', account_views.user_view, {'username':None}),
+    # path('some', account_views.user_view),
     path('create_user', account_views.user_create_request_view),
     path('get_user_login', account_views.get_user_login_request_view),
     path('receive_user_login', account_views.receive_user_login_view),

@@ -530,6 +530,16 @@ def share_modal_view(request, iden):
     }
     return render(request, "modals/share_modal.html", context)
 
+def regions_modal_view(request):
+    # from posts.models import Region
+    supported_regions = Region.objects.filter(is_supported=True, Validator_obj__is_valid=True)
+    prnt('supported_regions',supported_regions)
+    context = {
+        'title': 'Regions',
+        'supported_regions': supported_regions,
+    }
+    return render(request, "modals/regions_modal.html", context)
+
 @register.filter
 def to_percent(num1, num2):
     try:

@@ -2,18 +2,19 @@
 
 <div class="card" id='{{ post.id }}'>
     <div class='profile'>
-        <span class="material-symbols-outlined">money_bag</span>
+        <span class="material-symbols-outlined" style="font-size: 200%;">money_bag</span>
+        <div class='title'>Wallet</div>
     </div>
     
     <div class='cardContent'>
     <div class='Info'>
-        <div class='title shorten2'><h2><a href='wallet/{{ post.id }}' >Wallet: {{ post.Name }}</a></h2></div>
-        <div class='title'>ID: {{ post.id }}</a></div>
+        <div class='title shorten2'><h2><a href='wallet/{{ post.id }}' >{{ post.Name }}</a></h2></div>
+        <div class='title'>ID: {{ post.id }}</div>
     </div>
 
         <div class='TextContent'>
             <ul class='Text'>
-                <li style='margin-top:15px;'><span class="material-icons">attach_money</span> {{ post.value }}</li>
+                <li style='margin-top:15px;'><span class="material-icons">attach_money</span> {{ post.contents }}</li>
                 <li style='margin-top:15px;'>{{ post.lastUpdate }}</li>
             </ul>
         </div>

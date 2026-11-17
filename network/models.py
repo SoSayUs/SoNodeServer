@@ -671,15 +671,15 @@ class DataPacket(models.Model):
                     prnt('err 42311', str(e))
 
                 try:
-                    reviews = NodeReview.objects.filter(CreatorNode_obj__id=self_node_id)
+                    reviews = NodeReview.objects.filter(CreatorNode_obj__id=self_node_id, created__gte=now_utc()-datetime.timedelta(hours=1))
                     prnt('reviews', reviews.count())
                     if reviews:
                         items = []
-                        log_dt_end = round_time(now_utc(), dir='down', amount='hour')
-                        log_dt_start = log_dt_end - datetime.timedelta(hours=1)
                         for r in reviews:
                             prnt('r', r)
 
+                            log_dt_end = round_time(now_utc(), dir='down', amount='hour')
+                            log_dt_start = log_dt_end - datetime.timedelta(hours=1) 
                             completed_jobs = EventLog.objects.filter(Node_obj=r.TargetNode_obj, func__contains='completed_job:', created__gte=log_dt_start, created__lt=log_dt_end).distinct('jobId').order_by('jobId','created').count()
                             incomplete_jobs = EventLog.objects.filter(Node_obj=r.TargetNode_obj, func__contains='assigned_job:', created__gte=log_dt_start, created__lt=log_dt_end).distinct('jobId').order_by('jobId','created').count()
                             total = completed_jobs + incomplete_jobs
@@ -704,29 +704,15 @@ class DataPacket(models.Model):
                                         failures += 1
 
 
-                            commits = CommitData.objects.filter(Node_obj=r.TargetNode_obj, added_to_node__gte=log_dt_start, added_to_node__lt=log_dt_end, dataType='salt')
-                            reveals = RevealData.objects.filter(Node_obj=r.TargetNode_obj, added_to_node__gte=log_dt_start, added_to_node__lt=log_dt_end, dataType='salt')
-                            mapping = {}
-                            for c in commits:
-                                mapping[c.id] = {'commit':c}
-                                for rv in reveals:  # was `r`, which overwrote the NodeReview being refreshed
-                                    if rv.created == c.created:
-                                        mapping[c.id]['reveal'] = rv
-                                        break
-                            salts_committed = 0
-                            salts_revealed = 0
-                            violations = 0
-                            for iden, data in mapping.items():
-                                salts_committed += 1
-                                if not data.get('reveal', None) or data['commit'].hash != quick_hash(data['reveal'].value):
-                                    dt = data['commit'].created + datetime.timeDelta(minutes=20)
-                                    if Block.objects.filter(DateTime=dt, CreatorNode_obj=r.TargetNode_obj).exists():
-                                        violations += 1
-
-
-                                else:
-                                    salts_revealed += 1
-                            
+                            from utils.salt_report import tally_salts
+                            target = r.TargetNode_obj
+                            commits = list(CommitData.objects.filter(Node_obj=target, added_to_node__gte=log_dt_start, added_to_node__lt=log_dt_end, dataType='salt'))
+                            # match reveals to commits by `created` with no receipt-time window (a reveal that lands just outside
+                            # the hour must still be found), and let tally_salts skip commits this node received too late to accept a reveal for
+                            reveals_by_created = {rv.created: rv for rv in RevealData.objects.filter(Node_obj=target, dataType='salt', created__in=[c.created for c in commits])}
+                            salts_committed, salts_revealed, violations = tally_salts(
+                                commits, reveals_by_created, quick_hash,
+                                lambda dt: Block.objects.filter(DateTime=dt, CreatorNode_obj=target).exists())
                             r.reveal_success = salts_revealed / salts_committed if salts_committed else 0.5
                             r.creator_reveal_violations = violations
 
@@ -1875,6 +1861,14 @@ class RevealData(models.Model):
                     from utils.utils import quick_hash
                     if commit.hash == quick_hash(self.value):
                         return True
+                    prnt('reveal rejected: hash does not match the commit', self.id)
+                else:
+                    # valid window is 0..600s after dt; negative = arrived BEFORE the 10 min mark (clock skew / early send)
+                    prnt('reveal rejected: outside its window', self.id, 'seconds after window start:', round((added - dt).total_seconds(), 1), '(valid: 0..600)')
+            else:
+                prnt('reveal rejected: commit reached this node outside its 10 min window', self.id, 'commit lag s:', round((commit.added_to_node - commit.created).total_seconds(), 1))
+        else:
+            prnt('reveal rejected: no matching commit on this node', self.id)
         return False
 
 

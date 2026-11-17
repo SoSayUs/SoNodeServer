@@ -699,7 +699,10 @@ def set_user_data_view(request):
 def user_view(request, username):
     prnt('-profile',username)
     username = username.replace('|', '')
-    u = User.objects.get(username=username)
+    if username == 'me':
+        u = request.user
+    else:
+        u = User.objects.get(username=username)
     title = u.get_title()
     cards = 'user_view'
     style = request.GET.get('style', 'index')

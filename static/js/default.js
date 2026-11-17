@@ -1045,6 +1045,7 @@ async function signReturnInteraction({ response, item }) {
         });
       };
     };
+  
   };
 };
 
@@ -3092,18 +3093,20 @@ async function get_assignment(obj=null, iden=null, DateTime=null, nodeIds=[], re
     console.log('saved_nodeData22',saved_nodeData)
     var parsed_nodeData = JSON.parse(saved_nodeData);
     // console.log('parsed_nodeData',parsed_nodeData);
-    var relevantNodes = parsed_nodeData.id_data.active;
+    var relevantNodes = parsed_nodeData.id_data.server;
     // console.log('relevantNodes1',relevantNodes);
     if (region !== 'All' && region in parsed_nodeData.id_data) {
       var nodeIds = parsed_nodeData.id_data.region;
     } else {
-      var nodeIds = parsed_nodeData.id_data.active;
+      var nodeIds = parsed_nodeData.id_data.server;
     };
   };
   userData = await get_stored_userData();
   const position_dict = {};
-  for (const [id, data] of Object.entries(relevantNodes)) {
-    console.log('id',id,'data',data)
+  // for (const [id, data] of Object.entries(relevantNodes)) {
+  for (i = 0; i < relevantNodes.length; i++) {
+    var id = relevantNodes[i];
+    console.log('id',id)
     if (parsed_nodeData.id_data.active[id]) {
       console.log('1a')
       position_dict[parsed_nodeData.id_data.active[id]['pos']] = id;
@@ -3120,7 +3123,7 @@ async function get_assignment(obj=null, iden=null, DateTime=null, nodeIds=[], re
     const keys = Object.keys(parsed_nodeData.id_data.active);
     var nodeId = keys[Math.floor(Math.random() * keys.length)];
   };
-  const startPos = parsed_nodeData.id_data.active[nodeId] || null;
+  const startPos = parsed_nodeData.id_data.active[nodeId]['pos'] || null;
   if (!startPos) {
     const data = await connect_to_node('/utils/get_object_id/'+nodeId);
     if (data) {

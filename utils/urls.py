@@ -24,6 +24,7 @@ urlpatterns = [
     re_path('modal_picker/(?P<modal_type>(.*))/(?P<iden>(.*))', util_views.modal_picker_view),
     re_path('default_modal/(?P<iden>(.*))', util_views.default_modal_view),
     re_path('share_modal/(?P<iden>(.*))', util_views.share_modal_view),
+    re_path('regions_modal', util_views.regions_modal_view),
     re_path('post_insight_modal/(?P<iden>(.*))', util_views.post_insight_view),
     re_path('post_more_options_modal/(?P<iden>(.*))', util_views.post_more_options_view),
     re_path('verify_post_modal/(?P<iden>(.*))', util_views.verify_post_view),

@@ -9,6 +9,7 @@ import contextlib
 import datetime
 import math
 import os
+import re
 import sys
 import types
 import unittest
@@ -98,8 +99,10 @@ class ComputeNodeTrustTests(unittest.TestCase):
         self.assertTrue(all(n.score_dt for n in nodes))
 
     def test_node_without_enough_interactions_stays_at_default(self):
+        with open(SRC) as f:
+            minimum = int(re.search(r'MIN_INTERACTIONS = (\d+)', f.read()).group(1))
         nodes = [FakeNode(f'N{i}') for i in range(3)]
-        run(nodes, [review('N1', 'N0', inter=9), review('N1', 'N2', inter=9)])
+        run(nodes, [review('N1', 'N0', inter=minimum - 1), review('N1', 'N2', inter=minimum - 1)])
         self.assertEqual(nodes[1].trust_score, 0.5)
 
     def test_targets_job_result_reaches_its_score(self):

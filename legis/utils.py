@@ -158,6 +158,7 @@ def summarize_meetings(special=None, post=None, dt=None, max_mins=45):
                 log = create_share_object(func, region, special=special, dt=dt)
             spren = summarize_meeting(meeting, self_nodeId)
             log.updateShare(spren)
+
         if log:
             prnt('done summarize_meetings', now_utc() - start_time)
             return finishScript(log, gov, special)
@@ -900,7 +901,7 @@ def run_assigned_duties(receivedDt=None, result=None):
         supported_regions = {i['id']:i['networkChain'] for i in regions}
         prnt('supported_regions',supported_regions)
 
-        for job in intelligence_funcs:
+        for job in shuffle_list(seed_input, intelligence_funcs):
             prnt('job',job)
             if job_assigned:
                 break
