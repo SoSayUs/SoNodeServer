@@ -671,7 +671,7 @@ class DataPacket(models.Model):
                     prnt('err 42311', str(e))
 
                 try:
-                    reviews = NodeReview.objects.filter(CreatorNode_obj__id=self_node_id, created__gte=now_utc()-datetime.timedelta(hours=1))
+                    reviews = NodeReview.objects.filter(CreatorNode_obj__id=self_node_id, lastUpdated__gte=now_utc()-datetime.timedelta(hours=1)).distinct('TargetNode_obj').order_by('TargetNode_obj','-created','-lastUpdate')
                     prnt('reviews', reviews.count())
                     if reviews:
                         items = []
@@ -719,7 +719,8 @@ class DataPacket(models.Model):
 
                             # remove commit/reveals after done
 
-                            r.lastUpdate = now_utc()
+                            r.created = now_utc()
+                            r.lastUpdate = r.created
                             r.id = hash_obj_id('NodeReview', specific_data=f"{dt_to_string(log_dt_start)}-{r.TargetNode_obj.id}-{self_node.id}")
                             r.save()
 
