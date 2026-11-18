@@ -518,7 +518,7 @@ class LegerAdmin(AutoForeignKeyAdmin):
         model = Leger
 
 class NodeReviewAdmin(AutoForeignKeyAdmin):
-    list_display = ['id', 'CreatorNode_obj', 'TargetNode_obj', 'lastUpdate']
+    list_display = ['id', 'CreatorNode_obj', 'TargetNode_obj', 'lastUpdate', 'created']
     list_display_links = []
     list_editable = []
     list_filter = []
