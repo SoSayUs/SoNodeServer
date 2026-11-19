@@ -41,6 +41,54 @@ def tally_salts(commits, reveals_by_created, hash_fn, creator_made_block):
     return committed, revealed, violations
 
 
+def response_success_ratio(response_times, failures, interactions, window_start, cap, parse_dt):
+    """
+    NodeReview.response_success = successful accesses / interactions for the period since the last reset.
+    response_times keeps at most `cap` entries (oldest dropped) while `interactions` keeps counting, so once the log is
+    full the successes are only a recent slice. Then count only the failures inside that same slice, otherwise a
+    healthy, busy node reads cap/interactions. 0.5 (neutral) when there is nothing to measure.
+    """
+    entries = []
+    for k in (response_times or {}):
+        try:
+            entries.append(parse_dt(k))
+        except Exception:
+            pass
+    successes = sum(1 for d in entries if d >= window_start)
+    if not interactions or interactions < successes:
+        return 0.5
+    if len(entries) >= cap and interactions > successes:
+        oldest = min(entries)
+        fails = 0
+        for k in (failures or {}):
+            try:
+                if parse_dt(k) >= oldest:
+                    fails += 1
+            except Exception:
+                pass
+        interactions = successes + fails
+    return successes / interactions if interactions else 0.5
+
+
+def block_report(hours=3):
+    """Per target: blocks created in the window and, for rejected ones, why (Block.notes fail_position / fail_dt)."""
+    from network.models import Node, Block
+    from utils.utils import now_utc, round_time
+    end = round_time(now_utc(), dir='down', amount='hour')
+    start = end - datetime.timedelta(hours=hours)
+    for node in Node.objects.exclude(activated_dt=None):
+        blocks = list(Block.objects.filter(CreatorNode_obj=node, DateTime__gte=start, DateTime__lt=end).order_by('DateTime').defer('data', 'extraData'))
+        if not blocks:
+            continue
+        ok = sum(1 for b in blocks if b.validated is True)
+        bad = [b for b in blocks if b.validated is False]
+        pending = sum(1 for b in blocks if b.validated is None)
+        print(f"{str(node.id)[:14]}  blocks={len(blocks)} validated={ok} rejected={len(bad)} pending(not counted)={pending}")
+        for b in bad:
+            n = b.notes or {}
+            print(f"  {b.DateTime:%m-%d %H:%M} chain={str(b.networkChain)[:10]} idx={b.index} fail_position={n.get('fail_position')} fail_dt={n.get('fail_dt')}")
+
+
 def salt_report(hours=3):
     """Per target, per commit: what THIS node saw. Prints one line per target and a reason for every unmatched commit."""
     from network.models import Node, CommitData, RevealData

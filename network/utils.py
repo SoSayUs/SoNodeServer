@@ -1884,7 +1884,7 @@ def resolve_block_differences(starting_block, competing_blocks=None, validated_b
                 pass
             
         if not state['is_valid']:
-            if state['consensus_found'] and block.validated:
+            if state['consensus_found'] and block.validated != False:
                 prntDebug(f'invalidatex3:',block.id)
                 block.is_not_valid(note='bd_diff2', mark_strike=False)
             prnt('resolve_bd3',block.id)

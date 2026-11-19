@@ -1374,15 +1374,8 @@ def tester_queue(obj=None):
     self_node_id = self_node.id
     # self_node_id = get_operator_obj("self_nodeId")
 
-    import datetime
-    from utils.models import compute_consensus_alignment, round_time, now_utc
-    from network.models import Validator
-    end = round_time(now_utc(), dir='down', amount='hour'); start = end - datetime.timedelta(hours=24)
-    qs = Validator.objects.filter(validatorType='Block', created__gte=start, created__lt=end)
-    print(qs.count())
-    print(list(Validator.objects.filter(validatorType='Block').order_by('-created').values_list('created', flat=True)[:3]))
-    a = compute_consensus_alignment(start, end)
-    print(len(a), list(a.items())[:3], [type(k) for k in list(a)[:1]])
+    from utils.salt_report import block_report, salt_report
+    block_report(3); salt_report(3)
 
     # prnt('loaded')
     # time.sleep(10)

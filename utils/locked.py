@@ -1985,9 +1985,9 @@ def validate_block(block, creator_nodes=None, opBlock_data=None, create_validato
                     if proceed_to_valid:
                         fail_reason = 705
                         if block.Tx_obj and 'BlockReward' in block.Tx_obj.re:
-                            hard_pass = True
                             fail_reason = 707
                             if block.Tx_obj.re['BlockReward'] == block.id and 'Rewards' in block.Tx_obj.ReceiverWallet_obj.Name:
+                                hard_pass = True
                                 fail_reason = 708
                                 if block.Tx_obj.tokens == calculate_reward(block.DateTime, prev_block):
                                     fail_reason = 709

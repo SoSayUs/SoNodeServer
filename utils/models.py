@@ -3948,10 +3948,10 @@ def compute_node_trust():
     reveal_successes.clear()
 
     METRIC_WEIGHTS = {
-        "response_success": 0.10,
+        "response_success": 0.15,
         "job_success": 0.30,
-        "block_success": 0.10,
-        "consensus_alignment": 0.35,
+        "block_success": 0.01,
+        "consensus_alignment": 0.39,
         "reveal_success": 0.15,
     }
 
@@ -4064,7 +4064,7 @@ def compute_node_trust():
         updated_trust = max(TRUST_FLOOR, min(TRUST_CEILING, updated_trust))
 
         multiplier = 10 ** 5 # round to 5 decimals
-        node.trust_score =  math.floor(updated_trust * multiplier) / multiplier
+        node.trust_score =  math.floor(updated_trust * multiplier + 1e-6) / multiplier  # +1e-6: 0.5125*1e5 is 51249.99999999999, plain floor lost a whole 1e-5
         # node.trust_score = updated_trust
         node.influence_score = math.sqrt(updated_trust)
         node.score_dt = now_utc()

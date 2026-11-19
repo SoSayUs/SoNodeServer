@@ -40,6 +40,7 @@ too_many_strike_count = 10 # deactivate node after x strikes
 striking_days = 30 # too_many_strike count within this number of days before being deactivated
 max_commit_window = 11 # number of days for an obj to be committed to a block
 max_validation_window = 7 # number of days for an obj to be validated
+RESPONSE_LOG_CAP = 150 # max NodeReview.response_times entries kept (it is signed and broadcast, so keep it small)
 _number_of_scrapers = 2
 _user_peer_count = 12
 _block_creator_count = 1
@@ -679,7 +680,7 @@ class DataPacket(models.Model):
                     log_dt_end = round_time(now_utc(), dir='down', amount='hour')
                     log_dt_start = log_dt_end - datetime.timedelta(hours=1) 
                     # for r in reviews:
-                    for n in Node.objects.filter(activeNode=True):
+                    for n in Node.objects.filter(activeNode=True).exclude(id=self_node_id):
                         r = NodeReview.objects.filter(CreatorNode_obj__id=self_node_id, TargetNode_obj=n).first()
                         if not r:
                             r = NodeReview(CreatorNode_obj_id=self_node_id, TargetNode_obj=n)
@@ -690,17 +691,11 @@ class DataPacket(models.Model):
                         total = completed_jobs + incomplete_jobs
                         r.job_success = completed_jobs / total if total else 0.5
 
-                        successes = 0
-                        if r.response_times:
-                            for dt, data in r.response_times.items():
-                                if string_to_dt(dt) >= log_dt_start:
-                                    successes += 1
-                            # response_times is NOT cleared here any more. It is cleared together with
-                            # `interactions` in compute_node_trust, so both cover the same period.
-                            # (Clearing it every broadcast made successes/interactions read ~1/6 of the truth.)
-                        r.response_success = 0.5
-                        if r.interactions and r.interactions >= successes:
-                            r.response_success = (successes/r.interactions)
+                        # response_times is NOT cleared here. It is cleared together with `interactions` in
+                        # compute_node_trust, so both cover the same period. response_success_ratio also handles the
+                        # RESPONSE_LOG_CAP trim, which would otherwise make successes undercount against interactions.
+                        from utils.salt_report import response_success_ratio
+                        r.response_success = response_success_ratio(r.response_times, r.failures, r.interactions, log_dt_start, RESPONSE_LOG_CAP, string_to_dt)
 
                         if r.failures:
                             failures = 0
@@ -1539,18 +1534,18 @@ class Node(models.Model):
             if not review:
                 review = NodeReview(TargetNode_obj=self, CreatorNode_obj_id=self_node_id)
             review.accessed = now_utc()
-            if response_time:
-                if len(review.response_times) >= 150:
-                    sorted_keys = sorted(review.response_times.keys(), key=lambda k: k)
-                    review.response_times.pop(sorted_keys[0])
-                review.response_times[dt_to_string(now_utc())] = {'addr':address_type, 'time':float(response_time)}
-                avg = 0
-                for value in review.response_times.values():
-                    try:
-                        avg += float(value['time'])
-                    except:
-                        pass
-                review.avg_response_time = avg/len(review.response_times)
+            # Log EVERY successful access (time=None when untimed). response_success = logged entries / interactions,
+            # so untimed successes (log_reponse_time=False, inbound packets, list responses) must be logged too or they
+            # read as failures. Only add_failure() bumps interactions without logging an entry.
+            if not review.response_times:
+                review.response_times = {}
+            if len(review.response_times) >= RESPONSE_LOG_CAP:
+                sorted_keys = sorted(review.response_times.keys(), key=lambda k: k)
+                review.response_times.pop(sorted_keys[0])
+            review.response_times[dt_to_string(now_utc())] = {'addr':address_type, 'time':float(response_time) if response_time else None}
+            timed = [float(v['time']) for v in review.response_times.values() if v.get('time') is not None]
+            if timed:
+                review.avg_response_time = sum(timed)/len(timed)
             review.lastUpdate = now_utc()
             review.interactions += 1
             review.save(update_fields=['lastUpdate','avg_response_time','response_times','accessed','interactions'])
