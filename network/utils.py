@@ -1830,7 +1830,7 @@ def resolve_block_differences(starting_block, competing_blocks=None, validated_b
     def get_validation_state(block):
         prnt('-get_validation_state')
         if block.id not in validation_cache:
-            is_valid, consensus_found, validations = check_validation_consensus(block, block_id=block.id, do_mark_valid=False, create_val=False, handle_discrepancies=False)
+            is_valid, consensus_found, validations = check_validation_consensus(block, block_id=block.id, do_mark_valid=False, create_val=False, handle_discrepancies=False, get_missing_blocks=False)
             prnt('get_validation_state', is_valid, consensus_found)
             validation_cache[block.id] = {'is_valid': is_valid, 'consensus_found': consensus_found, 'validations': [v for v in validations if v.is_valid], 'node_trust':block.CreatorNode_obj.trust_score}
         return validation_cache[block.id]

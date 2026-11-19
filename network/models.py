@@ -671,68 +671,73 @@ class DataPacket(models.Model):
                     prnt('err 42311', str(e))
 
                 try:
-                    reviews = NodeReview.objects.filter(CreatorNode_obj__id=self_node_id, lastUpdated__gte=now_utc()-datetime.timedelta(hours=1)).distinct('TargetNode_obj').order_by('TargetNode_obj','-created','-lastUpdate')
-                    prnt('reviews', reviews.count())
-                    if reviews:
-                        items = []
-                        for r in reviews:
-                            prnt('r', r)
+                    now = round_time(now_utc(), dir='down', amount='hour')
+                    # reviews = NodeReview.objects.filter(CreatorNode_obj__id=self_node_id, lastUpdate__gt=now - datetime.timedelta(hours=1)).distinct('TargetNode_obj__id').order_by('TargetNode_obj__id','-created','-lastUpdate')
+                    # prnt('reviews', reviews.count())
+                    # if reviews:
+                    items = []
+                    log_dt_end = round_time(now_utc(), dir='down', amount='hour')
+                    log_dt_start = log_dt_end - datetime.timedelta(hours=1) 
+                    # for r in reviews:
+                    for n in Node.objects.filter(activeNode=True):
+                        r = NodeReview.objects.filter(CreatorNode_obj__id=self_node_id, TargetNode_obj=n).first()
+                        if not r:
+                            r = NodeReview(CreatorNode_obj_id=self_node_id, TargetNode_obj=n)
+                        prnt('r', r)
 
-                            log_dt_end = round_time(now_utc(), dir='down', amount='hour')
-                            log_dt_start = log_dt_end - datetime.timedelta(hours=1) 
-                            completed_jobs = EventLog.objects.filter(Node_obj=r.TargetNode_obj, func__contains='completed_job:', created__gte=log_dt_start, created__lt=log_dt_end).distinct('jobId').order_by('jobId','created').count()
-                            incomplete_jobs = EventLog.objects.filter(Node_obj=r.TargetNode_obj, func__contains='assigned_job:', created__gte=log_dt_start, created__lt=log_dt_end).distinct('jobId').order_by('jobId','created').count()
-                            total = completed_jobs + incomplete_jobs
-                            r.job_success = completed_jobs / total if total else 0.5
+                        completed_jobs = EventLog.objects.filter(Node_obj=r.TargetNode_obj, func__contains='completed_job:', created__gte=log_dt_start, created__lt=log_dt_end).distinct('jobId').order_by('jobId','created').count()
+                        incomplete_jobs = EventLog.objects.filter(Node_obj=r.TargetNode_obj, func__contains='assigned_job:', created__gte=log_dt_start, created__lt=log_dt_end).distinct('jobId').order_by('jobId','created').count()
+                        total = completed_jobs + incomplete_jobs
+                        r.job_success = completed_jobs / total if total else 0.5
 
-                            successes = 0
-                            if r.response_times:
-                                for dt, data in r.response_times.items():
-                                    if string_to_dt(dt) >= log_dt_start:
-                                        successes += 1
-                                # response_times is NOT cleared here any more. It is cleared together with
-                                # `interactions` in compute_node_trust, so both cover the same period.
-                                # (Clearing it every broadcast made successes/interactions read ~1/6 of the truth.)
-                            r.response_success = 0.5
-                            if r.interactions and r.interactions >= successes:
-                                r.response_success = (successes/r.interactions)
+                        successes = 0
+                        if r.response_times:
+                            for dt, data in r.response_times.items():
+                                if string_to_dt(dt) >= log_dt_start:
+                                    successes += 1
+                            # response_times is NOT cleared here any more. It is cleared together with
+                            # `interactions` in compute_node_trust, so both cover the same period.
+                            # (Clearing it every broadcast made successes/interactions read ~1/6 of the truth.)
+                        r.response_success = 0.5
+                        if r.interactions and r.interactions >= successes:
+                            r.response_success = (successes/r.interactions)
 
-                            if r.failures:
-                                failures = 0
-                                for dt, data in r.failures.items():
-                                    if string_to_dt(dt) >= log_dt_start:
-                                        failures += 1
-
-
-                            from utils.salt_report import tally_salts
-                            target = r.TargetNode_obj
-                            commits = list(CommitData.objects.filter(Node_obj=target, added_to_node__gte=log_dt_start, added_to_node__lt=log_dt_end, dataType='salt'))
-                            # match reveals to commits by `created` with no receipt-time window (a reveal that lands just outside
-                            # the hour must still be found), and let tally_salts skip commits this node received too late to accept a reveal for
-                            reveals_by_created = {rv.created: rv for rv in RevealData.objects.filter(Node_obj=target, dataType='salt', created__in=[c.created for c in commits])}
-                            salts_committed, salts_revealed, violations = tally_salts(
-                                commits, reveals_by_created, quick_hash,
-                                lambda dt: Block.objects.filter(DateTime=dt, CreatorNode_obj=target).exists())
-                            r.reveal_success = salts_revealed / salts_committed if salts_committed else 0.5
-                            r.creator_reveal_violations = violations
+                        if r.failures:
+                            failures = 0
+                            for dt, data in r.failures.items():
+                                if string_to_dt(dt) >= log_dt_start:
+                                    failures += 1
 
 
-                            # remove commit/reveals after done
+                        from utils.salt_report import tally_salts
+                        target = r.TargetNode_obj
+                        commits = list(CommitData.objects.filter(Node_obj=target, added_to_node__gte=log_dt_start, added_to_node__lt=log_dt_end, dataType='salt'))
+                        # match reveals to commits by `created` with no receipt-time window (a reveal that lands just outside
+                        # the hour must still be found), and let tally_salts skip commits this node received too late to accept a reveal for
+                        reveals_by_created = {rv.created: rv for rv in RevealData.objects.filter(Node_obj=target, dataType='salt', created__in=[c.created for c in commits])}
+                        salts_committed, salts_revealed, violations = tally_salts(
+                            commits, reveals_by_created, quick_hash,
+                            lambda dt: Block.objects.filter(DateTime=dt, CreatorNode_obj=target).exists())
+                        r.reveal_success = salts_revealed / salts_committed if salts_committed else 0.5
+                        r.creator_reveal_violations = violations
 
-                            r.created = now_utc()
-                            r.lastUpdate = r.created
-                            r.id = hash_obj_id('NodeReview', specific_data=f"{dt_to_string(log_dt_start)}-{r.TargetNode_obj.id}-{self_node.id}")
-                            r.save()
 
-                            r = sign_obj(r, do_save=False)
-                            v = verify_obj_to_data(r, r)
-                            prnt('v', v)
-                            self.data[r.id] = sigData_to_hash(r)
-                            items.append(r)
-                            prnt('nR:',get_signing_data(r))
+                        # remove commit/reveals after done
 
-                        dynamic_bulk_update(model=NodeReview, items=items)
-                        reviews = []
+                        r.created = now
+                        r.lastUpdate = now
+                        r.id = hash_obj_id('NodeReview', specific_data=f"{dt_to_string(log_dt_start)}-{r.TargetNode_obj.id}-{self_node.id}")
+                        r.save()
+
+                        r = sign_obj(r, do_save=False)
+                        v = verify_obj_to_data(r, r)
+                        prnt('v', v)
+                        self.data[r.id] = sigData_to_hash(r)
+                        items.append(r)
+                        prnt('nR:',get_signing_data(r))
+
+                    dynamic_bulk_update(model=NodeReview, items=items)
+                    reviews = []
                     
                 except Exception as e:
                     import traceback
@@ -2321,7 +2326,7 @@ class Block(models.Model):
                         prnt('node_supported',node_supported)
                     if node_data['chain_array'] and (pointerId in node_supported or get_chain_id(pointerId) in node_supported) and node_data['activated_dt'] and not node_data.get('suspended_dt', None) and not node_data.get('expelled_dt', None):
                         prnt('a1')
-                        record_data['active'][node_id] = {'pos':node_data['pos'], 'type':node_data['node_type']}
+                        record_data['active'][node_id] = {'pos':node_data['pos'], 'type':node_data['node_type'], 'addr':node_data.get('address', Node.objects.filter(id=node_id).values('address').first()['address'])}
                         for node_type in node_types:
                             prnt('node_type',node_type)
                             if node_type not in record_data:
@@ -3666,6 +3671,7 @@ class Blockchain(models.Model):
                 'suspended_dt': dt_to_string(node.suspended_dt),
                 'expelled_dt': dt_to_string(node.expelled_dt),
                 'lastUpdate': dt_to_string(node.lastUpdate),
+                'address': node.address,
                 'chain_array': node.chain_array,
                 'plugin_array': node.plugin_array,
                 'region_array': node.region_array,
@@ -3811,6 +3817,7 @@ class Blockchain(models.Model):
                 'suspended_dt': dt_to_string(node.suspended_dt),
                 'expelled_dt': dt_to_string(node.expelled_dt),
                 'lastUpdate': dt_to_string(node.lastUpdate),
+                'address': node.address,
                 'chain_array': node.chain_array,
                 'plugin_array': node.plugin_array,
                 'region_array': node.region_array,
@@ -4125,13 +4132,16 @@ class Blockchain(models.Model):
                                                     else:
                                                         try:
                                                             eligible = for_commitment(i, genesis_obj, dummy_block)
-                                                        except:
+                                                        except Exception as e:
+                                                            prnt('for_commitment fail 11', str(e))
                                                             eligible = True
 
                                                     if eligible:
                                                         to_commit_data[i.id] = {'dt':i_dt, 'commit':get_commit_data(i)}
                                                     else:
                                                         prnt('ineligible')
+                                                        cq = cq + 'f6'
+                                                        dt_issue.append(i.id)
 
                                             else:
                                                 cq = cq + 'f2'

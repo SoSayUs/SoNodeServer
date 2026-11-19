@@ -3139,7 +3139,7 @@ async function get_assignment(obj=null, iden=null, DateTime=null, nodeIds=[], re
   };
   matches = position_sort(startPos, pattern, position_dict, 50,  max_number);
   // const sorted = await browser_shuffle(iden, DateTime, nodeIds);
-  console.log('matches',matches);
+  // console.log('matches',matches);
   return {'orderOfNodes':matches, 'addresses':relevantNodes} ;
 };
 

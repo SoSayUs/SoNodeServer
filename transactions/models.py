@@ -361,8 +361,11 @@ class Tx(models.Model):
                 return None
 
         elif senderBlock and senderBlock.validated and not self.validated:
-            self.mark_valid()
-        if self.validated == False:
+            if senderBlock.Tx_obj == self:
+                self.mark_valid()
+            else:
+                self.is_not_valid_tx()
+        if self.validated != True:
             prnt('not valid')
             return None
         if self.ReceiverBlock_obj and self.ReceiverBlock_obj.validated:
@@ -468,6 +471,9 @@ class Tx(models.Model):
                         del senderChain.queuedData['pending'][self.id]
                     senderChain.save()
                 return True
+            elif not self.validated == False:
+                self.validated = False
+                self.save()
 
         if self.validated and not self.enacted:
             if not self.enact_dt or self.enact_dt < now_utc():
@@ -477,7 +483,7 @@ class Tx(models.Model):
 
     def is_not_valid_tx(self, omit=None, note=None):
         prnt('-is_not_valid_tx',self.id)
-        if self.ReceiverBlock_obj and self.ReceiverBlock_obj != False:
+        if self.ReceiverBlock_obj and self.ReceiverBlock_obj.validated != False:
             self.ReceiverBlock_obj.is_not_valid(note=note, mark_strike=False)
             self.ReceiverBlock_obj = None
         self.validated = False

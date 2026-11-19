@@ -21,7 +21,7 @@ from rq.job import Job, JobStatus
 
 ACTIVE_STATUSES = {JobStatus.QUEUED, JobStatus.STARTED, JobStatus.SCHEDULED, JobStatus.DEFERRED}
 _LOCK_TTL = 10  # seconds; only needs to cover one fetch + enqueue
-
+_DEFAULT_MAX_DEPTH = 1000
 
 def _queue(queue):
     if isinstance(queue, str):
@@ -39,7 +39,7 @@ def make_job_id(func, unique):
     return f"uniq-{job_name(func)}-{hashlib.sha1(payload.encode()).hexdigest()[:24]}"  # RQ ids may not contain ":"
 
 
-def enqueue_unique(queue, func, *args, unique=None, job_timeout=60, result_ttl=7200, max_depth=None, **kwargs):
+def enqueue_unique(queue, func, *args, unique=None, job_timeout=60, result_ttl=7200, max_depth=_DEFAULT_MAX_DEPTH, **kwargs):
     """
     Enqueue func unless an active job with the same identity exists (on any queue).
 
@@ -75,6 +75,8 @@ def enqueue_unique(queue, func, *args, unique=None, job_timeout=60, result_ttl=7
                 return existing, False
         except NoSuchJobError:
             pass
+        # if max_depth is not None and queue.count >= max_depth:
+        #     return None, False
         job = queue.enqueue(func, *args, job_id=job_id, job_timeout=job_timeout, result_ttl=result_ttl, **kwargs)
         return job, True
     finally:

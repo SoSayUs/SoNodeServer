@@ -1087,6 +1087,9 @@ def request_data_view(request):
                                         data_to_send.append(obj)
                                     if has_field(obj, 'Validator_obj') and obj.Validator_obj not in data_to_send and obj.Validator_obj.id not in exclude:
                                         data_to_send.append(obj.Validator_obj)
+                                        validators = Validator.objects.filter(id__in=obj.Validator_obj.Validator_array)
+                                        for v in validators:
+                                            data_to_send.append(v)
                         elif obj_type == 'Region' and items == 'networkSupported':
                             index = requested_data['index']
                             if requested_update_dt:
@@ -1100,6 +1103,9 @@ def request_data_view(request):
                                         data_to_send.append(obj)
                                     if has_field(obj, 'Validator_obj') and obj.Validator_obj not in data_to_send and obj.Validator_obj.id not in exclude:
                                         data_to_send.append(obj.Validator_obj)
+                                        validators = Validator.objects.filter(id__in=obj.Validator_obj.Validator_array)
+                                        for v in validators:
+                                            data_to_send.append(v)
                         elif obj_type == 'Validators_only':
                             vals = []
                             from network.models import Validator
@@ -1116,7 +1122,10 @@ def request_data_view(request):
                                         for obj in objs:
                                             if has_field(obj, 'Validator_obj') and obj.Validator_obj and obj.Validator_obj not in vals and obj.Validator_obj.is_valid and obj.id in obj.Validator_obj.data and obj.Validator_obj.data[obj.id] == sigData_to_hash(obj):
                                                 vals.append(obj.Validator_obj)
-                                            elif has_field(obj, 'validations'):
+                                                validators = Validator.objects.filter(id__in=obj.Validator_obj.Validator_array)
+                                                for v in validators:
+                                                    vals.append(v)
+                                            elif has_field(obj, 'validations') and obj.validations:
                                                 validators = Validator.objects.filter(id__in=[v_id for v_id in obj.validations])
                                                 for v in validators:
                                                     vals.append(v)

@@ -47,12 +47,17 @@ else:
 def check_super_commands():
     ...
 
+# next new net:
+# adjust hardware reqs to include llm model
+# adjust block get_assignment to use chain id or chain gen id, not block id
+# change tx tokens to tx value
+# change play?
 
 _e_brake_end_dt = None  # process-local fallback (e.g. set from a shell on this process only); use set_e_brake() to brake every worker
 _e_brake = 0
 # 0 = run all!
 # 1 = run nothing
-# 2 = resolve blocks
+# 2 = resolve blocks only
 # 3 = resolve blocks/txs/posts, stop all scrapers
 # 4 = finish active scrapers, do not call from tasker
 _E_BRAKE_KEY = 'sonet:e_brake'
@@ -3885,20 +3890,11 @@ def compute_node_trust():
     log_dt_end = round_time(now_utc(), dir='down', amount='hour')
     log_dt_start = log_dt_end - datetime.timedelta(hours=1)
 
-    # block_successes = compute_block_success(log_dt_start, log_dt_end)
-    # alignments = compute_consensus_alignment(log_dt_start, log_dt_end)
-    # job_successes = compute_job_success(log_dt_start, log_dt_end)
     block_successes = compute_block_success(log_dt_start, log_dt_end)
     alignments = compute_consensus_alignment(log_dt_start, log_dt_end)
     job_successes = compute_job_success(log_dt_start, log_dt_end)
     reveal_successes = compute_reveal_success(log_dt_start, log_dt_end)
     creator_violations = compute_creator_reveal_violations(log_dt_start, log_dt_end)
-
-
-
-
-
-
 
     nodes = {n.id: n for n in Node.objects.exclude(activated_dt=None)}
 
@@ -4067,7 +4063,9 @@ def compute_node_trust():
         # clamp
         updated_trust = max(TRUST_FLOOR, min(TRUST_CEILING, updated_trust))
 
-        node.trust_score = updated_trust
+        multiplier = 10 ** 5 # round to 5 decimals
+        node.trust_score =  math.floor(updated_trust * multiplier) / multiplier
+        # node.trust_score = updated_trust
         node.influence_score = math.sqrt(updated_trust)
         node.score_dt = now_utc()
 

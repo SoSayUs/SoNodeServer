@@ -11,6 +11,12 @@
     <div class="navContainer">
     <div class='container1'>
     <ul>
+        {% if country %}
+        <li style="font-style: italic; cursor: pointer;"><span onclick="modalPopUp('Plugins', 'plugin')">SoVote</span> - <span onclick="modalPopUp('Regions', '/utils/regions_modal')">{{ country.Name }}</span></li>
+        {% else %}
+        <li style="font-style: italic; cursor: pointer;"><a onclick="modalPopUp('Regions', '/utils/regions_modal')">Region</a></li>
+        {% endif %}
+        <br>
         <li style="font-style: italic; cursor: pointer; align-items: left;"><a onclick="modalPopUp('So...', 'so_modal')">So...</a></li>
         <li style="font-style: italic;"><a href='/'>What is Us</a></li>
         <li style="font-style: italic;"><a href='/values'>For All Things</a></li>
@@ -35,11 +41,7 @@
 
     </div>
     <div class='container2'>
-        {% if country %}
-        <li style="font-style: italic; cursor: pointer;"><span onclick="modalPopUp('Plugins', 'plugin')">SoVote</span> - <span onclick="modalPopUp('Regions', '/utils/regions_modal')">{{ country.Name }}</span></li>
-        {% else %}
-        <li style="font-style: italic; cursor: pointer;"><a onclick="modalPopUp('Regions', '/utils/regions_modal')">Region</a></li>
-        {% endif %}
+        <br>
 
         {% if index_template %}
             {% include index_template %}
